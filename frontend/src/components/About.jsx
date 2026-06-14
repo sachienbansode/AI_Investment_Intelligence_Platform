@@ -1,18 +1,17 @@
 const FEATURES = [
-  { icon: '✦', title: 'AI Assistant', desc: 'Conversational intelligence grounded in live quotes, AI scores and market news. Multilingual (6 Indian languages), with source attribution, confidence levels and per-user chat history.' },
-  { icon: '▤', title: 'Agentic Stock Scoring', desc: 'A daily 8-agent pipeline scores every script in the universe 0–100 using a proprietary blend of 8 factors — fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.' },
-  { icon: '↺', title: 'On-demand Rescore', desc: 'Refresh any script\'s score with a live quote at any time, with day-over-day change (▲/▼), the pillars that drove the move, and an AI-written rationale in bullet points.' },
-  { icon: '◈', title: 'Market News Intelligence', desc: 'Continuous collection from leading Indian financial sources, AI-summarized in short and detailed form, tagged with impacted stocks, sectors and sentiment, linked to the original article.' },
-  { icon: '◐', title: 'Portfolio Intelligence', desc: 'Health score with a transparent deduction breakdown, diversification metrics, concentration risk (HHI), sector exposure and factual AI insights on your holdings.' },
-  { icon: '☆', title: 'Personal Watchlist', desc: 'Follow any script with live price, day change and its latest AI score in one view — searchable across the full instruments master.' },
-  { icon: '⚙', title: 'Agents Dashboard', desc: 'Live operations view for admins: which bots are running and on what, real-time progress bars within each agent, per-agent timings, scheduled jobs with next-run times, and run history.' },
-  { icon: '⛨', title: 'Maker-Checker Governance', desc: 'Every score passes an automated Quality Agent gate plus an optional strict mode that holds scores as pending until a human admin approves them. Admins approve or reject with full attribution, and a score audit covers approved/rejected across all runs. The audit trail logs every run, decision, LLM call and login.' },
-  { icon: '◎', title: 'Independent AI Checker', desc: 'A second LLM — a different provider than the one that wrote the rationale, when available — independently reviews every score rationale for compliance (no advice, no leaked methodology) and factual consistency before publishing. Flagged items are blocked or held for human review.' },
-  { icon: '❏', title: 'Broker-Research RAG', desc: 'Upload the firm\'s research notes (PDF/text); the assistant retrieves and cites the most relevant passages to ground its answers, reporting them factually as reference material rather than advice.' },
-  { icon: '⬡', title: 'Multi-LLM Engine', desc: 'Anthropic Claude, OpenAI GPT and Google Gemini behind one router with automatic failover — no single-vendor dependency, with per-call usage tracked.' },
-  { icon: '𝍖', title: 'Live Market Data', desc: 'NSE indices and quotes with licensed broker feeds (Zerodha Kite, Angel One SmartAPI, Upstox) when configured, and automatic fallback chains for resilience.' },
-  { icon: '⚒', title: 'Fully DB-Configurable', desc: 'NIFTY500 instruments master with one-click import from NSE, editable scoring weights, scheduler times, chatbot persona and limits — all from the Admin tab, no redeploy needed.' },
-  { icon: '⇄', title: 'Open APIs', desc: 'REST APIs for Ask AI, Stock Score, News Summary, Portfolio Analysis and Watchlist Insights — JWT-secured and ready for mobile app integration.' },
+  { icon: '✦', title: 'AI Assistant', desc: 'Conversational intelligence grounded in live quotes, AI scores and market news. Multilingual, with source attribution, confidence levels and per-user chat history.' },
+  { icon: '▤', title: 'Agentic Stock Scoring', desc: 'A daily multi-agent pipeline scores every script in the universe 0-100 using a proprietary blend of fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.' },
+  { icon: '↺', title: 'On-demand Rescore', desc: 'Refresh any script score with a live quote at any time, with day-over-day change, the pillars that drove the move, and an AI-written rationale.' },
+  { icon: '◈', title: 'Market News Intelligence', desc: 'Continuous collection from leading Indian financial sources, AI-summarized, tagged with impacted stocks, sectors and sentiment, linked to the original article.' },
+  { icon: '◐', title: 'Portfolio Intelligence', desc: 'Health score with a transparent deduction breakdown, diversification metrics, concentration risk (HHI), sector exposure and factual AI insights.' },
+  { icon: '☆', title: 'Personal Watchlist', desc: 'Follow any script with live price, day change and its latest AI score in one view.' },
+  { icon: '⚙', title: 'Agents Dashboard', desc: 'Live operations view for admins: which bots are running, real-time progress, per-agent timings, scheduled jobs and run history.' },
+  { icon: '⛨', title: 'Maker-Checker Governance', desc: 'Every score passes an automated Quality Agent gate plus an optional strict mode that holds scores as pending until a human admin approves them. Every decision is attributed and audit-logged.' },
+  { icon: '◎', title: 'Independent AI Checker', desc: 'A second LLM (a different provider than the one that wrote the rationale, when available) independently reviews every score rationale for compliance and factual consistency before publishing. Flagged items are blocked or held for human review.' },
+  { icon: '❏', title: 'Broker-Research RAG', desc: 'Upload the firm research notes (PDF/text); the assistant retrieves and cites the most relevant passages to ground its answers, reporting them factually as reference material rather than advice.' },
+  { icon: '⬡', title: 'Multi-LLM Engine', desc: 'Anthropic Claude, OpenAI GPT and Google Gemini behind one router with automatic failover - no single-vendor dependency, with per-call usage tracked.' },
+  { icon: '⚒', title: 'Fully DB-Configurable', desc: 'NIFTY500 instruments master with one-click import from NSE, editable scoring weights, scheduler times, chatbot persona and limits - all from the Admin tab.' },
+  { icon: '⇄', title: 'Open APIs', desc: 'REST APIs for Ask AI, Stock Score, News Summary, Portfolio Analysis and Watchlist Insights - JWT-secured and ready for mobile app integration.' },
 ]
 
 export default function About() {
@@ -21,11 +20,11 @@ export default function About() {
       <div className="panel about-hero">
         <h3>AI Investment Intelligence Platform</h3>
         <p className="hint">
-          Explainable, agentic AI for Indian markets — combining large language models,
+          Explainable, agentic AI for Indian markets - combining large language models,
           live market data and transparent governance to deliver conversational insight,
           daily stock scoring and portfolio analytics inside your broking experience.
         </p>
-        <p className="hint">Version 0.3 · Built for SEBI-regulated broking</p>
+        <p className="hint">Version 0.3 - Built for SEBI-regulated broking</p>
       </div>
 
       <div className="feature-grid">
@@ -41,8 +40,8 @@ export default function About() {
       <div className="panel">
         <h4>Important information</h4>
         <p className="hint">
-          All AI outputs in this application — scores, insights, summaries and chat
-          responses — are generated by artificial intelligence for informational purposes
+          All AI outputs in this application - scores, insights, summaries and chat
+          responses - are generated by artificial intelligence for informational purposes
           only. They are not investment advice, research reports, or recommendations to
           buy or sell securities, and must be reviewed and approved before business or
           regulatory use. Investments in securities markets are subject to market risks.

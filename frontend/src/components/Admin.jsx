@@ -734,7 +734,7 @@ function Users() {
           <th title="Internal user ID">ID</th>
           <th title="Login email">Email</th>
           <th title="Display name">Name</th>
-          <th title="admin = full access incl. Agents, Admin, pipeline trigger and user management; user = assistant, scores, news, watchlist, portfolio">Role</th>
+          <th title="admin = full access; user = standard access">Role</th>
           <th title="Disabled users cannot log in">Active</th>
           <th title="Account creation time">Created</th>
           <th />

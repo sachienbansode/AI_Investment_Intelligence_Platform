@@ -28,16 +28,13 @@ async function http(path, opts = {}) {
 }
 
 export const api = {
-  // auth
   login: (email, password) =>
     http('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => http('/auth/me'),
-  // assistant + chat history
   ask: (question, session_id, language = 'en') =>
     http('/ask', { method: 'POST', body: JSON.stringify({ question, session_id, language }) }),
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
-  // data
   scores: () => http('/scores'),
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
   trends: (days = 30) => http(`/scores/trends?days=${days}`),
@@ -47,7 +44,6 @@ export const api = {
   analyzePortfolio: (holdings) =>
     http('/portfolio/analyze', { method: 'POST', body: JSON.stringify({ holdings }) }),
   health: () => http('/health'),
-  // admin
   audit: (event = '', limit = 50, offset = 0) =>
     http(`/admin/audit?event=${encodeURIComponent(event)}&limit=${limit}&offset=${offset}`),
   stats: () => http('/admin/stats'),
@@ -60,13 +56,11 @@ export const api = {
   createUser: (email, password, full_name, is_admin) =>
     http('/admin/users', { method: 'POST', body: JSON.stringify({ email, password, full_name, is_admin }) }),
   toggleUser: (id) => http(`/admin/users/${id}/toggle-active`, { method: 'PATCH' }),
-  // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),
   watchAdd: (s) => http(`/watchlist/${s}`, { method: 'POST' }),
   watchRemove: (s) => http(`/watchlist/${s}`, { method: 'DELETE' }),
   agentsStatus: () => http('/agents/status'),
-  // admin: instruments + settings
   adminInstruments: () => http('/admin/instruments'),
   addInstrument: (symbol, name, sector) =>
     http('/admin/instruments', { method: 'POST', body: JSON.stringify({ symbol, name, sector }) }),
@@ -89,14 +83,12 @@ export const api = {
     const blob = await res.blob()
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = (res.headers.get('Content-Disposition') || '').match(/filename="(.+)"/)?.[1]
-      || 'pipeline_runs.xlsx'
+    a.download = (res.headers.get('Content-Disposition') || '').match(/filename="(.+)"/)?.[1] || 'pipeline_runs.xlsx'
     a.click()
     URL.revokeObjectURL(a.href)
   },
   updateSetting: (key, value) =>
     http('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
-  // admin: broker-research RAG store
   research: () => http('/admin/research'),
   researchText: (title, text, source) =>
     http('/admin/research/text', { method: 'POST', body: JSON.stringify({ title, text, source }) }),

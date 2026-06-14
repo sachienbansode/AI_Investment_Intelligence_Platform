@@ -366,7 +366,7 @@ textarea:focus { border-color: var(--accent); }
   border-radius: var(--radius); padding: 14px; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 
-/* ───────────────── Theme toggle + nav controls ───────────────── */
+/* ---------- Theme toggle + nav controls ---------- */
 .icon-btn { background: transparent; border: 1px solid var(--border2); color: var(--muted);
   width: 36px; height: 36px; padding: 0; border-radius: 9px; display: inline-flex;
   align-items: center; justify-content: center; font-size: 1.05rem; flex: none; }
@@ -374,10 +374,10 @@ textarea:focus { border-color: var(--accent); }
 .collapse-btn { margin-left: auto; background: transparent; border: none; color: var(--muted);
   cursor: pointer; font-size: 1rem; padding: 4px 8px; border-radius: 6px; line-height: 1; }
 .collapse-btn:hover { color: var(--text); background: var(--panel); }
-.hamburger { display: none; }      /* visible only on mobile */
+.hamburger { display: none; }
 .nav-backdrop { display: none; }
 
-/* ───────────────── Minimized (collapsed) desktop sidebar ─────── */
+/* ---------- Minimized (collapsed) desktop sidebar ---------- */
 .shell.collapsed { grid-template-columns: 68px 1fr; }
 .shell.collapsed .sidenav { padding: 18px 10px; }
 .shell.collapsed .brand { flex-direction: column; gap: 12px; padding: 0; }
@@ -390,16 +390,14 @@ textarea:focus { border-color: var(--accent); }
 .shell.collapsed .user-pill > div,
 .shell.collapsed .sidenav-foot .ghost.sm { display: none; }
 
-/* ───────────────── Responsive / mobile ───────────────── */
+/* ---------- Responsive / mobile ---------- */
 @media (max-width: 860px) {
   .shell, .shell.collapsed { grid-template-columns: 1fr; }
   .sidenav { position: fixed; top: 0; left: 0; z-index: 60; height: 100vh; width: 260px;
     transform: translateX(-100%); transition: transform .22s ease; padding: 18px 12px; }
-  .shell.nav-open .sidenav { transform: translateX(0);
-    box-shadow: 0 0 60px rgba(0,0,0,.55); }
+  .shell.nav-open .sidenav { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.55); }
   .shell.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 55;
-    background: rgba(0,0,0,.5); backdrop-filter: blur(1px); }
-  /* the mobile drawer always shows full labels even if desktop-collapsed */
+    background: rgba(0,0,0,.5); }
   .sidenav .brand { flex-direction: row; }
   .sidenav .brand-name, .sidenav .nav-label, .user-pill > div,
   .sidenav-foot .ghost.sm { display: block !important; }
@@ -407,34 +405,26 @@ textarea:focus { border-color: var(--accent); }
   .nav-icon { width: 18px !important; }
   .collapse-btn { display: none; }
   .hamburger { display: inline-flex; }
-
   .topbar { padding: 8px 12px; gap: 10px; }
   .ticker-rows { flex: 1; min-width: 0; }
-  .ticker { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; }
+  .ticker { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .ticker::-webkit-scrollbar { display: none; }
   main { padding: 16px 14px; overflow-x: auto; }
   .page-title { font-size: 1.1rem; margin-bottom: 12px; }
-
-  /* tables: let wide ones scroll instead of breaking the layout */
   .panel { overflow-x: auto; padding: 15px; }
   .data-table, .audit-table, .holdings { font-size: .82rem; }
   .data-table th, .data-table td,
   .audit-table th, .audit-table td,
   .holdings th, .holdings td { padding: 8px 9px; }
-
   .kpi-value { font-size: 1.45rem; }
   .bubble { max-width: 88%; }
   .login-card { width: min(380px, 92vw); padding: 26px 22px; }
 }
-
 @media (max-width: 600px) {
-  .status { display: none; }                 /* free up topbar space */
+  .status { display: none; }
   .topbar { padding: 8px 10px; }
   main { padding: 14px 11px; }
   .kpi-row { grid-template-columns: 1fr 1fr; }
   .agent-grid, .feature-grid { grid-template-columns: 1fr; }
 }
-
-/* Wrap any table in <div class="table-wrap"> for an isolated horizontal scroll */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }

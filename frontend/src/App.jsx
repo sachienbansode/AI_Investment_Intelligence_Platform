@@ -84,7 +84,7 @@ export default function App() {
           <div className="brand-name">Investment<br />Intelligence</div>
           <button className="collapse-btn" onClick={() => setCollapsed(c => !c)}
                   title={collapsed ? 'Expand menu' : 'Minimize menu'}>
-            {collapsed ? '»' : '«'}
+            {collapsed ? String.fromCharCode(0x00BB) : String.fromCharCode(0x00AB)}
           </button>
         </div>
         <nav>
@@ -110,7 +110,9 @@ export default function App() {
 
       <div className="main-col">
         <header className="topbar">
-          <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">{'☰'}</button>
+          <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">
+            {String.fromCharCode(0x2630)}
+          </button>
           <div className="ticker-rows">
             {[['NSE', indices.filter(i => !i.index.includes('(BSE)'))],
               ['BSE', indices.filter(i => i.index.includes('(BSE)'))]]
@@ -135,7 +137,7 @@ export default function App() {
             )}
             <button className="icon-btn" title="Toggle theme"
                     onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? '☀' : '☾'}
+              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
             </button>
           </div>
         </header>
