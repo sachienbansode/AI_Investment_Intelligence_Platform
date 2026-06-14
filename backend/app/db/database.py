@@ -221,6 +221,17 @@ def init_db():
                 if cols and col not in cols:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
             conn.commit()
+    else:  # PostgreSQL: idempotently add columns introduced since v1 (auto-heal)
+        pg_cols = [
+            ("chat_messages", "user_id", "INTEGER"),
+            ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
+            ("stock_scores", "reviewed_at", "TIMESTAMPTZ"),
+            ("stock_scores", "ai_review", "JSON"),
+        ]
+        with engine.connect() as conn:
+            for table, col, ddl in pg_cols:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+            conn.commit()
     _seed_instruments()
     # Admin creation: run `python scripts/create_admin.py` (interactive).
 

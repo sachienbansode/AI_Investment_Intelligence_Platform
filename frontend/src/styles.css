@@ -428,3 +428,24 @@ textarea:focus { border-color: var(--accent); }
   .agent-grid, .feature-grid { grid-template-columns: 1fr; }
 }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+
+/* ---------- Mobile header / ticker polish ---------- */
+@media (max-width: 860px) {
+  .topbar { align-items: center; min-height: 52px; }
+  .ticker-rows { gap: 5px; }
+  .ticker { gap: 6px; font-size: .7rem; padding-bottom: 2px; }
+  .ticker > span:not(.exch-badge) {
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; }
+  .ticker b { margin-right: 1px; font-size: .72rem; }
+  .ticker em { font-size: .66rem; margin-left: 2px; }
+  .exch-badge { font-size: .58rem; min-width: 28px; padding: 1px 6px; align-self: center; }
+}
+@media (max-width: 480px) {
+  .ticker-rows { gap: 4px; }
+  .ticker { font-size: .66rem; }
+  .ticker > span:not(.exch-badge) { padding: 2px 8px; }
+  .brand-name { font-size: .78rem; }
+}
