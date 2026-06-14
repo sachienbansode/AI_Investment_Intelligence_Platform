@@ -12,6 +12,10 @@ import About from './components/About.jsx'
 import Login from './components/Login.jsx'
 import { api, getToken, setToken, onUnauthorized } from './api.js'
 
+const UP = String.fromCharCode(0x25B2)    // up triangle
+const DN = String.fromCharCode(0x25BC)    // down triangle
+const DOT = String.fromCharCode(0x00B7)   // middle dot
+
 const NAV = [
   { name: 'Dashboard', icon: '◆' },
   { name: 'AI Assistant', icon: '✦' },
@@ -24,7 +28,7 @@ const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
 
 const ADMIN_NAV = [
   { name: 'Agents', icon: '⚙' },
-  { name: 'Audit', icon: '𝄜' },
+  { name: 'Audit', icon: '≣' },
   { name: 'Admin', icon: '⛨' },
 ]
 
@@ -35,11 +39,23 @@ export default function App() {
   const [indices, setIndices] = useState([])
   const [health, setHealth] = useState(null)
   const [chatSeed, setChatSeed] = useState(null)
+  const [theme, setTheme] = useState(() =>
+    localStorage.getItem('theme') ||
+    (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1')
+  const [navOpen, setNavOpen] = useState(false)  // mobile drawer
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+  useEffect(() => { localStorage.setItem('navCollapsed', collapsed ? '1' : '0') }, [collapsed])
 
   function askAI(question) {
     setChatSeed(question)
     setTab('AI Assistant')
   }
+  function selectTab(name) { setTab(name); setNavOpen(false) }
 
   useEffect(() => {
     onUnauthorized(() => setUser(null))
@@ -65,20 +81,31 @@ export default function App() {
     setToken(null); setUser(null); setTab('Dashboard')
   }
 
+  const themeToggle = (
+    <button className="icon-btn" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+      {theme === 'dark' ? '☀' : '☾'}
+    </button>
+  )
+
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`}>
+      <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">
           <span className="brand-mark">Ai</span>
-          <div>
-            <div className="brand-name">Investment<br />Intelligence</div>
-          </div>
+          <div className="brand-name">Investment<br />Intelligence</div>
+          <button className="collapse-btn" onClick={() => setCollapsed(c => !c)}
+                  title={collapsed ? 'Expand menu' : 'Minimize menu'}>
+            {collapsed ? '»' : '«'}
+          </button>
         </div>
         <nav>
           {nav.map(n => (
             <button key={n.name} className={tab === n.name ? 'active' : ''}
-                    onClick={() => setTab(n.name)}>
-              <span className="nav-icon">{n.icon}</span>{n.name}
+                    title={n.name} onClick={() => selectTab(n.name)}>
+              <span className="nav-icon">{n.icon}</span>
+              <span className="nav-label">{n.name}</span>
             </button>
           ))}
         </nav>
@@ -96,6 +123,8 @@ export default function App() {
 
       <div className="main-col">
         <header className="topbar">
+          <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)}
+                  title="Menu">{'☰'}</button>
           <div className="ticker-rows">
             {[['NSE', indices.filter(i => !i.index.includes('(BSE)'))],
               ['BSE', indices.filter(i => i.index.includes('(BSE)'))]]
@@ -109,17 +138,20 @@ export default function App() {
                       <span key={i.index}
                             className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
                         <b>{i.index.replace(' (BSE)', '')}</b> {i.last?.toLocaleString('en-IN')}
-                        <em>{i.pct_change > 0 ? '▲' : '▼'} {Math.abs(i.pct_change)}%</em>
+                        <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
                       </span>
                     ))}
                 </div>
               ))}
           </div>
-          {health && (
-            <div className="status" title="Active engines">
-              <span className="dot ok" /> {health.llm_providers.join(' · ')} | {health.market_data_providers.join(' · ')}
-            </div>
-          )}
+          <div className="topbar-right">
+            {health && (
+              <div className="status" title="Active engines">
+                <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
+              </div>
+            )}
+            {themeToggle}
+          </div>
         </header>
 
         <main>
@@ -137,7 +169,7 @@ export default function App() {
         </main>
 
         <footer>
-          AI-generated content for information only — not investment advice. Investments in
+          AI-generated content for information only - not investment advice. Investments in
           securities markets are subject to market risks. Consult a SEBI-registered
           investment adviser before investing.
         </footer>

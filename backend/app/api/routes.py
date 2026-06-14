@@ -23,7 +23,19 @@ router = APIRouter(prefix="/api/v1")
 # ── 1. Ask AI API ────────────────────────────────────────────────
 @router.post("/ask", response_model=AskAIResponse)
 async def ask_ai(req: AskAIRequest, user: User = Depends(get_current_user)):
-    return await ask(req.question, req.session_id, req.language, user_id=user.id)
+    try:
+        return await ask(req.question, req.session_id, req.language, user_id=user.id)
+    except RuntimeError as e:
+        # All LLM providers failed (bad/expired key, no quota, wrong model, or
+        # blocked egress). Surface the reason instead of an opaque 500.
+        import logging
+        logging.getLogger(__name__).error("Ask AI failed: %s", e)
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI service unavailable — {e}. Check the backend logs and the "
+                   f"API keys/models in backend/.env (Admin → Integrations shows which "
+                   f"providers are configured).",
+        )
 
 
 # ── Chat history (per user) ──────────────────────────────────────

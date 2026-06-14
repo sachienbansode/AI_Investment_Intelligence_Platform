@@ -614,6 +614,45 @@ def research_delete(doc_id: int, admin: User = Depends(require_admin)):
     return {"deleted": doc_id}
 
 
+# ── LLM connectivity test (diagnose AI failures) ─────────────────
+@router.post("/llm-test")
+async def llm_test():
+    """Probe each configured LLM provider with a 1-token call and report which
+    work and which fail (and why). Use this to diagnose 'AI service unavailable'
+    errors — usually an invalid/expired key, no quota, or a wrong model name."""
+    from app.llm.providers import (AnthropicProvider, GeminiProvider,
+                                    OpenAIProvider)
+    from app.config import get_settings
+    s = get_settings()
+    candidates = [
+        ("anthropic", AnthropicProvider, s.anthropic_model, bool(s.anthropic_api_key)),
+        ("openai", OpenAIProvider, s.openai_model, bool(s.openai_api_key)),
+        ("gemini", GeminiProvider, s.gemini_model, bool(s.google_api_key)),
+    ]
+    results = []
+    for name, cls, model, has_key in candidates:
+        if not has_key:
+            results.append({"provider": name, "model": model,
+                            "configured": False, "ok": False,
+                            "detail": "no API key in backend/.env"})
+            continue
+        try:
+            p = cls()
+            resp = await p.complete("You are a test.", "Reply with the single word OK.",
+                                    max_tokens=5, temperature=0)
+            results.append({"provider": name, "model": model, "configured": True,
+                            "ok": True, "detail": (resp.text or "").strip()[:40]})
+        except Exception as e:
+            results.append({"provider": name, "model": model, "configured": True,
+                            "ok": False, "detail": f"{type(e).__name__}: {str(e)[:200]}"})
+    any_ok = any(r["ok"] for r in results)
+    audit_log("llm_test", any_ok=any_ok,
+              results=[{"provider": r["provider"], "ok": r["ok"]} for r in results])
+    return {"any_provider_working": any_ok, "results": results,
+            "note": "If all show ok=false, the AI Assistant will return 'AI service "
+                    "unavailable'. Fix the key/model in backend/.env and restart the backend."}
+
+
 # ── App settings (DB-configurable) ───────────────────────────────
 class SettingUpdate(BaseModel):
     key: str

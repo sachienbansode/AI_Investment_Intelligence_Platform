@@ -110,7 +110,16 @@ function LlmBilling() {
 function Integrations() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
+  const [test, setTest] = useState(null)
+  const [testing, setTesting] = useState(false)
   useEffect(() => { api.integrations().then(setData).catch(e => setErr(e.message)) }, [])
+
+  async function runTest() {
+    setTesting(true); setTest(null)
+    try { setTest(await api.llmTest()) } catch (e) { setErr(e.message) }
+    setTesting(false)
+  }
+
   if (err) return <p className="note">{err}</p>
   if (!data) return <p className="hint">Loading…</p>
   return (
@@ -118,7 +127,27 @@ function Integrations() {
       <p className="hint">{data.note}</p>
 
       <div className="panel">
-        <h4>LLM providers</h4>
+        <div className="panel-head">
+          <h4 style={{ margin: 0 }}>LLM providers</h4>
+          <button className="ghost sm" onClick={runTest} disabled={testing}
+                  title="Send a tiny test prompt to each configured provider to confirm the keys/models actually work">
+            {testing ? 'Testing…' : 'Test AI connectivity'}</button>
+        </div>
+        {test && (
+          <div className="deductions" style={{ marginTop: 0 }}>
+            <h4>{test.any_provider_working ? '✓ At least one provider is working'
+                                            : '✗ No provider is working — the AI Assistant will fail'}</h4>
+            <ul>
+              {test.results.map(r => (
+                <li key={r.provider}>
+                  <span className={r.ok ? 'up' : 'down'}>{r.ok ? '✓' : '✗'}</span>{' '}
+                  <strong>{r.provider}</strong> ({r.model}) — {r.detail}
+                </li>
+              ))}
+            </ul>
+            <p className="hint">{test.note}</p>
+          </div>
+        )}
         <table className="data-table">
           <thead><tr>
             <th title="AI model provider">Provider</th>

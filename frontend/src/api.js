@@ -51,6 +51,7 @@ export const api = {
   audit: (event = '', limit = 50, offset = 0) =>
     http(`/admin/audit?event=${encodeURIComponent(event)}&limit=${limit}&offset=${offset}`),
   stats: () => http('/admin/stats'),
+  llmTest: () => http('/admin/llm-test', { method: 'POST' }),
   pendingScores: () => http('/admin/scores/pending'),
   scoresHistory: (p = {}) => http('/admin/scores/history?' + new URLSearchParams(p)),
   reviewScore: (id, status) =>
