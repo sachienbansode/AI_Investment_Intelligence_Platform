@@ -3,9 +3,85 @@
 > **This output is AI-generated and must be reviewed and approved before business or regulatory use.**
 > Have your DevOps/security team review networking, secrets handling, and access controls before any production traffic.
 
-This brings the platform up on a **single EC2 instance** with Docker — fastest path to a testable URL. The database stays on your existing **AWS RDS PostgreSQL**. For a hardened production setup, see "Going beyond the pilot" at the end.
+This brings the platform up on a **single EC2 instance**. The database stays on your existing **AWS RDS PostgreSQL**. For a hardened production setup, see "Going beyond the pilot" at the end.
 
-## Architecture (pilot)
+Two deployment options:
+
+- **Recommended — no Docker** (systemd + nginx + certbot): jump to ["Deploy without Docker"](#deploy-without-docker-systemd--nginx--certbot) below.
+- **Docker** (compose + Caddy): see the [Docker sections](#architecture-docker-option) further down.
+
+---
+
+## Deploy without Docker (systemd + nginx + certbot)
+
+Runs the backend as a systemd service and serves the built frontend with nginx,
+which reverse-proxies `/api` to the backend and terminates SSL. One script does
+the whole thing.
+
+### Prerequisites
+
+1. **Elastic IP** associated with the instance (so the address is stable), and a
+   DNS **A record**: `dev-invest.niytri.com → <Elastic IP>` (yours: `15.207.97.16`).
+   An A record is the only DNS entry needed.
+2. **Security group** inbound: `80/tcp` and `443/tcp` from `0.0.0.0/0`, `22/tcp`
+   from your admin IP. Also allow `5432` **from this instance** in the RDS security group.
+
+### Steps (on the EC2 box)
+
+```bash
+# 1. Install git and clone (private repo → use a GitHub Personal Access Token when prompted)
+sudo dnf install -y git            # Amazon Linux 2023   (Ubuntu: sudo apt install -y git)
+git clone https://github.com/sachienbansode/AI_Investment_Intelligence_Platform.git
+cd AI_Investment_Intelligence_Platform
+
+# 2. Secrets
+cp backend/.env.example backend/.env
+nano backend/.env                  # see keys below
+
+# 3. (Only if the RDS DB already has the older schema) apply the v3 upgrade
+#    Fresh DBs are created automatically by the backend on first start.
+# psql "host=...rds.amazonaws.com port=5432 user=postgres dbname=broking_ai sslmode=require" -f db/upgrade_v3.sql
+
+# 4. One-shot setup: installs python/node/nginx/certbot, builds, wires SSL
+chmod +x deploy/setup-ec2-no-docker.sh
+DOMAIN=dev-invest.niytri.com EMAIL=you@niytri.com ./deploy/setup-ec2-no-docker.sh
+
+# 5. Create the first admin
+cd backend && ./.venv/bin/python scripts/create_admin.py
+```
+
+Required `backend/.env` keys (no `APP_DOMAIN`/`ACME_EMAIL` needed for this path —
+the domain is passed to the script and certbot):
+
+```env
+DATABASE_URL=postgresql+psycopg2://broking_app:PASSWORD@your-rds.ap-south-1.rds.amazonaws.com:5432/broking_ai?sslmode=require
+JWT_SECRET=<openssl rand -hex 32>
+ENVIRONMENT=production
+CORS_ORIGINS=https://dev-invest.niytri.com
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+```
+
+Then open **https://dev-invest.niytri.com**.
+
+### Operating it
+
+```bash
+sudo systemctl status broking-backend         # service state
+journalctl -u broking-backend -f              # live backend logs
+sudo systemctl restart broking-backend        # after editing backend/.env
+
+# Deploy new code:
+cd ~/AI_Investment_Intelligence_Platform && git pull
+cd backend && ./.venv/bin/pip install -r requirements.txt && sudo systemctl restart broking-backend
+cd ../frontend && npm install && npm run build && sudo cp -r dist/* /var/www/broking-ai/
+```
+
+Certbot installs a renewal timer automatically — the certificate auto-renews; no action needed.
+
+---
+
+## Architecture (Docker option)
 
 ```
             Internet

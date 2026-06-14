@@ -1,0 +1,21 @@
+# systemd unit for the FastAPI backend (uvicorn, single worker for the scheduler).
+# The setup script generates the live copy with real paths; this is a reference.
+# Install to /etc/systemd/system/broking-backend.service, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now broking-backend
+[Unit]
+Description=AI Investment Intelligence Platform - FastAPI backend
+After=network.target
+
+[Service]
+Type=simple
+User=__APP_USER__
+WorkingDirectory=__REPO_ROOT__/backend
+# Reads secrets from backend/.env via pydantic-settings (working dir = backend/)
+ExecStart=__REPO_ROOT__/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+# Single worker is required: APScheduler runs in-process; multiple workers would
+# create duplicate daily-scoring/news schedulers.
+
+[Install]
+WantedBy=multi-user.target
