@@ -1,0 +1,18 @@
+# Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
+# APP_DOMAIN and ACME_EMAIL are injected from backend/.env at runtime.
+#
+# Caddy obtains and auto-renews a TLS certificate for APP_DOMAIN, redirects
+# HTTP→HTTPS, and forwards traffic to the frontend container (which serves the
+# SPA and proxies /api → backend).
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode gzip zstd
+	# Large bodies for broker-research uploads (matches nginx 25m)
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy frontend:80
+}

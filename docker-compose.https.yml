@@ -1,0 +1,57 @@
+# Production stack WITH automatic HTTPS (Caddy + Let's Encrypt).
+# Use this instead of docker-compose.prod.yml once you have a domain pointed
+# at the server's public IP.
+#
+#   1. Set APP_DOMAIN and ACME_EMAIL in backend/.env
+#   2. Point an A record (your domain → EC2 Elastic IP)
+#   3. Open ports 80 AND 443 in the EC2 security group
+#   4. docker compose -f docker-compose.https.yml up -d --build
+#
+# Topology:  Internet ──443/80──▶ caddy ──▶ frontend(nginx) ──/api──▶ backend
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file: ./backend/.env
+    environment:
+      - ENVIRONMENT=production
+      - AUDIT_LOG_PATH=/data/audit.log
+    volumes:
+      - backend_data:/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file: ./backend/.env          # provides APP_DOMAIN + ACME_EMAIL
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data              # persisted certs — survives restarts
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  caddy_data:
+  caddy_config:

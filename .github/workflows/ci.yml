@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (import + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import smoke test (app boots, DB init + migrations)
+        env:
+          DATABASE_URL: "sqlite:///./ci_test.db"
+          AUDIT_LOG_PATH: "./ci_audit.log"
+          JWT_SECRET: "ci-only-not-a-real-secret-0123456789"
+          ANTHROPIC_API_KEY: ""
+          OPENAI_API_KEY: ""
+          GOOGLE_API_KEY: ""
+        run: |
+          python -c "import app.main; from app.db.database import init_db; init_db(); print('app boot + init_db OK')"
+
+      - name: Unit tests
+        env:
+          DATABASE_URL: "sqlite:///./ci_test.db"
+          AUDIT_LOG_PATH: "./ci_audit.log"
+          JWT_SECRET: "ci-only-not-a-real-secret-0123456789"
+        run: pytest -q
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Production build
+        run: npm run build

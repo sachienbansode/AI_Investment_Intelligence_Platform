@@ -115,7 +115,57 @@ sudo docker compose -f docker-compose.prod.yml exec backend python scripts/creat
 
 Open `http://<EC2_PUBLIC_IP>/`, log in, then **Admin → run scoring** (or wait for the daily job). Scores appear after the pipeline finishes.
 
+## HTTPS with your own domain (Caddy auto-SSL) — recommended
+
+Use this instead of the plain port-80 stack once you have a domain. Caddy obtains
+and auto-renews a free Let's Encrypt certificate and forces HTTPS — no manual cert
+files. This is the path for an **existing EC2 instance** in `ap-south-1`.
+
+**1. Give the instance a stable IP.** Allocate an Elastic IP (EC2 → Elastic IPs →
+Allocate) and associate it with your instance, so the address survives reboots.
+
+**2. Point your domain at it.** In your DNS provider, add an **A record**:
+
+```
+invest.yourdomain.com   →   <ELASTIC_IP>
+```
+
+Wait for it to resolve (`nslookup invest.yourdomain.com` should return the IP).
+
+**3. Open the firewall.** In the EC2 security group, allow inbound **80/tcp and
+443/tcp** from `0.0.0.0/0` (Let's Encrypt validates over 80; users connect over
+443). Keep 22 restricted to your admin IP.
+
+**4. Set the domain + ACME email** in `backend/.env`:
+
+```env
+APP_DOMAIN=invest.yourdomain.com
+ACME_EMAIL=devops@yourdomain.com
+CORS_ORIGINS=https://invest.yourdomain.com
+```
+
+**5. Bring up the HTTPS stack:**
+
+```bash
+cd ~/broking-ai-bot
+sudo docker compose -f docker-compose.https.yml up -d --build
+```
+
+Caddy will fetch the certificate within a few seconds. Visit
+`https://invest.yourdomain.com` — you should get a valid padlock. First admin:
+
+```bash
+sudo docker compose -f docker-compose.https.yml exec backend python scripts/create_admin.py
+```
+
+> Troubleshooting: if the cert doesn't issue, check `sudo docker compose -f
+> docker-compose.https.yml logs caddy`. The usual causes are the A record not yet
+> resolving to this server, or port 80/443 not open in the security group.
+
 ## Day-2 operations
+
+> If you deployed the HTTPS stack, replace `docker-compose.prod.yml` with
+> `docker-compose.https.yml` in every command below.
 
 ```bash
 # Logs

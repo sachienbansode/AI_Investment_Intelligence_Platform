@@ -3,16 +3,20 @@
 # One-shot bootstrap for a fresh AWS EC2 instance (Amazon Linux 2023 or Ubuntu
 # 22.04+). Installs Docker + Compose plugin and brings up the platform.
 #
-# Usage (on the EC2 box, from the repo root after copying it over):
+# Usage (on the EC2 box, from the repo root after cloning it):
 #   chmod +x deploy/aws-ec2-setup.sh
-#   ./deploy/aws-ec2-setup.sh
+#   ./deploy/aws-ec2-setup.sh                      # plain HTTP on :80
+#   COMPOSE_FILE=docker-compose.https.yml ./deploy/aws-ec2-setup.sh   # HTTPS
 #
 # Prereq: backend/.env exists and is filled in (see backend/.env.example).
+# For HTTPS, also set APP_DOMAIN + ACME_EMAIL in backend/.env and open 80+443.
 # ============================================================================
 set -euo pipefail
 
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+echo "==> Using compose file: $COMPOSE_FILE"
 
 echo "==> Detecting OS..."
 . /etc/os-release
@@ -62,11 +66,11 @@ if [ ! -f backend/.env ]; then
 fi
 
 echo "==> Building and starting the stack..."
-sudo docker compose -f docker-compose.prod.yml up -d --build
+sudo docker compose -f "$COMPOSE_FILE" up -d --build
 
 echo "==> Waiting for backend health..."
 for i in $(seq 1 30); do
-  if sudo docker compose -f docker-compose.prod.yml exec -T backend curl -fs http://localhost:8000/api/v1/health >/dev/null 2>&1; then
+  if sudo docker compose -f "$COMPOSE_FILE" exec -T backend curl -fs http://localhost:8000/api/v1/health >/dev/null 2>&1; then
     echo "    backend healthy."
     break
   fi
@@ -74,9 +78,9 @@ for i in $(seq 1 30); do
 done
 
 echo ""
-echo "==> Done. App is on http://<EC2_PUBLIC_IP>/  (port 80)"
+echo "==> Done."
 echo "    Create the first admin (one time):"
-echo "      sudo docker compose -f docker-compose.prod.yml exec backend python scripts/create_admin.py"
+echo "      sudo docker compose -f $COMPOSE_FILE exec backend python scripts/create_admin.py"
 echo ""
-echo "    Logs:    sudo docker compose -f docker-compose.prod.yml logs -f"
-echo "    Restart: sudo docker compose -f docker-compose.prod.yml restart"
+echo "    Logs:    sudo docker compose -f $COMPOSE_FILE logs -f"
+echo "    Restart: sudo docker compose -f $COMPOSE_FILE restart"
