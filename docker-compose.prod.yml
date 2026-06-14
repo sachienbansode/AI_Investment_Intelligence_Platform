@@ -1,0 +1,37 @@
+# Production stack for AWS EC2 (or any Docker host).
+#   - backend : FastAPI + agentic pipeline + scheduler (single instance)
+#   - frontend: React build served by nginx on :80, reverse-proxies /api → backend
+#
+# DB lives on AWS RDS PostgreSQL — set DATABASE_URL in backend/.env.
+# Bring up:  docker compose -f docker-compose.prod.yml up -d --build
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file: ./backend/.env
+    environment:
+      - ENVIRONMENT=production
+      - AUDIT_LOG_PATH=/data/audit.log
+    volumes:
+      - backend_data:/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_data:

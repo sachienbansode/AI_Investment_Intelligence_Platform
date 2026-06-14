@@ -1,0 +1,10 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+broking_ai.db
+audit.log
+audit.log.*
+.env
+.env.example
+* - Copy.env

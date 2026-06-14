@@ -1,0 +1,41 @@
+# ───────────────────────── Secrets — NEVER commit ─────────────────────────
+.env
+*.env
+* - Copy.env
+.env.*
+!.env.example
+backend/.env
+backend/*.env
+
+# Audit trail & databases (contain operational/customer data)
+audit.log
+audit.log.*
+*.log
+*.db
+*.sqlite
+*.sqlite3
+backend/broking_ai.db
+
+# ───────────────────────── Python ─────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ───────────────────────── Node / frontend ─────────────────────────
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# ───────────────────────── OS / editor ─────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
