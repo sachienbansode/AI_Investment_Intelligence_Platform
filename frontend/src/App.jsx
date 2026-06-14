@@ -12,9 +12,9 @@ import About from './components/About.jsx'
 import Login from './components/Login.jsx'
 import { api, getToken, setToken, onUnauthorized } from './api.js'
 
-const UP = String.fromCharCode(0x25B2)    // up triangle
-const DN = String.fromCharCode(0x25BC)    // down triangle
-const DOT = String.fromCharCode(0x00B7)   // middle dot
+const UP = String.fromCharCode(0x25B2)
+const DN = String.fromCharCode(0x25BC)
+const DOT = String.fromCharCode(0x00B7)
 
 const NAV = [
   { name: 'Dashboard', icon: '◆' },
@@ -43,7 +43,7 @@ export default function App() {
     localStorage.getItem('theme') ||
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1')
-  const [navOpen, setNavOpen] = useState(false)  // mobile drawer
+  const [navOpen, setNavOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -51,11 +51,8 @@ export default function App() {
   }, [theme])
   useEffect(() => { localStorage.setItem('navCollapsed', collapsed ? '1' : '0') }, [collapsed])
 
-  function askAI(question) {
-    setChatSeed(question)
-    setTab('AI Assistant')
-  }
   function selectTab(name) { setTab(name); setNavOpen(false) }
+  function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
 
   useEffect(() => {
     onUnauthorized(() => setUser(null))
@@ -74,19 +71,9 @@ export default function App() {
   if (!authChecked) return null
   if (!user) return <Login onLogin={setUser} />
 
-  const nav = [...NAV, ...(user.is_admin ? ADMIN_NAV : []),
-               { name: 'About', icon: 'ⓘ' }]  // always last in the menu
+  const nav = [...NAV, ...(user.is_admin ? ADMIN_NAV : []), { name: 'About', icon: 'ⓘ' }]
 
-  function logout() {
-    setToken(null); setUser(null); setTab('Dashboard')
-  }
-
-  const themeToggle = (
-    <button className="icon-btn" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
-      {theme === 'dark' ? '☀' : '☾'}
-    </button>
-  )
+  function logout() { setToken(null); setUser(null); setTab('Dashboard') }
 
   return (
     <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`}>
@@ -123,8 +110,7 @@ export default function App() {
 
       <div className="main-col">
         <header className="topbar">
-          <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)}
-                  title="Menu">{'☰'}</button>
+          <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">{'☰'}</button>
           <div className="ticker-rows">
             {[['NSE', indices.filter(i => !i.index.includes('(BSE)'))],
               ['BSE', indices.filter(i => i.index.includes('(BSE)'))]]
@@ -132,15 +118,12 @@ export default function App() {
               .map(([exch, list]) => (
                 <div key={exch} className="ticker">
                   <span className="exch-badge">{exch}</span>
-                  {[...list]
-                    .sort((a, b) => isPrimary(b.index) - isPrimary(a.index))
-                    .map(i => (
-                      <span key={i.index}
-                            className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
-                        <b>{i.index.replace(' (BSE)', '')}</b> {i.last?.toLocaleString('en-IN')}
-                        <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
-                      </span>
-                    ))}
+                  {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
+                    <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
+                      <b>{i.index.replace(' (BSE)', '')}</b> {i.last?.toLocaleString('en-IN')}
+                      <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
+                    </span>
+                  ))}
                 </div>
               ))}
           </div>
@@ -150,7 +133,10 @@ export default function App() {
                 <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
               </div>
             )}
-            {themeToggle}
+            <button className="icon-btn" title="Toggle theme"
+                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
           </div>
         </header>
 
