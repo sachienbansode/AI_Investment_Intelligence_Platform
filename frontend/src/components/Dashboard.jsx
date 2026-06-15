@@ -81,26 +81,26 @@ export default function Dashboard({ go, openScore }) {
       {trend && (trend.gainers.length > 0 || trend.losers.length > 0) && (
         <div className="grid2">
           <div className="panel">
-            <h4 title={`Biggest AI-score increases over the selected ${range}-day window (informational analytics, not recommendations)`}>▲ Top score gainers ({range}d)</h4>
+            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %. Informational analytics, not recommendations.`}>▲ Top score gainers ({range}d)</h4>
             {trend.gainers.length === 0 && <p className="hint">No gainers in window.</p>}
             {trend.gainers.map(m => (
-              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '110px 1fr 90px' }}
+              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
                    title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <span className="hint">{m.from} → {m.to}</span>
-                <span className="up">▲ {m.delta}</span>
+                <span className="up">▲ {m.delta} ({m.from ? '+' + (m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}
           </div>
           <div className="panel">
-            <h4 title={`Biggest AI-score decreases over the selected ${range}-day window`}>▼ Top score decliners ({range}d)</h4>
+            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %.`}>▼ Top score decliners ({range}d)</h4>
             {trend.losers.length === 0 && <p className="hint">No decliners in window.</p>}
             {trend.losers.map(m => (
-              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '110px 1fr 90px' }}
+              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
                    title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <span className="hint">{m.from} → {m.to}</span>
-                <span className="down">▼ {Math.abs(m.delta)}</span>
+                <span className="down">▼ {Math.abs(m.delta)} ({m.from ? '−' + Math.abs(m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}
           </div>

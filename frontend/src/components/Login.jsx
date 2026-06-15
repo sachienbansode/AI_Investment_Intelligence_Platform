@@ -22,8 +22,8 @@ export default function Login({ onLogin }) {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
         <img src="/niytri-logo.svg" alt="NIYTRI" className="login-logo"
-             style={{ width: '100%', maxWidth: 260, margin: '0 auto 6px', display: 'block' }} />
-        <h2 style={{ textAlign: 'center', fontSize: '1.05rem' }}>AI Investment Intelligence</h2>
+             style={{ width: '100%', maxWidth: 240, margin: '2px auto 12px', display: 'block' }} />
+        <p className="hint" style={{ textAlign: 'center', marginTop: 0, fontWeight: 600 }}>AI Investment Intelligence Platform</p>
         <p className="hint" style={{ textAlign: 'center' }}>Sign in to continue</p>
         <input type="email" placeholder="Email" value={email} required
                onChange={e => setEmail(e.target.value)} />

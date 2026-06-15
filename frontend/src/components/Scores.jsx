@@ -136,7 +136,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
           <th title="Click to sort by script symbol" style={{ cursor: 'pointer' }} onClick={() => setSort('symbol')}>Script{arrow('symbol')}</th>
           <th title="Sector classification from the instruments master">Sector</th>
           <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>AI Score / 100{arrow('score')} <span className="info-i">i</span></th>
-          <th title="Click to sort by change vs previous scoring day" style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
+          <th title="Δ Change = change in the AI score vs the previous scoring day, shown as points and %. Click to sort." style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
           <th title={STATUS_TIP}>Status <span className="info-i">i</span></th>
           <th title="Re-score this script now with a fresh live quote">Refresh</th>
         </tr></thead>
@@ -149,7 +149,10 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
                 <td><span className="score" style={{ background: color(s.composite_score) }}>{s.composite_score}</span></td>
                 <td title={s.drivers?.length ? 'Drivers: ' + s.drivers.join(', ') : 'No previous score to compare'}>
                   {s.delta != null
-                    ? <span className={s.delta >= 0 ? 'up' : 'down'}>{s.delta > 0 ? '▲' : s.delta < 0 ? '▼' : '–'} {Math.abs(s.delta)}</span>
+                    ? <span className={s.delta >= 0 ? 'up' : 'down'}>
+                        {s.delta > 0 ? '▲' : s.delta < 0 ? '▼' : '–'} {Math.abs(s.delta)}
+                        {s.prev_score ? ` (${s.delta >= 0 ? '+' : '−'}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
+                      </span>
                     : <span className="hint">new</span>}
                 </td>
                 <td><span title={STATUS_TIP} className={`tag ${s.quality_status === 'approved' ? 'positive' : s.quality_status === 'rejected' ? 'negative' : ''}`}>{s.quality_status}</span></td>
@@ -166,7 +169,8 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
                         <p className="explain" style={{ marginTop: 0 }}>
                           <strong className={s.delta >= 0 ? 'up' : 'down'}>
                             {s.delta > 0 ? '▲ Up' : s.delta < 0 ? '▼ Down' : '– Unchanged'} {Math.abs(s.delta)} points
-                          </strong> vs {s.prev_date} (was {s.prev_score}).
+                            {s.prev_score ? ` (${s.delta >= 0 ? '+' : '−'}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
+                          </strong> vs {s.prev_date} (was {s.prev_score}). Change = AI-score movement vs the previous scoring day.
                           {s.drivers?.length > 0 && <> Main drivers: {s.drivers.join(', ')}.</>}
                         </p>
                       )}
