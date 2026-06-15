@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 210" role="img" aria-label="NIYTRI Technologies">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.45" stop-color="#4F8EF7"/>
+      <stop offset="0.75" stop-color="#7C5CFC"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="wm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#7C5CFC"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(120 4) scale(0.95)">
+    <circle cx="60" cy="60" r="46" fill="none" stroke="url(#g)" stroke-width="5"
+            stroke-linecap="round" stroke-dasharray="232 57" transform="rotate(-58 60 60)"/>
+    <circle cx="95" cy="38" r="5" fill="#EC4899"/>
+    <circle cx="30" cy="78" r="5" fill="#22D3EE"/>
+    <circle cx="60" cy="106" r="4.5" fill="#7C5CFC"/>
+    <g fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M44 82 L44 40"/><path d="M44 41 L77 81"/><path d="M77 80 L77 40"/>
+    </g>
+    <circle cx="44" cy="40" r="5.5" fill="#22D3EE"/>
+    <circle cx="77" cy="40" r="5.5" fill="#7C5CFC"/>
+  </g>
+  <text x="180" y="170" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="52" font-weight="800" letter-spacing="6" fill="url(#wm)">NIYTRI</text>
+  <text x="180" y="195" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="12.5" font-weight="600" letter-spacing="3" fill="#8E9CC0">INTELLIGENCE  ·  INNOVATION  ·  IMPACT</text>
+</svg>

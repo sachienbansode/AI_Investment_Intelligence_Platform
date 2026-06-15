@@ -21,8 +21,10 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <h2>AI Investment Intelligence</h2>
-        <p className="hint">Sign in to continue</p>
+        <img src="/niytri-logo.svg" alt="NIYTRI" className="login-logo"
+             style={{ width: '100%', maxWidth: 260, margin: '0 auto 6px', display: 'block' }} />
+        <h2 style={{ textAlign: 'center', fontSize: '1.05rem' }}>AI Investment Intelligence</h2>
+        <p className="hint" style={{ textAlign: 'center' }}>Sign in to continue</p>
         <input type="email" placeholder="Email" value={email} required
                onChange={e => setEmail(e.target.value)} />
         <input type="password" placeholder="Password" value={password} required
@@ -31,6 +33,8 @@ export default function Login({ onLogin }) {
         <button type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
         <p className="hint">No account? Contact your administrator.</p>
         <p className="disclaimer">AI outputs are informational only — not investment advice.</p>
+        <p className="disclaimer" style={{ textAlign: 'center', borderTop: 'none', paddingTop: 0 }}>
+          © {new Date().getFullYear()} NIYTRI Technologies. All rights reserved.</p>
       </form>
     </div>
   )

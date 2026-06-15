@@ -81,7 +81,7 @@ export default function App() {
       <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">
-          <span className="brand-mark">{String.fromCharCode(0x20B9)}</span>
+          <img src="/niytri-mark.svg" alt="NIYTRI" className="brand-mark" style={{ background: 'none', padding: 0 }} />
           <div className="brand-name">Investment<br />Intelligence</div>
           <button className="collapse-btn" onClick={() => setCollapsed(c => !c)}
                   title={collapsed ? 'Expand menu' : 'Minimize menu'}>
