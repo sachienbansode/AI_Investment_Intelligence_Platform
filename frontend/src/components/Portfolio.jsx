@@ -11,6 +11,7 @@ export default function Portfolio() {
   const [msg, setMsg] = useState('')
   const [summary, setSummary] = useState(null)   // upload validation summary
   const [uploading, setUploading] = useState(false)
+  const [tplBusy, setTplBusy] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -56,6 +57,12 @@ export default function Portfolio() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  async function downloadTemplate() {
+    setTplBusy(true); setErr('')
+    try { await api.downloadPortfolioTemplate() } catch (e) { setErr(e.message) }
+    setTplBusy(false)
+  }
+
   function continueWithMatched() {
     setRows(summary.matched.map(h => ({ symbol: h.symbol, quantity: h.quantity, avg_price: h.avg_price })))
     setSummary(null)
@@ -72,6 +79,9 @@ export default function Portfolio() {
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={onUpload} />
         <button className="ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
           {uploading ? 'Reading…' : 'Upload portfolio (CSV/Excel)'}</button>
+        <button className="ghost" disabled={tplBusy} onClick={downloadTemplate}
+                title="Download a CSV of all NIFTY500 scripts with current LTP pre-filled in avg_price — edit quantities and re-upload">
+          {tplBusy ? 'Preparing…' : 'Download CSV template (all scripts + LTP)'}</button>
         <span className="hint">Columns: <code>symbol, quantity, avg_price</code></span>
       </div>
       {err && <p className="note">{err}</p>}

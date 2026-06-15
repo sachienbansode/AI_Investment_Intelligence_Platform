@@ -45,6 +45,13 @@ export const api = {
   analyzePortfolio: (holdings) =>
     http('/portfolio/analyze', { method: 'POST', body: JSON.stringify({ holdings }) }),
   portfolioSaved: () => http('/portfolio/saved'),
+  downloadPortfolioTemplate: async () => {
+    const res = await fetch(BASE + '/portfolio/template.csv', { headers: { Authorization: `Bearer ${_token}` } })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Download failed (${res.status})`) }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob); a.download = 'portfolio_template.csv'; a.click(); URL.revokeObjectURL(a.href)
+  },
   savePortfolio: (holdings) =>
     http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
   portfolioUpload: async (file) => {

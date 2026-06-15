@@ -3,6 +3,7 @@ import asyncio
 from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.agents.pipeline import PIPELINE_STATE, live_snapshot, run_daily_pipeline
 from app.core.auth import get_current_user, require_admin
@@ -323,6 +324,50 @@ async def portfolio_save(req: PortfolioRequest, user: User = Depends(get_current
         db.close()
     audit_log("portfolio_saved", user_id=user.id, holdings=len(holdings))
     return {"saved": len(holdings)}
+
+
+@router.get("/portfolio/template.csv")
+async def portfolio_template(user: User = Depends(get_current_user)):
+    """Downloadable CSV pre-filled with every active script (NIFTY500) and its
+    current LTP in the avg_price column. The user edits quantity/price and
+    re-uploads. LTP is best-effort within a time budget; blanks where a live
+    quote couldn't be fetched in time."""
+    import csv
+    import io
+    db = SessionLocal()
+    try:
+        insts = [(r.symbol, r.name or "", r.sector or "") for r in
+                 db.query(Instrument).filter_by(is_active=True)
+                 .order_by(Instrument.symbol).all()]
+    finally:
+        db.close()
+    md = get_market_data()
+    sem = asyncio.Semaphore(20)
+    ltp: dict[str, float] = {}
+
+    async def fetch(sym):
+        async with sem:
+            try:
+                q = await asyncio.wait_for(md.get_quote(sym), timeout=3)
+                if q and q.last_price:
+                    ltp[sym] = q.last_price
+            except Exception:
+                pass
+
+    try:
+        await asyncio.wait_for(asyncio.gather(*(fetch(s) for s, _, _ in insts)), timeout=25)
+    except asyncio.TimeoutError:
+        pass  # use whatever LTPs we collected; the rest stay blank
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["symbol", "name", "sector", "quantity", "avg_price"])
+    for sym, name, sec in insts:
+        w.writerow([sym, name, sec, "", ltp.get(sym, "")])
+    audit_log("portfolio_template", user_id=user.id, scripts=len(insts), priced=len(ltp))
+    return StreamingResponse(
+        io.BytesIO(buf.getvalue().encode("utf-8")), media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="portfolio_template.csv"'})
 
 
 # ── 5. Watchlist (persistent, per user) ──────────────────────────
