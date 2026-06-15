@@ -323,7 +323,8 @@ function Settings() {
     setData(d); setWeights({ ...d.settings.scoring_weights })
     setLlm({ order: [...(d.settings.llm_provider_order || [])],
              strategy: d.settings.llm_strategy || 'failover',
-             models: { ...(d.settings.llm_models || {}) } })
+             models: { ...(d.settings.llm_models || {}) },
+             enabled: { ...(d.settings.llm_enabled || {}) } })
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
@@ -355,13 +356,17 @@ function Settings() {
   }
   function removeProv(prov) { setLlm({ ...llm, order: llm.order.filter(x => x !== prov) }) }
   function addProv(prov) { if (prov && !llm.order.includes(prov)) setLlm({ ...llm, order: [...llm.order, prov] }) }
+  function toggleEnabled(prov) { setLlm({ ...llm, enabled: { ...llm.enabled, [prov]: llm.enabled[prov] === false } }) }
   async function saveLLM() {
     setErr(''); setMsg('')
     try {
       if (!llm.order.length) throw new Error('Enable at least one provider')
+      if (!llm.order.some(p => llm.enabled[p] !== false))
+        throw new Error('At least one provider must stay enabled (checkbox on)')
       await api.updateSetting('llm_provider_order', llm.order)
       await api.updateSetting('llm_strategy', llm.strategy)
       await api.updateSetting('llm_models', llm.models)
+      await api.updateSetting('llm_enabled', Object.fromEntries(llm.order.map(p => [p, llm.enabled[p] !== false])))
       setMsg('LLM routing saved.'); load()
     } catch (ex) { setErr(ex.message) }
   }
@@ -438,6 +443,20 @@ function Settings() {
           in Admin → Score review. The AI checker adds one LLM call per script per run.</p>
       </div>
 
+      <div className="panel">
+        <h4 title="When ON, the app also shows major global indices (S&P 500, Nasdaq, Dow, FTSE, Nikkei, Hang Seng) in the ticker and pulls global market news into the News feed on the next refresh.">
+          Global markets <span className="info-i">i</span></h4>
+        <div className="toolbar">
+          <label title="Adds global indices to the ticker and global news to the News feed (applied on the next news refresh).">
+            <input type="checkbox" defaultChecked={!!s.global_markets_enabled}
+                   onChange={e => save('global_markets_enabled', e.target.checked)} />
+            {' '}Enable global indices &amp; global news
+          </label>
+        </div>
+        <p className="hint">Indices appear in a <strong>GLOBAL</strong> ticker row immediately;
+          global news joins the feed on the next scheduled refresh (or after Refresh News in Agents).</p>
+      </div>
+
       {llm && (
       <div className="panel">
         <h4>LLM routing</h4>
@@ -464,7 +483,12 @@ function Settings() {
           return (
             <div className="toolbar" key={prov} style={{ margin: '4px 0' }}>
               <span style={{ minWidth: 24 }}>{idx + 1}.</span>
-              <strong style={{ minWidth: 96, textTransform: 'capitalize' }}>{prov}</strong>
+              <label title="Turn this provider off to exclude it from routing (compare model performance) without deleting its key">
+                <input type="checkbox" checked={llm.enabled[prov] !== false}
+                       onChange={() => toggleEnabled(prov)} />{' '}on
+              </label>
+              <strong style={{ minWidth: 96, textTransform: 'capitalize',
+                       opacity: llm.enabled[prov] === false ? 0.45 : 1 }}>{prov}</strong>
               <button className="ghost sm" disabled={idx === 0} title="Move up"
                       onClick={() => moveProv(idx, -1)}>↑</button>
               <button className="ghost sm" disabled={idx === llm.order.length - 1} title="Move down"

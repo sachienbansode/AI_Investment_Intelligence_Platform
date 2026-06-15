@@ -33,8 +33,7 @@ export default function Login({ onLogin, brand }) {
         {err && <p className="note">{err}</p>}
         <button type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
         <p className="hint">No account? Contact your administrator.</p>
-        <p className="disclaimer">AI outputs are informational only — not investment advice.</p>
-        <p className="disclaimer" style={{ borderTop: 'none', paddingTop: 0 }}>
+        <p className="disclaimer">
           © {new Date().getFullYear()} NIYTRI Technologies. All rights reserved.</p>
       </form>
     </div>

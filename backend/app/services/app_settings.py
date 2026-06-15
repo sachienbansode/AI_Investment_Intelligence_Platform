@@ -32,6 +32,9 @@ DEFAULTS: dict = {
     "brand_logo": "",   # admin-uploaded logo as a data: URI (favicon + app logo)
     "llm_provider_order": ["anthropic", "openai", "gemini"],
     "llm_strategy": "failover",          # "failover" | "round_robin"
+    "llm_enabled": {"anthropic": True, "openai": True, "gemini": True},
+    # Global markets: when on, include global indices + global news alongside India
+    "global_markets_enabled": False,
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
                    "gemini": "gemini-1.5-pro"},
     "llm_pricing": {
@@ -121,6 +124,16 @@ def _validate(key: str, value) -> None:
     elif key == "llm_strategy":
         if value not in ("failover", "round_robin"):
             raise ValueError("llm_strategy must be 'failover' or 'round_robin'")
+    elif key == "llm_enabled":
+        valid = {"anthropic", "openai", "gemini"}
+        if not (isinstance(value, dict) and set(value) <= valid
+                and all(isinstance(v, bool) for v in value.values())):
+            raise ValueError("llm_enabled must map anthropic/openai/gemini -> true/false")
+        if value and not any(value.get(k, False) for k in valid):
+            raise ValueError("At least one LLM provider must remain enabled")
+    elif key == "global_markets_enabled":
+        if not isinstance(value, bool):
+            raise ValueError("global_markets_enabled must be true or false")
     elif key == "llm_models":
         if not isinstance(value, dict):
             raise ValueError("llm_models must be a dict of provider -> model")

@@ -13,7 +13,12 @@ log = logging.getLogger(__name__)
 
 async def refresh_news(max_items: int = 15) -> int:
     """Fetch fresh news, enrich with LLM, persist. Returns count stored."""
-    items = (await collect_news())[:max_items]
+    try:
+        from app.services.app_settings import get_setting
+        include_global = bool(get_setting("global_markets_enabled"))
+    except Exception:
+        include_global = False
+    items = (await collect_news(include_global=include_global))[:max_items]
     if not items:
         return 0
 
@@ -65,11 +70,14 @@ async def refresh_news(max_items: int = 15) -> int:
     return stored
 
 
-def latest_news(limit: int = 20) -> list[dict]:
+def latest_news(limit: int = 20, days: int | None = None) -> list[dict]:
     db = SessionLocal()
     try:
-        rows = (db.query(NewsItem).order_by(NewsItem.created_at.desc())
-                .limit(limit).all())
+        q = db.query(NewsItem).order_by(NewsItem.created_at.desc())
+        if days:
+            from datetime import datetime, timedelta, timezone
+            q = q.filter(NewsItem.created_at >= datetime.now(timezone.utc) - timedelta(days=days))
+        rows = q.limit(limit).all()
         return [{
             "title": r.title, "link": r.link, "source": r.source,
             "published": r.published, "summary_short": r.summary_short,

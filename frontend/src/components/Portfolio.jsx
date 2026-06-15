@@ -19,8 +19,10 @@ export default function Portfolio() {
     // restore the user's saved holdings
     api.portfolioSaved().then(d => {
       if (d.holdings && d.holdings.length) {
-        setRows(d.holdings.map(h => ({ symbol: h.symbol, quantity: h.quantity, avg_price: h.avg_price })))
-        setMsg('Loaded your saved portfolio.')
+        const saved = d.holdings.map(h => ({ symbol: h.symbol, quantity: h.quantity, avg_price: h.avg_price }))
+        setRows(saved)
+        setMsg('Loaded your saved portfolio — showing your last analysis.')
+        runAnalysis(saved, { persist: false })   // restore the prior analysis view
       }
     }).catch(() => {})
   }, [])
@@ -35,15 +37,19 @@ export default function Portfolio() {
       .map(r => ({ symbol: r.symbol.toUpperCase(), quantity: +r.quantity, avg_price: +r.avg_price }))
   }
 
-  async function analyze() {
-    setBusy(true); setErr(''); setMsg(''); setResult(null)
+  async function runAnalysis(holdings, { persist = true } = {}) {
+    setBusy(true); setErr(''); setResult(null)
     try {
-      const holdings = cleanHoldings()
       if (!holdings.length) throw new Error('Add at least one valid holding')
-      await api.savePortfolio(holdings)                 // persist for this user
+      if (persist) await api.savePortfolio(holdings)    // persist for this user
       setResult(await api.analyzePortfolio(holdings))
     } catch (e) { setErr(e.message) }
     setBusy(false)
+  }
+
+  async function analyze() {
+    setMsg('')
+    await runAnalysis(cleanHoldings())
   }
 
   async function onUpload(e) {

@@ -126,15 +126,16 @@ export default function App() {
             {String.fromCharCode(0x2630)}
           </button>
           <div className="ticker-rows">
-            {[['NSE', indices.filter(i => !i.index.includes('(BSE)'))],
-              ['BSE', indices.filter(i => i.index.includes('(BSE)'))]]
+            {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
+              ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
+              ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
               .filter(([, list]) => list.length > 0)
               .map(([exch, list]) => (
                 <div key={exch} className="ticker">
                   <span className="exch-badge">{exch}</span>
                   {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
                     <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
-                      <b>{i.index.replace(' (BSE)', '')}</b> {i.last?.toLocaleString('en-IN')}
+                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
                       <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
                     </span>
                   ))}

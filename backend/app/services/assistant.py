@@ -27,7 +27,7 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   investment advice. If asked for advice, say you can only provide information
   and suggest consulting a SEBI-registered investment adviser.
 - When asked for "top/best stocks" or rankings, report the platform's AI scores
-  factually (symbol + score out of 100) from TOP_AI_SCORES in context, and note
+  factually (symbol + score out of 100) from AI_SCORES_SUMMARY in context, and note
   these are informational analytics, not recommendations.
 - SCOPE: this platform covers Indian equity markets (NSE/BSE) — stocks, indices,
   news and portfolios. If asked about out-of-scope topics (foreign indices like
@@ -134,20 +134,32 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     f"Pillars: {json.dumps(row.pillar_scores)}. {row.explanation}")
                 sources.append({"type": "ai_score", "symbol": sym, "date": row.score_date})
 
-        # platform-wide ranking so 'top stocks by AI score' questions work
+        # Platform-wide score context: full distribution + extremes so questions
+        # like "stocks below 50" or "top stocks" are answered from real data.
         latest = (db.query(StockScore.score_date)
                   .order_by(StockScore.score_date.desc()).first())
         if latest:
-            top_rows = (db.query(StockScore)
-                        .filter_by(score_date=latest[0], quality_status="approved")
-                        .order_by(StockScore.composite_score.desc()).limit(10).all())
-            if top_rows:
+            appr = (db.query(StockScore)
+                    .filter_by(score_date=latest[0], quality_status="approved")
+                    .order_by(StockScore.composite_score.desc()).all())
+            if appr:
+                vals = [r.composite_score for r in appr]
+                n = len(vals)
+                strong = sum(1 for v in vals if v >= 65)
+                neutral = sum(1 for v in vals if 50 <= v < 65)
+                weak = sum(1 for v in vals if v < 50)
+                top = [{"symbol": r.symbol, "score": r.composite_score} for r in appr[:10]]
+                bottom = [{"symbol": r.symbol, "score": r.composite_score} for r in appr[-10:]]
                 context_parts.append(
-                    f"TOP_AI_SCORES (out of 100, date {latest[0]}, approved only): "
-                    + json.dumps([{"symbol": r.symbol, "score": r.composite_score}
-                                  for r in top_rows]))
-                sources.append({"type": "ai_scores_ranking", "date": latest[0],
-                                "count": len(top_rows)})
+                    f"AI_SCORES_SUMMARY (date {latest[0]}, approved only): total={n}, "
+                    f"avg={round(sum(vals)/n,1)}, max={max(vals)}, min={min(vals)}. "
+                    f"Bands: 65+ (strong)={strong}, 50-64 (neutral)={neutral}, "
+                    f"below 50 (weak)={weak}. TOP_10={json.dumps(top)}. "
+                    f"BOTTOM_10={json.dumps(bottom)}. You may quote these counts and the "
+                    "listed top/bottom scripts exactly. You do NOT have every script's "
+                    "score, so for 'all stocks below/above X' give the band count and the "
+                    "listed examples, and note the full list is on the Stock Scores page.")
+                sources.append({"type": "ai_scores_summary", "date": latest[0], "count": n})
 
         # conversation memory for follow-ups
         n_hist = int(get_setting("assistant_history_messages"))
@@ -158,7 +170,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     finally:
         db.close()
 
-    news = latest_news(limit=8)
+    news = latest_news(limit=12, days=3)
     if news:
         context_parts.append("NEWS:\n" + "\n".join(
             f"- {n['title']} ({n['source']}) [{n['link']}]" for n in news))
@@ -185,7 +197,14 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                                 "document_id": p["document_id"]})
 
     context = "\n\n".join(context_parts) if context_parts else "(no live context available)"
-    confidence = min(0.9, 0.3 + 0.15 * len(context_parts))
+    types = {s["type"] for s in sources}
+    conf = 0.4 + (0.15 if "quote" in types else 0) \
+        + (0.15 if ("ai_score" in types or "ai_scores_summary" in types) else 0) \
+        + (0.12 if "research" in types else 0) + (0.08 if "news" in types else 0) \
+        + (0.05 if "indices" in types else 0)
+    if mentioned and not ({"quote", "ai_score"} & types):
+        conf -= 0.1   # asked about a specific script we could not ground
+    confidence = round(max(0.35, min(0.95, conf)), 2)
 
     prompt = (
         (f"CONVERSATION SO FAR:\n{history}\n\n" if history else "")

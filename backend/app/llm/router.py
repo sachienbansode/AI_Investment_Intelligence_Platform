@@ -39,7 +39,10 @@ class LLMRouter:
         order = get_setting("llm_provider_order") or get_settings().provider_order
         models = get_setting("llm_models") or {}
         strategy = get_setting("llm_strategy") or "failover"
-        return order, models, strategy
+        enabled = get_setting("llm_enabled") or {}
+        # drop admin-disabled providers; never end up with an empty order
+        filtered = [n for n in order if enabled.get(n, True)]
+        return (filtered or order), models, strategy
 
     def _ordered(self, rotate=True):
         order, models, strategy = self._config()

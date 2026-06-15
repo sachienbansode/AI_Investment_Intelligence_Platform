@@ -28,15 +28,31 @@ class MarketDataAggregator:
                 return q
         return None
 
+    # Global indices shown when admin enables global markets (labelled "(GL)")
+    _GLOBAL = [("^GSPC", "S&P 500 (GL)"), ("^IXIC", "NASDAQ (GL)"),
+               ("^DJI", "DOW JONES (GL)"), ("^FTSE", "FTSE 100 (GL)"),
+               ("^N225", "NIKKEI 225 (GL)"), ("^HSI", "HANG SENG (GL)")]
+
     async def get_indices(self) -> list[dict]:
-        """NSE indices + key BSE indices (SENSEX, BANKEX via Yahoo)."""
+        """NSE indices + key BSE indices, plus global indices when enabled."""
         import asyncio
-        nse_task = self._nse.get_indices()
+
+        from app.services.app_settings import get_setting
         yahoo = self._providers[-1]  # YahooProvider is always last
-        bse_tasks = [yahoo.get_index("^BSESN", "SENSEX (BSE)"),
-                     yahoo.get_index("BSE-BANK.BO", "BANKEX (BSE)")]
-        nse, *bse = await asyncio.gather(nse_task, *bse_tasks)
-        return (nse or []) + [b for b in bse if b]
+        tasks = [self._nse.get_indices(),
+                 yahoo.get_index("^BSESN", "SENSEX (BSE)"),
+                 yahoo.get_index("BSE-BANK.BO", "BANKEX (BSE)")]
+        n_bse = 2
+        try:
+            show_global = bool(get_setting("global_markets_enabled"))
+        except Exception:
+            show_global = False
+        if show_global:
+            tasks += [yahoo.get_index(sym, lbl) for sym, lbl in self._GLOBAL]
+        results = await asyncio.gather(*tasks)
+        nse = results[0] or []
+        rest = [r for r in results[1:] if r]
+        return nse + rest
 
 
 _agg: MarketDataAggregator | None = None

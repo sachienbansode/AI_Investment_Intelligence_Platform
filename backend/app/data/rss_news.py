@@ -15,6 +15,13 @@ FEEDS = {
     "Business Standard Markets": "https://www.business-standard.com/rss/markets-106.rss",
 }
 
+# Global market feeds (used only when admin enables global markets)
+GLOBAL_FEEDS = {
+    "CNBC World Markets": "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+    "Yahoo Finance": "https://finance.yahoo.com/news/rssindex",
+    "Investing.com": "https://www.investing.com/rss/news_25.rss",
+}
+
 
 async def fetch_feed(name: str, url: str, limit: int = 10) -> list[dict]:
     try:
@@ -38,8 +45,11 @@ async def fetch_feed(name: str, url: str, limit: int = 10) -> list[dict]:
         return []
 
 
-async def collect_news(limit_per_feed: int = 8) -> list[dict]:
-    results = await asyncio.gather(*(fetch_feed(n, u, limit_per_feed) for n, u in FEEDS.items()))
+async def collect_news(limit_per_feed: int = 8, include_global: bool = False) -> list[dict]:
+    feeds = dict(FEEDS)
+    if include_global:
+        feeds.update(GLOBAL_FEEDS)
+    results = await asyncio.gather(*(fetch_feed(n, u, limit_per_feed) for n, u in feeds.items()))
     seen, items = set(), []
     for feed_items in results:
         for it in feed_items:
