@@ -26,7 +26,9 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         rows.append({"symbol": h.symbol.upper(), "value": value, "sector": sector,
                      "pnl_pct": round((price - h.avg_price) / h.avg_price * 100, 2)})
 
-    total = sum(r["value"] for r in rows) or 1.0
+    current_value = sum(r["value"] for r in rows)
+    invested = sum(h.quantity * h.avg_price for h in holdings)
+    total = current_value or 1.0
     weights = {r["symbol"]: r["value"] / total for r in rows}
 
     # Sector exposure
@@ -91,9 +93,26 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
     except Exception:
         insights = "AI insights unavailable; see computed metrics."
 
-    audit_log("portfolio_analysis", holdings=len(rows), health=health)
+    # Approximate P&L (current LTP vs average cost) and a Red/Amber/Green status
+    pnl_abs = round(current_value - invested, 2)
+    pnl_pct = round((current_value - invested) / invested * 100, 2) if invested else 0.0
+    rag = "green" if health >= 70 else "amber" if health >= 50 else "red"
+    rag_label = {"green": "Healthy", "amber": "Needs attention", "red": "High risk"}[rag]
+    pnl = {"invested": round(invested, 2), "current_value": round(current_value, 2),
+           "pnl": pnl_abs, "pnl_pct": pnl_pct}
+    headline = (
+        f"{len(rows)} holding(s) across {diversification['num_sectors']} sector(s); "
+        f"{concentration['level']} concentration — top holding {concentration['top_holding']} "
+        f"at {concentration['top_holding_weight_pct']}%. "
+        f"Currently {'up' if pnl_abs >= 0 else 'down'} {abs(pnl_pct)}% "
+        f"({'+' if pnl_abs >= 0 else '-'}Rs {abs(pnl_abs):,.0f}) versus invested cost."
+    )
+
+    audit_log("portfolio_analysis", holdings=len(rows), health=health,
+              pnl_pct=pnl_pct, status=rag)
     return PortfolioResponse(
-        health_score=health, deductions=deductions, diversification=diversification,
+        health_score=health, status=rag, status_label=rag_label, headline=headline,
+        pnl=pnl, deductions=deductions, diversification=diversification,
         concentration_risk=concentration, sector_exposure=sector_exp,
         insights=insights, disclaimer=AI_DISCLAIMER,
     )

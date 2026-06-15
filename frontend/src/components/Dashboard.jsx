@@ -7,7 +7,7 @@ function scoreColor(v) {
   return 'var(--red)'
 }
 
-export default function Dashboard({ go }) {
+export default function Dashboard({ go, openScore }) {
   const [scores, setScores] = useState(null)
   const [news, setNews] = useState([])
   const [watch, setWatch] = useState([])
@@ -84,7 +84,8 @@ export default function Dashboard({ go }) {
             <h4 title={`Biggest AI-score increases over the selected ${range}-day window (informational analytics, not recommendations)`}>▲ Top score gainers ({range}d)</h4>
             {trend.gainers.length === 0 && <p className="hint">No gainers in window.</p>}
             {trend.gainers.map(m => (
-              <div key={m.symbol} className="rank-row" style={{ gridTemplateColumns: '110px 1fr 90px' }}>
+              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '110px 1fr 90px' }}
+                   title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <span className="hint">{m.from} → {m.to}</span>
                 <span className="up">▲ {m.delta}</span>
@@ -95,7 +96,8 @@ export default function Dashboard({ go }) {
             <h4 title={`Biggest AI-score decreases over the selected ${range}-day window`}>▼ Top score decliners ({range}d)</h4>
             {trend.losers.length === 0 && <p className="hint">No decliners in window.</p>}
             {trend.losers.map(m => (
-              <div key={m.symbol} className="rank-row" style={{ gridTemplateColumns: '110px 1fr 90px' }}>
+              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '110px 1fr 90px' }}
+                   title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <span className="hint">{m.from} → {m.to}</span>
                 <span className="down">▼ {Math.abs(m.delta)}</span>
@@ -113,7 +115,8 @@ export default function Dashboard({ go }) {
           </div>
           {top.length === 0 && <p className="hint">No scores yet — run the pipeline from Stock Scores.</p>}
           {top.map(s => (
-            <div key={s.symbol} className="rank-row">
+            <div key={s.symbol} className="rank-row row-click" title="Open in Stock Scores"
+                 onClick={() => openScore && openScore(s.symbol)}>
               <strong>{s.symbol}</strong>
               <span className="hint">{s.sector}</span>
               <div className="bar slim"><div style={{ width: `${s.composite_score}%`, background: scoreColor(s.composite_score) }} /></div>
@@ -147,7 +150,8 @@ export default function Dashboard({ go }) {
           </div>
           <div className="watch-strip">
             {watch.map(w => (
-              <div key={w.symbol} className="watch-chip">
+              <div key={w.symbol} className="watch-chip row-click" title="Open in Stock Scores"
+                   onClick={() => openScore && openScore(w.symbol)}>
                 <strong>{w.symbol}</strong>
                 <span>{w.last_price != null ? `₹${w.last_price.toLocaleString('en-IN')}` : '—'}</span>
                 <span className={w.change_pct >= 0 ? 'up' : 'down'}>

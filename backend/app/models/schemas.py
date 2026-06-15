@@ -62,6 +62,10 @@ class PortfolioRequest(BaseModel):
 
 class PortfolioResponse(BaseModel):
     health_score: float
+    status: str = ""              # green | amber | red
+    status_label: str = ""
+    headline: str = ""            # one-line plain-language summary
+    pnl: dict = {}                # {invested, current_value, pnl, pnl_pct}
     deductions: list[dict] = []   # why the health score lost points
     diversification: dict
     concentration_risk: dict

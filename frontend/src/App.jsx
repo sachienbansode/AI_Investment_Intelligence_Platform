@@ -31,6 +31,7 @@ export default function App() {
   const [indices, setIndices] = useState([])
   const [health, setHealth] = useState(null)
   const [chatSeed, setChatSeed] = useState(null)
+  const [scoreSeed, setScoreSeed] = useState(null)
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('theme') ||
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
@@ -45,6 +46,7 @@ export default function App() {
 
   function selectTab(name) { setTab(name); setNavOpen(false) }
   function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
+  function openScore(symbol) { setScoreSeed(symbol); setTab('Stock Scores'); setNavOpen(false) }
 
   useEffect(() => {
     onUnauthorized(() => setUser(null))
@@ -143,9 +145,9 @@ export default function App() {
 
         <main>
           <h2 className="page-title">{tab}</h2>
-          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} />}
+          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} />}
           {tab === 'Market News' && can('Market News') && <News />}
           {tab === 'Watchlist' && can('Watchlist') && <Watchlist />}
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}

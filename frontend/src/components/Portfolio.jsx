@@ -145,6 +145,23 @@ export default function Portfolio() {
           <h3 title="Portfolio health out of 100. Starts at 100; loses points for concentration and lack of diversification — see the deduction breakdown below.">
             Health score: {result.health_score}/100 <span className="info-i">i</span></h3>
 
+          {result.status && (
+            <div className="toolbar" style={{ margin: '0 0 8px' }}>
+              <span className={`tag ${result.status === 'green' ? 'positive' : result.status === 'red' ? 'negative' : 'pending'}`}>
+                {result.status === 'green' ? '● ' : result.status === 'red' ? '● ' : '● '}{result.status_label}</span>
+              {result.pnl && result.pnl.invested != null && (
+                <span className={result.pnl.pnl >= 0 ? 'up' : 'down'}
+                      title="Approximate — based on the latest available prices vs your average cost">
+                  Est. P&L: {result.pnl.pnl >= 0 ? '+' : '−'}₹{Math.abs(Math.round(result.pnl.pnl)).toLocaleString('en-IN')} ({result.pnl.pnl_pct}%)
+                </span>
+              )}
+              {result.pnl && result.pnl.invested != null && (
+                <span className="hint">Invested ₹{Math.round(result.pnl.invested).toLocaleString('en-IN')} · Current ₹{Math.round(result.pnl.current_value).toLocaleString('en-IN')}</span>
+              )}
+            </div>
+          )}
+          {result.headline && <p className="hint" style={{ marginTop: 0, marginBottom: 12 }}>{result.headline}</p>}
+
           {result.deductions?.length > 0 && (
             <div className="deductions">
               <h4 title="Exactly why points were deducted from 100">Why this score? <span className="info-i">i</span></h4>

@@ -24,19 +24,28 @@ function color(v) {
   return 'var(--red)'
 }
 
-export default function Scores({ isAdmin, askAI }) {
+export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)
   const [q, setQ] = useState('')
   const [sector, setSector] = useState('')
-  const [sortDesc, setSortDesc] = useState(true)
+  const [sortKey, setSortKey] = useState('score')
+  const [sortDir, setSortDir] = useState('desc')
   const [refreshing, setRefreshing] = useState(null)
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 20
 
   const load = () => api.scores().then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (seed) { setQ(seed); setOpen(seed); clearSeed && clearSeed() }
+  }, [seed]) // eslint-disable-line
+  function setSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortKey(key); setSortDir(key === 'symbol' ? 'asc' : 'desc') }
+  }
+  const arrow = key => sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''
 
   const [agent, setAgent] = useState(null)
   const wasRunning = useRef(false)
@@ -70,11 +79,16 @@ export default function Scores({ isAdmin, askAI }) {
     let r = data?.scores || []
     if (q) r = r.filter(s => s.symbol.toLowerCase().includes(q.toLowerCase()))
     if (sector) r = r.filter(s => s.sector === sector)
-    return [...r].sort((a, b) => sortDesc
-      ? b.composite_score - a.composite_score : a.composite_score - b.composite_score)
-  }, [data, q, sector, sortDesc])
+    const dir = sortDir === 'desc' ? -1 : 1
+    const val = x => sortKey === 'symbol' ? x.symbol
+      : sortKey === 'change' ? (x.delta ?? -Infinity) : x.composite_score
+    return [...r].sort((a, b) => {
+      const va = val(a), vb = val(b)
+      return typeof va === 'string' ? dir * va.localeCompare(vb) : dir * (va - vb)
+    })
+  }, [data, q, sector, sortKey, sortDir])
 
-  useEffect(() => { setPage(0) }, [q, sector, sortDesc])
+  useEffect(() => { setPage(0) }, [q, sector, sortKey, sortDir])
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const rows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
@@ -110,8 +124,6 @@ export default function Scores({ isAdmin, askAI }) {
           <option value="">All sectors</option>
           {sectors.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <button className="ghost" onClick={() => setSortDesc(d => !d)}
-                title="Toggle sort order by AI score">Score {sortDesc ? '↓' : '↑'}</button>
         {data?.score_date && <span className="hint">as of {data.score_date}</span>}
       </div>
       {err && <p className="note">{err}</p>}
@@ -121,10 +133,10 @@ export default function Scores({ isAdmin, askAI }) {
 
       <table className="data-table">
         <thead><tr>
-          <th title="NSE trading symbol from the instruments master">Script</th>
+          <th title="Click to sort by script symbol" style={{ cursor: 'pointer' }} onClick={() => setSort('symbol')}>Script{arrow('symbol')}</th>
           <th title="Sector classification from the instruments master">Sector</th>
-          <th title={SCORE_DEFINITION}>AI Score / 100 <span className="info-i">i</span></th>
-          <th title="Change vs the previous scoring day. Hover or expand the row to see which pillars drove the move.">Δ Change</th>
+          <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>AI Score / 100{arrow('score')} <span className="info-i">i</span></th>
+          <th title="Click to sort by change vs previous scoring day" style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
           <th title={STATUS_TIP}>Status <span className="info-i">i</span></th>
           <th title="Re-score this script now with a fresh live quote">Refresh</th>
         </tr></thead>
