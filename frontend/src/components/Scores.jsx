@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { fmtIST } from '../fmt.js'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 
@@ -26,7 +27,6 @@ function color(v) {
 export default function Scores({ isAdmin, askAI }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
-  const [running, setRunning] = useState(false)
   const [open, setOpen] = useState(null)
   const [q, setQ] = useState('')
   const [sector, setSector] = useState('')
@@ -38,14 +38,19 @@ export default function Scores({ isAdmin, askAI }) {
   const load = () => api.scores().then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
-  async function run() {
-    setRunning(true); setErr('')
-    try {
-      await api.runScoring()
-      setErr('Pipeline started — watch progress in the Agents tab; refresh here when done.')
-    } catch (e) { setErr(e.message) }
-    setRunning(false)
-  }
+  const [agent, setAgent] = useState(null)
+  const wasRunning = useRef(false)
+  useEffect(() => {
+    let t
+    const poll = () => api.agentsStatus().then(d => {
+      setAgent(d)
+      if (wasRunning.current && !d.running) load()   // auto-reload when a run finishes
+      wasRunning.current = d.running
+      t = setTimeout(poll, d.running ? 5000 : 60000)
+    }).catch(() => { t = setTimeout(poll, 60000) })
+    poll()
+    return () => clearTimeout(t)
+  }, [])
 
   async function refreshOne(e, symbol) {
     e.stopPropagation()
@@ -86,9 +91,18 @@ export default function Scores({ isAdmin, askAI }) {
         Hover any column header for its definition.</span>
       </div>
 
+      {agent?.running && (
+        <p className="note">⏳ AI scores are updating now — the scoring pipeline is running
+          ({agent.active_agents?.join(', ') || 'in progress'}). This table refreshes
+          automatically when it completes.</p>
+      )}
+      {agent && !agent.running && (() => {
+        const job = (agent.scheduled_jobs || []).find(j => j.id === 'daily_scoring')
+        return job?.next_run
+          ? <p className="hint">Next automated scoring update: {fmtIST(job.next_run)} IST.</p> : null
+      })()}
+
       <div className="toolbar">
-        {isAdmin && <button onClick={run} disabled={running}
-          title="Run the full 8-agent pipeline over the whole scoring universe (see Agents tab)">Run scoring pipeline</button>}
         <button className="ghost" onClick={load} title="Reload the table">Refresh</button>
         <input placeholder="Search script…" value={q} onChange={e => setQ(e.target.value)} />
         <select value={sector} onChange={e => setSector(e.target.value)}
@@ -102,8 +116,8 @@ export default function Scores({ isAdmin, askAI }) {
       </div>
       {err && <p className="note">{err}</p>}
       {filtered.length === 0 && <p className="hint">No scores yet for the current filter —
-        newly imported scripts get scores on the next pipeline run (admin: Run scoring
-        pipeline, then watch the Agents tab).</p>}
+        newly imported scripts get scores on the next pipeline run (admins can trigger it
+        from the Agents page).</p>}
 
       <table className="data-table">
         <thead><tr>

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { fmtIST } from '../fmt.js'
 import { api } from '../api.js'
 import Pager from './Pager.jsx'
 
@@ -19,11 +20,32 @@ export default function News() {
   }
   useEffect(() => { load() }, [])
 
+  const [agent, setAgent] = useState(null)
+  const wasRunning = useRef(false)
+  useEffect(() => {
+    let t
+    const poll = () => api.agentsStatus().then(d => {
+      setAgent(d)
+      if (wasRunning.current && !d.running) load()   // reload when a pipeline run finishes
+      wasRunning.current = d.running
+      t = setTimeout(poll, d.running ? 5000 : 60000)
+    }).catch(() => { t = setTimeout(poll, 60000) })
+    poll()
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <div>
-      <div className="toolbar">
-        <button onClick={() => load(true)} disabled={busy}>{busy ? 'Loading…' : 'Refresh news'}</button>
-      </div>
+      {busy && <p className="hint">Loading…</p>}
+      {agent?.running && (
+        <p className="note">⏳ Market news is being refreshed now (the agent pipeline is running).
+          New items will appear automatically.</p>
+      )}
+      {agent && !agent.running && (() => {
+        const job = (agent.scheduled_jobs || []).find(j => j.id === 'news_refresh')
+        return job?.next_run
+          ? <p className="hint">News auto-refreshes in the background · next update {fmtIST(job.next_run)} IST.</p> : null
+      })()}
       {err && <p className="note">{err}</p>}
       {items.slice(page * 10, page * 10 + 10).map((n, i) => (
         <article key={i} className="news-item">

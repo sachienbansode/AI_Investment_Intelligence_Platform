@@ -34,6 +34,14 @@ export default function Admin() {
 
 const inr = v => '₹' + (v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 
+const ALL_PROVIDERS = ['anthropic', 'openai', 'gemini']
+const MODEL_OPTIONS = {
+  anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8',
+              'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4-turbo'],
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'],
+}
+
 function LlmBilling() {
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
@@ -310,8 +318,12 @@ function Settings() {
   const [err, setErr] = useState('')
   const [msg, setMsg] = useState('')
   const [weights, setWeights] = useState(null)
+  const [llm, setLlm] = useState(null)
   const load = () => api.settings().then(d => {
     setData(d); setWeights({ ...d.settings.scoring_weights })
+    setLlm({ order: [...(d.settings.llm_provider_order || [])],
+             strategy: d.settings.llm_strategy || 'failover',
+             models: { ...(d.settings.llm_models || {}) } })
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
@@ -321,6 +333,24 @@ function Settings() {
       const r = await api.updateSetting(key, value)
       setMsg(`Saved ${key}. ${r.note || ''}`)
       load()
+    } catch (ex) { setErr(ex.message) }
+  }
+
+  function moveProv(idx, dir) {
+    const o = [...llm.order]; const j = idx + dir
+    if (j < 0 || j >= o.length) return
+    ;[o[idx], o[j]] = [o[j], o[idx]]; setLlm({ ...llm, order: o })
+  }
+  function removeProv(prov) { setLlm({ ...llm, order: llm.order.filter(x => x !== prov) }) }
+  function addProv(prov) { if (prov && !llm.order.includes(prov)) setLlm({ ...llm, order: [...llm.order, prov] }) }
+  async function saveLLM() {
+    setErr(''); setMsg('')
+    try {
+      if (!llm.order.length) throw new Error('Enable at least one provider')
+      await api.updateSetting('llm_provider_order', llm.order)
+      await api.updateSetting('llm_strategy', llm.strategy)
+      await api.updateSetting('llm_models', llm.models)
+      setMsg('LLM routing saved.'); load()
     } catch (ex) { setErr(ex.message) }
   }
 
@@ -383,37 +413,63 @@ function Settings() {
           in Admin → Score review. The AI checker adds one LLM call per script per run.</p>
       </div>
 
+      {llm && (
       <div className="panel">
-        <h4 title="Choose which AI providers are used, in what order, and which model each uses. Applied immediately.">LLM routing</h4>
-        <div className="toolbar">
-          <span style={{ minWidth: 220 }}>Provider order (priority)</span>
-          <input id="set-llmorder" style={{ width: 220 }}
-                 defaultValue={(s.llm_provider_order || []).join(', ')} />
-          <button className="ghost" onClick={() => save('llm_provider_order',
-            document.getElementById('set-llmorder').value.split(',').map(x => x.trim()).filter(Boolean))}>Save</button>
+        <h4>LLM routing</h4>
+        <div className="deductions" style={{ marginTop: 0 }}>
+          <p style={{ margin: 0 }}><strong>How it works.</strong> <strong>Failover</strong> — the
+            assistant calls providers in the priority order below and uses the first that responds;
+            if one errors, is rate-limited or down, it automatically falls through to the next, and
+            only fails if every provider fails. <strong>Round robin</strong> — rotates requests across
+            the enabled providers to spread load (still falling over on error). Changes apply live, no restart.</p>
         </div>
+
         <div className="toolbar">
-          <span style={{ minWidth: 220 }} title="Failover = use first available in order. Round robin = rotate across providers to spread load.">Strategy</span>
-          <select id="set-llmstrat" defaultValue={s.llm_strategy}>
-            <option value="failover">failover</option>
-            <option value="round_robin">round robin</option>
+          <span style={{ minWidth: 90 }}>Strategy</span>
+          <select value={llm.strategy} onChange={e => setLlm({ ...llm, strategy: e.target.value })}>
+            <option value="failover">Failover (priority order)</option>
+            <option value="round_robin">Round robin (spread load)</option>
           </select>
-          <button className="ghost" onClick={() => save('llm_strategy',
-            document.getElementById('set-llmstrat').value)}>Save</button>
         </div>
-        {['anthropic', 'openai', 'gemini'].map(prov => (
-          <div className="toolbar" key={prov}>
-            <span style={{ minWidth: 220, textTransform: 'capitalize' }}>{prov} model</span>
-            <input id={`set-model-${prov}`} style={{ width: 260 }}
-                   defaultValue={(s.llm_models || {})[prov] || ''} />
-            <button className="ghost" onClick={() => save('llm_models',
-              { ...s.llm_models, [prov]: document.getElementById(`set-model-${prov}`).value.trim() })}>Save</button>
+
+        <h4 style={{ fontSize: '.9rem', margin: '14px 0 4px' }}>Provider priority &amp; model</h4>
+        {llm.order.map((prov, idx) => {
+          const opts = MODEL_OPTIONS[prov].includes(llm.models[prov])
+            ? MODEL_OPTIONS[prov] : [llm.models[prov], ...MODEL_OPTIONS[prov]].filter(Boolean)
+          return (
+            <div className="toolbar" key={prov} style={{ margin: '4px 0' }}>
+              <span style={{ minWidth: 24 }}>{idx + 1}.</span>
+              <strong style={{ minWidth: 96, textTransform: 'capitalize' }}>{prov}</strong>
+              <button className="ghost sm" disabled={idx === 0} title="Move up"
+                      onClick={() => moveProv(idx, -1)}>↑</button>
+              <button className="ghost sm" disabled={idx === llm.order.length - 1} title="Move down"
+                      onClick={() => moveProv(idx, 1)}>↓</button>
+              <button className="ghost sm" disabled={llm.order.length === 1} title="Remove from rotation"
+                      onClick={() => removeProv(prov)}>Remove</button>
+              <span style={{ minWidth: 44 }} className="hint">model</span>
+              <select value={llm.models[prov] || opts[0]}
+                      onChange={e => setLlm({ ...llm, models: { ...llm.models, [prov]: e.target.value } })}>
+                {opts.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          )
+        })}
+        {ALL_PROVIDERS.filter(p => !llm.order.includes(p)).length > 0 && (
+          <div className="toolbar">
+            <span className="hint" style={{ minWidth: 90 }}>Add provider</span>
+            <select value="" onChange={e => addProv(e.target.value)}>
+              <option value="">— select —</option>
+              {ALL_PROVIDERS.filter(p => !llm.order.includes(p)).map(p =>
+                <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
-        ))}
-        <p className="hint">Order is failover priority. Round robin spreads calls across the configured
-          providers. Models apply live (no restart). e.g. set Anthropic to
-          <code> claude-haiku-4-5-20251001 </code> for faster, cheaper chat.</p>
+        )}
+        <div className="toolbar"><button onClick={saveLLM}>Save routing</button></div>
+        <p className="hint">Tip: put a fast, cheap model first (e.g. Anthropic
+          <code> claude-haiku-4-5-20251001 </code>) for snappier chat, and keep a second provider
+          enabled so failover can cover an outage.</p>
       </div>
+      )}
 
       <div className="panel">
         <h4>Scheduler & limits</h4>
