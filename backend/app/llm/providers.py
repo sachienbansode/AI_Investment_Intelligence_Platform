@@ -8,9 +8,9 @@ from app.llm.base import LLMProvider, LLMResponse
 class AnthropicProvider(LLMProvider):
     name = "anthropic"
 
-    def __init__(self):
+    def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model = s.anthropic_api_key, s.anthropic_model
+        self._key, self._model = s.anthropic_api_key, model or s.anthropic_model
         self._client = None
         if self._key:
             from anthropic import AsyncAnthropic
@@ -33,9 +33,9 @@ class AnthropicProvider(LLMProvider):
 class OpenAIProvider(LLMProvider):
     name = "openai"
 
-    def __init__(self):
+    def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model = s.openai_api_key, s.openai_model
+        self._key, self._model = s.openai_api_key, model or s.openai_model
         self._client = None
         if self._key:
             from openai import AsyncOpenAI
@@ -59,9 +59,9 @@ class OpenAIProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     name = "gemini"
 
-    def __init__(self):
+    def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model_name = s.google_api_key, s.gemini_model
+        self._key, self._model_name = s.google_api_key, model or s.gemini_model
         self._model = None
         if self._key:
             import google.generativeai as genai

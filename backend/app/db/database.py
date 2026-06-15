@@ -37,7 +37,25 @@ class User(Base):
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    role_id = Column(Integer, nullable=True)   # FK -> roles.id (RBAC)
     created_at = Column(DateTime, default=utcnow)
+
+
+class Role(Base):
+    """RBAC role: a named set of page permissions. is_admin grants admin APIs."""
+    __tablename__ = "roles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, index=True)
+    pages = Column(JSON)                       # list of allowed page names
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=utcnow)
+
+
+# Canonical page catalog (matches the frontend nav tab names)
+ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Market News",
+             "Watchlist", "Portfolio", "About", "Agents", "Audit", "Admin"]
+USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Market News",
+              "Watchlist", "Portfolio", "About"]
 
 
 class Instrument(Base):
@@ -154,6 +172,7 @@ _MIGRATIONS = [
     ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
     ("stock_scores", "reviewed_at", "DATETIME"),
     ("stock_scores", "ai_review", "JSON"),
+    ("users", "role_id", "INTEGER"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -227,12 +246,14 @@ def init_db():
             ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
             ("stock_scores", "reviewed_at", "TIMESTAMPTZ"),
             ("stock_scores", "ai_review", "JSON"),
+            ("users", "role_id", "INTEGER"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
             conn.commit()
     _seed_instruments()
+    _seed_roles()
     # Admin creation: run `python scripts/create_admin.py` (interactive).
 
 
@@ -242,6 +263,17 @@ def _seed_instruments():
         if db.query(Instrument).count() == 0:
             for symbol, name, sector in NIFTY50_SEED:
                 db.add(Instrument(symbol=symbol, name=name, sector=sector))
+            db.commit()
+    finally:
+        db.close()
+
+
+def _seed_roles():
+    db = SessionLocal()
+    try:
+        if db.query(Role).count() == 0:
+            db.add(Role(name="Administrator", pages=ALL_PAGES, is_admin=True))
+            db.add(Role(name="User", pages=USER_PAGES, is_admin=False))
             db.commit()
     finally:
         db.close()

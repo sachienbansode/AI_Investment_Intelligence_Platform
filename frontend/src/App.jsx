@@ -16,21 +16,13 @@ const UP = String.fromCharCode(0x25B2)
 const DN = String.fromCharCode(0x25BC)
 const DOT = String.fromCharCode(0x00B7)
 
-const NAV = [
-  { name: 'Dashboard', icon: '◆' },
-  { name: 'AI Assistant', icon: '✦' },
-  { name: 'Stock Scores', icon: '▤' },
-  { name: 'Market News', icon: '◈' },
-  { name: 'Watchlist', icon: '☆' },
-  { name: 'Portfolio', icon: '◐' },
-]
+// Icon for every page in the catalog; nav is built from the user's allowed pages.
+const ICONS = {
+  'Dashboard': '◆', 'AI Assistant': '✦', 'Stock Scores': '▤', 'Market News': '◈',
+  'Watchlist': '☆', 'Portfolio': '◐', 'Agents': '⚙', 'Audit': '≣',
+  'Admin': '⛨', 'About': 'ⓘ',
+}
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
-
-const ADMIN_NAV = [
-  { name: 'Agents', icon: '⚙' },
-  { name: 'Audit', icon: '≣' },
-  { name: 'Admin', icon: '⛨' },
-]
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -62,6 +54,12 @@ export default function App() {
     } else setAuthChecked(true)
   }, [])
 
+  const pages = user?.pages || []
+  // Keep the active tab within the user's allowed pages.
+  useEffect(() => {
+    if (user && pages.length && !pages.includes(tab)) setTab(pages[0])
+  }, [user]) // eslint-disable-line
+
   useEffect(() => {
     if (!user) return
     api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
@@ -71,7 +69,8 @@ export default function App() {
   if (!authChecked) return null
   if (!user) return <Login onLogin={setUser} />
 
-  const nav = [...NAV, ...(user.is_admin ? ADMIN_NAV : []), { name: 'About', icon: 'ⓘ' }]
+  const nav = pages.map(name => ({ name, icon: ICONS[name] || String.fromCharCode(0x2022) }))
+  const can = name => pages.includes(name)
 
   function logout() { setToken(null); setUser(null); setTab('Dashboard') }
 
@@ -144,16 +143,16 @@ export default function App() {
 
         <main>
           <h2 className="page-title">{tab}</h2>
-          {tab === 'Dashboard' && <Dashboard go={setTab} />}
-          {tab === 'AI Assistant' && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && <Scores isAdmin={user.is_admin} askAI={askAI} />}
-          {tab === 'Market News' && <News />}
-          {tab === 'Watchlist' && <Watchlist />}
-          {tab === 'Portfolio' && <Portfolio />}
-          {tab === 'About' && <About />}
-          {tab === 'Agents' && user.is_admin && <Agents />}
-          {tab === 'Audit' && user.is_admin && <RunAudit />}
-          {tab === 'Admin' && user.is_admin && <Admin />}
+          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} />}
+          {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} />}
+          {tab === 'Market News' && can('Market News') && <News />}
+          {tab === 'Watchlist' && can('Watchlist') && <Watchlist />}
+          {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
+          {tab === 'About' && can('About') && <About />}
+          {tab === 'Agents' && can('Agents') && <Agents />}
+          {tab === 'Audit' && can('Audit') && <RunAudit />}
+          {tab === 'Admin' && can('Admin') && <Admin />}
         </main>
 
         <footer>

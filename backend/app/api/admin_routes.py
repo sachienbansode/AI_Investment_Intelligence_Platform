@@ -13,7 +13,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
-from app.db.database import Instrument, PipelineRun, SessionLocal, StockScore, User
+from app.db.database import (ALL_PAGES, Instrument, PipelineRun, Role, SessionLocal,
+                             StockScore, User)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -187,7 +188,8 @@ def list_users():
     try:
         return [{"id": u.id, "email": u.email, "full_name": u.full_name,
                  "is_admin": bool(u.is_admin), "is_active": bool(u.is_active),
-                 "created_at": str(u.created_at)} for u in db.query(User).all()]
+                 "role_id": u.role_id, "created_at": str(u.created_at)}
+                for u in db.query(User).all()]
     finally:
         db.close()
 
@@ -197,6 +199,7 @@ class CreateUserRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = ""
     is_admin: bool = False
+    role_id: int | None = None
 
 
 @router.post("/users")
@@ -206,7 +209,8 @@ def create_user(req: CreateUserRequest, admin: User = Depends(require_admin)):
         if db.query(User).filter_by(email=req.email.lower()).first():
             raise HTTPException(409, "Email already exists")
         user = User(email=req.email.lower(), full_name=req.full_name,
-                    hashed_password=hash_password(req.password), is_admin=req.is_admin)
+                    hashed_password=hash_password(req.password), is_admin=req.is_admin,
+                    role_id=req.role_id)
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -618,11 +622,9 @@ def research_delete(doc_id: int, admin: User = Depends(require_admin)):
 @router.post("/llm-test")
 async def llm_test():
     """Probe each configured LLM provider with a 1-token call and report which
-    work and which fail (and why). Use this to diagnose 'AI service unavailable'
-    errors — usually an invalid/expired key, no quota, or a wrong model name."""
-    from app.llm.providers import (AnthropicProvider, GeminiProvider,
-                                    OpenAIProvider)
+    work and which fail (and why)."""
     from app.config import get_settings
+    from app.llm.providers import AnthropicProvider, GeminiProvider, OpenAIProvider
     s = get_settings()
     candidates = [
         ("anthropic", AnthropicProvider, s.anthropic_model, bool(s.anthropic_api_key)),
@@ -632,9 +634,8 @@ async def llm_test():
     results = []
     for name, cls, model, has_key in candidates:
         if not has_key:
-            results.append({"provider": name, "model": model,
-                            "configured": False, "ok": False,
-                            "detail": "no API key in backend/.env"})
+            results.append({"provider": name, "model": model, "configured": False,
+                            "ok": False, "detail": "no API key in backend/.env"})
             continue
         try:
             p = cls()
@@ -649,8 +650,118 @@ async def llm_test():
     audit_log("llm_test", any_ok=any_ok,
               results=[{"provider": r["provider"], "ok": r["ok"]} for r in results])
     return {"any_provider_working": any_ok, "results": results,
-            "note": "If all show ok=false, the AI Assistant will return 'AI service "
-                    "unavailable'. Fix the key/model in backend/.env and restart the backend."}
+            "note": "If all show ok=false, the AI Assistant returns 'AI service "
+                    "unavailable'. Fix the key/model in backend/.env and restart."}
+
+
+# ── RBAC: roles & page access ────────────────────────────────────
+@router.get("/pages")
+def page_catalog():
+    return {"pages": ALL_PAGES}
+
+
+@router.get("/roles")
+def list_roles():
+    db = SessionLocal()
+    try:
+        return [{"id": r.id, "name": r.name, "pages": r.pages or [],
+                 "is_admin": bool(r.is_admin),
+                 "users": db.query(User).filter_by(role_id=r.id).count()}
+                for r in db.query(Role).order_by(Role.name).all()]
+    finally:
+        db.close()
+
+
+class RoleRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    pages: list[str] = []
+    is_admin: bool = False
+
+
+def _validate_pages(pages):
+    bad = [p for p in pages if p not in ALL_PAGES]
+    if bad:
+        raise HTTPException(400, f"Unknown page(s): {', '.join(bad)}")
+
+
+@router.post("/roles")
+def create_role(req: RoleRequest, admin: User = Depends(require_admin)):
+    _validate_pages(req.pages)
+    db = SessionLocal()
+    try:
+        if db.query(Role).filter_by(name=req.name.strip()).first():
+            raise HTTPException(409, "A role with that name already exists")
+        role = Role(name=req.name.strip(), pages=req.pages, is_admin=req.is_admin)
+        db.add(role); db.commit(); db.refresh(role)
+        rid = role.id
+    finally:
+        db.close()
+    audit_log("role_created", name=req.name, is_admin=req.is_admin, by=admin.email)
+    return {"id": rid, "name": req.name}
+
+
+@router.put("/roles/{role_id}")
+def update_role(role_id: int, req: RoleRequest, admin: User = Depends(require_admin)):
+    _validate_pages(req.pages)
+    db = SessionLocal()
+    try:
+        role = db.get(Role, role_id)
+        if not role:
+            raise HTTPException(404, "Role not found")
+        role.name = req.name.strip(); role.pages = req.pages; role.is_admin = req.is_admin
+        db.commit()
+    finally:
+        db.close()
+    audit_log("role_updated", id=role_id, by=admin.email)
+    return {"id": role_id}
+
+
+@router.delete("/roles/{role_id}")
+def delete_role(role_id: int, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        role = db.get(Role, role_id)
+        if not role:
+            raise HTTPException(404, "Role not found")
+        assigned = db.query(User).filter_by(role_id=role_id).count()
+        if assigned:
+            raise HTTPException(409, f"{assigned} user(s) still have this role; reassign first")
+        db.delete(role); db.commit()
+    finally:
+        db.close()
+    audit_log("role_deleted", id=role_id, by=admin.email)
+    return {"deleted": role_id}
+
+
+class UserRoleRequest(BaseModel):
+    role_id: int | None = None
+
+
+@router.patch("/users/{user_id}/role")
+def set_user_role(user_id: int, req: UserRoleRequest, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        user = db.get(User, user_id)
+        if not user:
+            raise HTTPException(404, "User not found")
+        if req.role_id is not None and not db.get(Role, req.role_id):
+            raise HTTPException(404, "Role not found")
+        user.role_id = req.role_id
+        db.commit()
+        result = {"id": user.id, "email": user.email, "role_id": user.role_id}
+    finally:
+        db.close()
+    audit_log("user_role_set", **result, by=admin.email)
+    return result
+
+
+# ── Ops triggers (Agents screen) ─────────────────────────────────
+@router.post("/refresh-news")
+async def refresh_news_now(admin: User = Depends(require_admin)):
+    from app.services import news_intel
+    await news_intel.refresh_news()
+    audit_log("news_refresh_manual", by=admin.email)
+    return {"status": "news refreshed"}
 
 
 # ── App settings (DB-configurable) ───────────────────────────────

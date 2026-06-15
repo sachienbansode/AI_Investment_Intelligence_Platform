@@ -1,5 +1,5 @@
-"""Multi-LLM router: tries providers in configured order with automatic
-failover, and logs every call to the audit trail (model governance)."""
+"""Multi-LLM router with admin-configurable provider order, per-provider model,
+and failover or round-robin strategy. Every call is audit-logged (governance)."""
 import logging
 
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -16,32 +16,53 @@ _REGISTRY = {"anthropic": AnthropicProvider, "openai": OpenAIProvider, "gemini":
 
 class LLMRouter:
     def __init__(self):
-        self._providers = []
-        for name in get_settings().provider_order:
+        self._clients = {}   # (name, model) -> provider instance (lazily built)
+        self._rr = 0
+
+    def _provider(self, name, model):
+        key = (name, model)
+        p = self._clients.get(key)
+        if p is None:
             cls = _REGISTRY.get(name)
             if not cls:
-                continue
+                return None
             try:
-                p = cls()
-                if p.available():
-                    self._providers.append(p)
-            except Exception as e:  # SDK missing / bad key — skip, don't crash
+                p = cls(model=model)
+            except Exception as e:
                 log.warning("Provider %s unavailable: %s", name, e)
-        if not self._providers:
-            self._providers = [MockProvider()]
-        log.info("LLM providers active: %s", [p.name for p in self._providers])
+                return None
+            self._clients[key] = p
+        return p
+
+    def _config(self):
+        from app.services.app_settings import get_setting
+        order = get_setting("llm_provider_order") or get_settings().provider_order
+        models = get_setting("llm_models") or {}
+        strategy = get_setting("llm_strategy") or "failover"
+        return order, models, strategy
+
+    def _ordered(self, rotate=True):
+        order, models, strategy = self._config()
+        provs = []
+        for name in order:
+            p = self._provider(name, models.get(name))
+            if p and p.available():
+                provs.append(p)
+        if not provs:
+            return [MockProvider()]
+        if rotate and strategy == "round_robin" and len(provs) > 1:
+            self._rr = (self._rr + 1) % len(provs)
+            provs = provs[self._rr:] + provs[:self._rr]
+        return provs
 
     @property
     def active_providers(self) -> list[str]:
-        return [p.name for p in self._providers]
+        return [p.name for p in self._ordered(rotate=False)]
 
     async def complete(self, system: str, prompt: str, *, task: str = "general",
                        max_tokens: int = 1024, temperature: float = 0.3,
                        exclude: str | None = None) -> LLMResponse:
-        """Complete with failover. `exclude` deprioritises a provider (used by
-        the independent AI checker so it reviews with a different model than the
-        one that wrote the rationale, when more than one provider is configured)."""
-        providers = self._providers
+        providers = self._ordered()
         if exclude and any(p.name != exclude for p in providers):
             providers = ([p for p in providers if p.name != exclude]
                          + [p for p in providers if p.name == exclude])

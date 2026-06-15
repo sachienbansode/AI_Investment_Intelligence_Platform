@@ -39,6 +39,7 @@ export const api = {
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
   trends: (days = 30) => http(`/scores/trends?days=${days}`),
   runScoring: () => http('/admin/run-scoring', { method: 'POST' }),
+  refreshNewsNow: () => http('/admin/refresh-news', { method: 'POST' }),
   news: (refresh = false, limit = 20) => http(`/news?refresh=${refresh}&limit=${limit}`),
   indices: () => http('/market/indices'),
   analyzePortfolio: (holdings) =>
@@ -53,9 +54,20 @@ export const api = {
   reviewScore: (id, status) =>
     http(`/admin/scores/${id}/review`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   users: () => http('/admin/users'),
-  createUser: (email, password, full_name, is_admin) =>
-    http('/admin/users', { method: 'POST', body: JSON.stringify({ email, password, full_name, is_admin }) }),
+  createUser: (email, password, full_name, is_admin, role_id) =>
+    http('/admin/users', { method: 'POST', body: JSON.stringify({ email, password, full_name, is_admin, role_id }) }),
   toggleUser: (id) => http(`/admin/users/${id}/toggle-active`, { method: 'PATCH' }),
+  setUserRole: (id, role_id) =>
+    http(`/admin/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role_id }) }),
+  // RBAC roles
+  pagesCatalog: () => http('/admin/pages'),
+  roles: () => http('/admin/roles'),
+  createRole: (name, pages, is_admin) =>
+    http('/admin/roles', { method: 'POST', body: JSON.stringify({ name, pages, is_admin }) }),
+  updateRole: (id, name, pages, is_admin) =>
+    http(`/admin/roles/${id}`, { method: 'PUT', body: JSON.stringify({ name, pages, is_admin }) }),
+  deleteRole: (id) => http(`/admin/roles/${id}`, { method: 'DELETE' }),
+  // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),
   watchAdd: (s) => http(`/watchlist/${s}`, { method: 'POST' }),
@@ -95,16 +107,11 @@ export const api = {
   researchDelete: (id) => http(`/admin/research/${id}`, { method: 'DELETE' }),
   researchUpload: async (file, title, source) => {
     const fd = new FormData()
-    fd.append('file', file)
-    fd.append('title', title || '')
-    fd.append('source', source || '')
+    fd.append('file', file); fd.append('title', title || ''); fd.append('source', source || '')
     const headers = {}
     if (_token) headers['Authorization'] = `Bearer ${_token}`
     const res = await fetch(BASE + '/admin/research/upload', { method: 'POST', headers, body: fd })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body.detail || `Upload failed (${res.status})`)
-    }
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Upload failed (${res.status})`) }
     return res.json()
   },
 }

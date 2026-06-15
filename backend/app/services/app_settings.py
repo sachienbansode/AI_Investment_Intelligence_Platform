@@ -28,6 +28,11 @@ DEFAULTS: dict = {
     "assistant_max_tokens": 900,
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
+    # LLM routing (admin-configurable; applied live, no restart)
+    "llm_provider_order": ["anthropic", "openai", "gemini"],
+    "llm_strategy": "failover",          # "failover" | "round_robin"
+    "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
+                   "gemini": "gemini-1.5-pro"},
     "llm_pricing": {
         "anthropic": {"input_usd_per_mtok": 3.0, "output_usd_per_mtok": 15.0},
         "openai": {"input_usd_per_mtok": 2.5, "output_usd_per_mtok": 10.0},
@@ -100,6 +105,21 @@ def _validate(key: str, value) -> None:
     elif key in ("strict_maker_checker", "ai_checker_enabled"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
+    elif key == "llm_provider_order":
+        valid = {"anthropic", "openai", "gemini"}
+        if not (isinstance(value, list) and value and all(v in valid for v in value)):
+            raise ValueError("llm_provider_order must be a non-empty list from: "
+                             "anthropic, openai, gemini")
+    elif key == "llm_strategy":
+        if value not in ("failover", "round_robin"):
+            raise ValueError("llm_strategy must be 'failover' or 'round_robin'")
+    elif key == "llm_models":
+        if not isinstance(value, dict):
+            raise ValueError("llm_models must be a dict of provider -> model")
+        for k, v in value.items():
+            if k not in ("anthropic", "openai", "gemini") or not (isinstance(v, str) and v.strip()):
+                raise ValueError("llm_models keys must be anthropic/openai/gemini "
+                                 "with non-empty model strings")
     elif key in ("news_refresh_minutes", "max_news_items",
                  "assistant_history_messages", "assistant_max_tokens"):
         if not (isinstance(value, int) and value > 0):

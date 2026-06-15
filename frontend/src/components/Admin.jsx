@@ -8,11 +8,11 @@ export default function Admin() {
   return (
     <div>
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'review', 'research', 'users', 'instruments', 'integrations', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log',
                review: 'Score review', research: 'Research (RAG)', users: 'Users',
-               instruments: 'Instruments', integrations: 'Integrations',
+               roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations',
                settings: 'Settings' }[v]}
           </button>
         ))}
@@ -23,6 +23,7 @@ export default function Admin() {
       {view === 'review' && <Review />}
       {view === 'research' && <Research />}
       {view === 'users' && <Users />}
+      {view === 'roles' && <Roles />}
       {view === 'instruments' && <Instruments />}
       {view === 'integrations' && <Integrations />}
       {view === 'settings' && <Settings />}
@@ -382,6 +383,38 @@ function Settings() {
       </div>
 
       <div className="panel">
+        <h4 title="Choose which AI providers are used, in what order, and which model each uses. Applied immediately.">LLM routing</h4>
+        <div className="toolbar">
+          <span style={{ minWidth: 220 }}>Provider order (priority)</span>
+          <input id="set-llmorder" style={{ width: 220 }}
+                 defaultValue={(s.llm_provider_order || []).join(', ')} />
+          <button className="ghost" onClick={() => save('llm_provider_order',
+            document.getElementById('set-llmorder').value.split(',').map(x => x.trim()).filter(Boolean))}>Save</button>
+        </div>
+        <div className="toolbar">
+          <span style={{ minWidth: 220 }} title="Failover = use first available in order. Round robin = rotate across providers to spread load.">Strategy</span>
+          <select id="set-llmstrat" defaultValue={s.llm_strategy}>
+            <option value="failover">failover</option>
+            <option value="round_robin">round robin</option>
+          </select>
+          <button className="ghost" onClick={() => save('llm_strategy',
+            document.getElementById('set-llmstrat').value)}>Save</button>
+        </div>
+        {['anthropic', 'openai', 'gemini'].map(prov => (
+          <div className="toolbar" key={prov}>
+            <span style={{ minWidth: 220, textTransform: 'capitalize' }}>{prov} model</span>
+            <input id={`set-model-${prov}`} style={{ width: 260 }}
+                   defaultValue={(s.llm_models || {})[prov] || ''} />
+            <button className="ghost" onClick={() => save('llm_models',
+              { ...s.llm_models, [prov]: document.getElementById(`set-model-${prov}`).value.trim() })}>Save</button>
+          </div>
+        ))}
+        <p className="hint">Order is failover priority. Round robin spreads calls across the configured
+          providers. Models apply live (no restart). e.g. set Anthropic to
+          <code> claude-haiku-4-5-20251001 </code> for faster, cheaper chat.</p>
+      </div>
+
+      <div className="panel">
         <h4>Scheduler & limits</h4>
         {[['daily_scoring_hour', 'Daily scoring hour (0-23)'],
           ['news_refresh_minutes', 'News refresh interval (min)'],
@@ -693,16 +726,25 @@ function Users() {
   const [rows, setRows] = useState([])
   const [err, setErr] = useState('')
   const [page, setPage] = useState(0)
-  const [form, setForm] = useState({ email: '', password: '', full_name: '', is_admin: false })
-  const load = () => api.users().then(setRows).catch(e => setErr(e.message))
+  const [roles, setRoles] = useState([])
+  const [form, setForm] = useState({ email: '', password: '', full_name: '', role_id: '' })
+  const load = () => {
+    api.users().then(setRows).catch(e => setErr(e.message))
+    api.roles().then(setRoles).catch(() => {})
+  }
   useEffect(() => { load() }, [])
+  async function changeRole(id, rid) {
+    try { await api.setUserRole(id, rid ? Number(rid) : null); load() } catch (ex) { setErr(ex.message) }
+  }
 
   async function create(e) {
     e.preventDefault()
     setErr('')
     try {
-      await api.createUser(form.email, form.password, form.full_name, form.is_admin)
-      setForm({ email: '', password: '', full_name: '', is_admin: false })
+      const rid = form.role_id ? Number(form.role_id) : null
+      const isAdmin = !!roles.find(r => r.id === rid && r.is_admin)
+      await api.createUser(form.email, form.password, form.full_name, isAdmin, rid)
+      setForm({ email: '', password: '', full_name: '', role_id: '' })
       load()
     } catch (ex) { setErr(ex.message) }
   }
@@ -723,8 +765,11 @@ function Users() {
           <input placeholder="Password (min 8)" type="password" required minLength={8}
                  value={form.password}
                  onChange={e => setForm({ ...form, password: e.target.value })} />
-          <label><input type="checkbox" checked={form.is_admin}
-                 onChange={e => setForm({ ...form, is_admin: e.target.checked })} /> admin</label>
+          <select value={form.role_id} onChange={e => setForm({ ...form, role_id: e.target.value })}
+                  title="Role controls which pages this user can access">
+            <option value="">No role (default User access)</option>
+            {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_admin ? ' (admin)' : ''}</option>)}
+          </select>
           <button type="submit">Create</button>
         </div>
       </form>
@@ -743,7 +788,12 @@ function Users() {
           {rows.slice(page * 20, page * 20 + 20).map(u => (
             <tr key={u.id}>
               <td>{u.id}</td><td>{u.email}</td><td>{u.full_name}</td>
-              <td>{u.is_admin ? 'admin' : 'user'}</td>
+              <td>
+                <select value={u.role_id || ''} onChange={e => changeRole(u.id, e.target.value)}>
+                  <option value="">{u.is_admin ? 'admin (legacy)' : 'No role'}</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </td>
               <td>{u.is_active ? 'yes' : 'no'}</td>
               <td>{fmtIST(u.created_at)}</td>
               <td><button className="ghost" onClick={() => toggle(u.id)}>
@@ -753,6 +803,85 @@ function Users() {
         </tbody>
       </table>
       <Pager page={page} setPage={setPage} total={rows.length} label="users" />
+    </div>
+  )
+}
+
+function Roles() {
+  const [roles, setRoles] = useState([])
+  const [pages, setPages] = useState([])
+  const [err, setErr] = useState('')
+  const [msg, setMsg] = useState('')
+  const [form, setForm] = useState({ id: null, name: '', pages: [], is_admin: false })
+  const load = () => {
+    api.roles().then(setRoles).catch(e => setErr(e.message))
+    api.pagesCatalog().then(d => setPages(d.pages || [])).catch(() => {})
+  }
+  useEffect(() => { load() }, [])
+  function edit(r) { setForm({ id: r.id, name: r.name, pages: [...(r.pages || [])], is_admin: r.is_admin }) }
+  function reset() { setForm({ id: null, name: '', pages: [], is_admin: false }) }
+  function togglePage(p) {
+    setForm(f => ({ ...f, pages: f.pages.includes(p) ? f.pages.filter(x => x !== p) : [...f.pages, p] }))
+  }
+  async function submit(e) {
+    e.preventDefault(); setErr(''); setMsg('')
+    try {
+      if (form.id) { await api.updateRole(form.id, form.name, form.pages, form.is_admin); setMsg('Role updated.') }
+      else { await api.createRole(form.name, form.pages, form.is_admin); setMsg('Role created.') }
+      reset(); load()
+    } catch (ex) { setErr(ex.message) }
+  }
+  async function remove(r) {
+    if (!window.confirm(`Delete role "${r.name}"?`)) return
+    try { await api.deleteRole(r.id); load() } catch (ex) { setErr(ex.message) }
+  }
+
+  return (
+    <div>
+      {err && <p className="note">{err}</p>}
+      {msg && <p className="hint">{msg}</p>}
+      <form className="panel" onSubmit={submit}>
+        <h4>{form.id ? `Edit role: ${form.name}` : 'Create role'}</h4>
+        <div className="toolbar">
+          <input placeholder="Role name *" required value={form.name}
+                 onChange={e => setForm({ ...form, name: e.target.value })} />
+          <label title="Admin roles unlock Agents, Audit, Admin and all admin actions">
+            <input type="checkbox" checked={form.is_admin}
+                   onChange={e => setForm({ ...form, is_admin: e.target.checked })} /> admin role
+          </label>
+        </div>
+        <div className="weights-grid">
+          {pages.map(p => (
+            <label key={p} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={form.pages.includes(p)} onChange={() => togglePage(p)} /> {p}
+            </label>
+          ))}
+        </div>
+        <div className="toolbar">
+          <button type="submit">{form.id ? 'Save changes' : 'Create role'}</button>
+          {form.id && <button type="button" className="ghost" onClick={reset}>Cancel</button>}
+        </div>
+        <p className="hint">Page access controls which menu items a user with this role sees.
+          Admin roles additionally unlock Agents / Audit / Admin and all admin actions.</p>
+      </form>
+
+      <table className="data-table">
+        <thead><tr><th>Role</th><th>Admin</th><th>Pages</th><th>Users</th><th /></tr></thead>
+        <tbody>
+          {roles.map(r => (
+            <tr key={r.id}>
+              <td><strong>{r.name}</strong></td>
+              <td>{r.is_admin ? <span className="tag positive">admin</span> : <span className="hint">no</span>}</td>
+              <td className="hint">{(r.pages || []).join(', ') || '—'}</td>
+              <td>{r.users}</td>
+              <td>
+                <button className="ghost sm" onClick={() => edit(r)}>Edit</button>{' '}
+                <button className="ghost sm" onClick={() => remove(r)} disabled={r.users > 0}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

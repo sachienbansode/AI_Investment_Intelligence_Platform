@@ -11,7 +11,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import get_settings
-from app.db.database import SessionLocal, User
+from app.db.database import ALL_PAGES, Role, SessionLocal, USER_PAGES, User
 
 JWT_SECRET = get_settings().jwt_secret
 JWT_ALGO = "HS256"
@@ -66,7 +66,25 @@ def get_current_user(
     return user
 
 
+def effective_access(user: User) -> tuple[list[str], bool]:
+    """Return (allowed_pages, is_admin) for a user, honouring their RBAC role."""
+    role = None
+    if getattr(user, "role_id", None):
+        db = SessionLocal()
+        try:
+            role = db.get(Role, user.role_id)
+        finally:
+            db.close()
+    is_admin = bool(user.is_admin) or bool(role and role.is_admin)
+    if is_admin:
+        return list(ALL_PAGES), True
+    if role and role.pages:
+        return list(role.pages), False
+    return list(USER_PAGES), False
+
+
 def require_admin(user: User = Depends(get_current_user)) -> User:
-    if not user.is_admin:
+    _, is_admin = effective_access(user)
+    if not is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
     return user

@@ -23,8 +23,10 @@ class TokenResponse(BaseModel):
 
 
 def _user_dict(u: User) -> dict:
+    from app.core.auth import effective_access
+    pages, is_admin = effective_access(u)
     return {"id": u.id, "email": u.email, "full_name": u.full_name,
-            "is_admin": bool(u.is_admin)}
+            "is_admin": is_admin, "pages": pages, "role_id": u.role_id}
 
 
 @router.post("/login", response_model=TokenResponse)

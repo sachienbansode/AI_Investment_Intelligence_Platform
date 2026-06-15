@@ -8,6 +8,7 @@ const AGENT_LABELS = {
   sentiment_agent: 'Sentiment Agent',
   scoring_agent: 'Scoring Agent',
   explainability_agent: 'Explainability Agent',
+  ai_checker_agent: 'AI Checker Agent',
   quality_agent: 'Quality Agent',
   publishing_agent: 'Publishing Agent',
 }
@@ -66,6 +67,21 @@ export default function Agents() {
       timer.current = setTimeout(load, d.running ? 2000 : 15000)
     } catch (e) { setErr(e.message) }
   }
+  const [busy, setBusy] = useState('')
+  const [msg, setMsg] = useState('')
+  async function runScoring() {
+    setBusy('score'); setMsg('')
+    try { await api.runScoring(); setMsg('Scoring pipeline started - watch the agents below.'); load() }
+    catch (e) { setMsg(e.message) }
+    setBusy('')
+  }
+  async function refreshNews() {
+    setBusy('news'); setMsg('')
+    try { await api.refreshNewsNow(); setMsg('News refreshed.') }
+    catch (e) { setMsg(e.message) }
+    setBusy('')
+  }
+
   useEffect(() => { load(); return () => clearTimeout(timer.current) }, [])
 
   if (err) return <p className="note">{err}</p>
@@ -88,6 +104,18 @@ export default function Agents() {
             ? `Run ${run.run_id} · ${run.symbols.length} scripts · started ${fmtTime(run.started)}`
             : s.last ? `Last run ${s.last.run_id} (${s.last.status}) · ${s.last.symbols.length} scripts` : 'No runs yet'}
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="toolbar" style={{ margin: 0 }}>
+          <button onClick={runScoring} disabled={!!busy || s.running}>
+            {busy === 'score' ? 'Starting…' : 'Run scoring pipeline'}</button>
+          <button className="ghost" onClick={refreshNews} disabled={!!busy}>
+            {busy === 'news' ? 'Refreshing…' : 'Refresh news'}</button>
+          {msg && <span className="hint">{msg}</span>}
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>Run the full agentic scoring pipeline on
+          demand, or pull the latest market news now. Scoring is disabled while a run is in progress.</p>
       </div>
 
       {run && (
