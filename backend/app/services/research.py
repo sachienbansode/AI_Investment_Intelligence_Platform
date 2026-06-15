@@ -83,6 +83,12 @@ async def ingest_document(*, title: str, text: str, source: str = "",
 
 async def search(query: str, k: int = 4) -> list[dict]:
     """Return the top-k most relevant research chunks for a query."""
+    db = SessionLocal()
+    try:
+        if db.query(ResearchChunk).count() == 0:
+            return []   # no research uploaded -> skip the embedding API call
+    finally:
+        db.close()
     qvec, _ = await embed_query(query)
     db = SessionLocal()
     try:

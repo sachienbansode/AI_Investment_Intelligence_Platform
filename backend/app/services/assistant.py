@@ -1,5 +1,6 @@
 """AI Assistant: grounded context (RAG-style), conversation memory, source
 attribution, confidence, multilingual support, AI disclaimer."""
+import asyncio
 import json
 import logging
 import re
@@ -93,16 +94,25 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     sources: list[dict] = []
     context_parts: list[str] = []
 
-    mentioned = detect_symbols(question)
-    for sym in mentioned[:3]:
-        q = await md.get_quote(sym)
+    async def _safe(coro, default=None, timeout=4.0):
+        # Never let a slow/blocked market-data source (e.g. NSE on a datacenter
+        # IP) stall the whole answer — cap each call and fall through.
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except Exception:
+            return default
+
+    mentioned = detect_symbols(question)[:3]
+    quotes, indices = await asyncio.gather(
+        asyncio.gather(*[_safe(md.get_quote(s)) for s in mentioned]),
+        _safe(md.get_indices(), {}),
+    )
+    for sym, q in zip(mentioned, quotes):
         if q:
             context_parts.append(
                 f"QUOTE {sym}: price={q.last_price}, day_change={q.change_pct}%, "
                 f"PE={q.pe}, 52w={q.week52_low}-{q.week52_high} (source: {q.source})")
             sources.append({"type": "quote", "symbol": sym, "source": q.source})
-
-    indices = await md.get_indices()
     if indices:
         context_parts.append("INDICES: " + json.dumps(indices))
         sources.append({"type": "indices", "source": "nse"})
