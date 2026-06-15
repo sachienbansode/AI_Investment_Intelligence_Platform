@@ -29,6 +29,7 @@ DEFAULTS: dict = {
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
+    "brand_logo": "",   # admin-uploaded logo as a data: URI (favicon + app logo)
     "llm_provider_order": ["anthropic", "openai", "gemini"],
     "llm_strategy": "failover",          # "failover" | "round_robin"
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
@@ -105,6 +106,13 @@ def _validate(key: str, value) -> None:
     elif key in ("strict_maker_checker", "ai_checker_enabled"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
+    elif key == "brand_logo":
+        if not isinstance(value, str):
+            raise ValueError("brand_logo must be a string")
+        if value and not value.startswith("data:image/"):
+            raise ValueError("brand_logo must be a data:image/... URI or empty")
+        if len(value) > 900000:
+            raise ValueError("logo too large (max ~600KB)")
     elif key == "llm_provider_order":
         valid = {"anthropic", "openai", "gemini"}
         if not (isinstance(value, list) and value and all(v in valid for v in value)):

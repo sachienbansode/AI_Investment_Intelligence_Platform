@@ -63,6 +63,15 @@ export const api = {
     return res.json()
   },
   health: () => http('/health'),
+  branding: () => http('/branding'),
+  uploadBrandLogo: async (file) => {
+    const fd = new FormData(); fd.append('file', file)
+    const headers = {}; if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(BASE + '/admin/branding', { method: 'POST', headers, body: fd })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Upload failed (${res.status})`) }
+    return res.json()
+  },
+  clearBrandLogo: () => http('/admin/branding', { method: 'DELETE' }),
   audit: (event = '', limit = 50, offset = 0) =>
     http(`/admin/audit?event=${encodeURIComponent(event)}&limit=${limit}&offset=${offset}`),
   stats: () => http('/admin/stats'),

@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { api, setToken } from '../api.js'
 
-const card = { background: '#000000', border: '1px solid #1c2233', color: '#e8edf7',
-  boxShadow: '0 12px 48px rgba(0,0,0,.6)', width: 'min(360px, 92vw)' }
-const field = { background: '#121a33', border: '1px solid #2a3a63', color: '#fff' }
-const muted = { color: '#9fb0d6' }
-const faint = { color: '#6e7fb0' }
-
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, brand }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
@@ -25,24 +19,22 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="login-wrap"
-         style={{ background: 'radial-gradient(1000px 560px at 30% -5%, rgba(79,142,247,.20), #070b16)' }}>
-      <form className="login-card" style={card} onSubmit={submit}>
-        <img src="/niytri-logo.png" alt="NIYTRI"
-             onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/niytri-logo.svg' }}
-             style={{ width: '100%', maxWidth: 240, display: 'block', margin: '0 auto 6px' }} />
-        <p style={{ ...muted, textAlign: 'center', margin: 0, fontWeight: 600 }}>AI Investment Intelligence Platform</p>
-        <p style={{ ...muted, textAlign: 'center', margin: '2px 0 4px', fontSize: '.9rem' }}>Sign in to continue</p>
-        <input type="email" placeholder="Email" value={email} required style={field}
+    <div className="login-wrap">
+      <form className="login-card" onSubmit={submit}>
+        {brand?.logo
+          ? <img src={brand.logo} alt="Logo"
+                 style={{ maxWidth: 200, maxHeight: 90, objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
+          : <h2>AI Investment Intelligence</h2>}
+        <p className="hint">Sign in to continue</p>
+        <input type="email" placeholder="Email" value={email} required
                onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" value={password} required style={field}
+        <input type="password" placeholder="Password" value={password} required
                onChange={e => setPassword(e.target.value)} />
         {err && <p className="note">{err}</p>}
         <button type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
-        <p style={{ ...muted, textAlign: 'center', fontSize: '.85rem', margin: '4px 0 0' }}>No account? Contact your administrator.</p>
-        <p style={{ ...faint, textAlign: 'center', fontSize: '.72rem', margin: '10px 0 0', borderTop: '1px solid #1c2233', paddingTop: 10 }}>
-          AI outputs are informational only — not investment advice.</p>
-        <p style={{ ...faint, textAlign: 'center', fontSize: '.72rem', margin: '2px 0 0' }}>
+        <p className="hint">No account? Contact your administrator.</p>
+        <p className="disclaimer">AI outputs are informational only — not investment advice.</p>
+        <p className="disclaimer" style={{ borderTop: 'none', paddingTop: 0 }}>
           © {new Date().getFullYear()} NIYTRI Technologies. All rights reserved.</p>
       </form>
     </div>

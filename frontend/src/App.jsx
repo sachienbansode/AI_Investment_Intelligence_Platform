@@ -32,6 +32,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [chatSeed, setChatSeed] = useState(null)
   const [scoreSeed, setScoreSeed] = useState(null)
+  const [brand, setBrand] = useState({ logo: '' })
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('theme') ||
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
@@ -47,6 +48,14 @@ export default function App() {
   function selectTab(name) { setTab(name); setNavOpen(false) }
   function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
   function openScore(symbol) { setScoreSeed(symbol); setTab('Stock Scores'); setNavOpen(false) }
+
+  useEffect(() => { api.branding().then(d => setBrand(d || { logo: '' })).catch(() => {}) }, [])
+  useEffect(() => {
+    if (!brand.logo) return
+    let link = document.querySelector("link[rel='icon']")
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link) }
+    link.href = brand.logo
+  }, [brand.logo])
 
   useEffect(() => {
     onUnauthorized(() => setUser(null))
@@ -69,7 +78,7 @@ export default function App() {
   }, [user])
 
   if (!authChecked) return null
-  if (!user) return <Login onLogin={setUser} />
+  if (!user) return <Login onLogin={setUser} brand={brand} />
 
   const nav = pages.map(name => ({ name, icon: ICONS[name] || String.fromCharCode(0x2022) }))
   const can = name => pages.includes(name)
@@ -81,7 +90,9 @@ export default function App() {
       <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">
-          <img src="/niytri-mark.png" alt="NIYTRI" className="brand-mark" onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/niytri-mark.svg' }} style={{ background: '#0a0d13', padding: 0, objectFit: 'cover', borderRadius: 9 }} />
+          {brand.logo
+            ? <img src={brand.logo} alt="Logo" className="brand-mark" style={{ background: 'none', padding: 0, objectFit: 'contain', borderRadius: 8 }} />
+            : <span className="brand-mark">{String.fromCharCode(0x20B9)}</span>}
           <div className="brand-name">Investment<br />Intelligence</div>
           <button className="collapse-btn" onClick={() => setCollapsed(c => !c)}
                   title={collapsed ? 'Expand menu' : 'Minimize menu'}>

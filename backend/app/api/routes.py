@@ -481,6 +481,14 @@ async def trigger_scoring(background: BackgroundTasks):
     return {"status": "scoring pipeline started"}
 
 
+@router.get("/branding")
+async def branding():
+    """Public: the admin-uploaded logo (data URI) or empty. Used for the app
+    logo + favicon, including on the pre-login screen."""
+    from app.services.app_settings import get_setting
+    return {"logo": get_setting("brand_logo") or ""}
+
+
 @router.get("/health")
 async def health():
     return {

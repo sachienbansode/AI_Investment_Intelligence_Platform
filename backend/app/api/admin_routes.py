@@ -797,6 +797,36 @@ def chat_audit(user_email: str = "", session: str = "", limit: int = 20, offset:
         db.close()
 
 
+# ── Branding (admin-uploaded logo / favicon) ─────────────────────
+@router.post("/branding")
+async def upload_branding(file: UploadFile = File(...), admin: User = Depends(require_admin)):
+    """Upload a logo image (PNG/JPG/SVG/WebP). Stored as a data URI and used as
+    the app logo and favicon everywhere."""
+    import base64
+    data = await file.read()
+    if len(data) > 600 * 1024:
+        raise HTTPException(413, "Logo too large (max 600 KB). Please upload a smaller image.")
+    ct = (file.content_type or "").lower()
+    if not ct.startswith("image/"):
+        name = (file.filename or "").lower()
+        ext = {"svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg",
+               "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+        ct = next((v for k, v in ext.items() if name.endswith("." + k)), "")
+        if not ct:
+            raise HTTPException(400, "Upload a PNG, JPG, SVG, WebP or GIF image.")
+    uri = f"data:{ct};base64," + base64.b64encode(data).decode()
+    set_setting("brand_logo", uri)
+    audit_log("branding_uploaded", by=admin.email, bytes=len(data), type=ct)
+    return {"ok": True, "bytes": len(data)}
+
+
+@router.delete("/branding")
+def clear_branding(admin: User = Depends(require_admin)):
+    set_setting("brand_logo", "")
+    audit_log("branding_cleared", by=admin.email)
+    return {"ok": True}
+
+
 # ── App settings (DB-configurable) ───────────────────────────────
 class SettingUpdate(BaseModel):
     key: str

@@ -336,6 +336,18 @@ function Settings() {
     } catch (ex) { setErr(ex.message) }
   }
 
+  async function uploadLogo(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    setErr(''); setMsg('')
+    try { await api.uploadBrandLogo(f); setMsg('Logo uploaded — it applies app-wide after users reload.'); load() }
+    catch (ex) { setErr(ex.message) }
+  }
+  async function removeLogo() {
+    setErr(''); setMsg('')
+    try { await api.clearBrandLogo(); setMsg('Logo removed — reverts to the default icon.'); load() }
+    catch (ex) { setErr(ex.message) }
+  }
+
   function moveProv(idx, dir) {
     const o = [...llm.order]; const j = idx + dir
     if (j < 0 || j >= o.length) return
@@ -362,6 +374,19 @@ function Settings() {
     <div>
       {err && <p className="note">{err}</p>}
       {msg && <p className="hint">{msg}</p>}
+
+      <div className="panel">
+        <h4 title="Upload your company logo. It replaces the default icon as the app logo (login + sidebar) and the browser favicon for everyone.">Branding — logo &amp; favicon</h4>
+        <p className="hint">PNG, SVG, JPG or WebP, up to 600 KB. Applies app-wide once users reload.</p>
+        <div className="toolbar">
+          <input type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp,image/gif" onChange={uploadLogo} />
+          {s.brand_logo ? <button className="ghost" onClick={removeLogo}>Remove logo</button> : null}
+        </div>
+        {s.brand_logo
+          ? <img src={s.brand_logo} alt="Current logo"
+                 style={{ maxWidth: 220, maxHeight: 80, marginTop: 8, background: '#0a0d13', borderRadius: 8, padding: 6, objectFit: 'contain' }} />
+          : <p className="hint">No custom logo — using the default ₹ icon.</p>}
+      </div>
 
       <div className="panel">
         <h4>Scoring weights <span className="hint">(must sum to 1.0 — current: {wSum.toFixed(2)})</span></h4>
