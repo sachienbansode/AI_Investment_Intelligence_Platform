@@ -21,8 +21,11 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <img src="/niytri-logo.svg" alt="NIYTRI" className="login-logo"
-             style={{ width: '100%', maxWidth: 240, margin: '2px auto 12px', display: 'block' }} />
+        <div style={{ background: '#000', borderRadius: 12, padding: '16px 12px', margin: '0 auto 14px' }}>
+          <img src="/niytri-logo.png" alt="NIYTRI"
+               onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/niytri-logo.svg' }}
+               style={{ width: '100%', maxWidth: 250, display: 'block', margin: '0 auto' }} />
+        </div>
         <p className="hint" style={{ textAlign: 'center', marginTop: 0, fontWeight: 600 }}>AI Investment Intelligence Platform</p>
         <p className="hint" style={{ textAlign: 'center' }}>Sign in to continue</p>
         <input type="email" placeholder="Email" value={email} required
