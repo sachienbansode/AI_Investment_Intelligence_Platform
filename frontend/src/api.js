@@ -49,6 +49,7 @@ export const api = {
     http(`/admin/audit?event=${encodeURIComponent(event)}&limit=${limit}&offset=${offset}`),
   stats: () => http('/admin/stats'),
   llmTest: () => http('/admin/llm-test', { method: 'POST' }),
+  chatAudit: (p = {}) => http('/admin/chat-audit?' + new URLSearchParams(p)),
   pendingScores: () => http('/admin/scores/pending'),
   scoresHistory: (p = {}) => http('/admin/scores/history?' + new URLSearchParams(p)),
   reviewScore: (id, status) =>

@@ -764,6 +764,39 @@ async def refresh_news_now(admin: User = Depends(require_admin)):
     return {"status": "news refreshed"}
 
 
+# ── Chat audit (admin) ───────────────────────────────────────────
+@router.get("/chat-audit")
+def chat_audit(user_email: str = "", session: str = "", limit: int = 20, offset: int = 0):
+    """Full conversation log: who asked what, when, the AI response, the LLM
+    provider, confidence and latency. Filterable + paginated."""
+    from app.db.database import ChatMessage
+    db = SessionLocal()
+    try:
+        emails = {u.id: u.email for u in db.query(User).all()}
+        q = db.query(ChatMessage)
+        if user_email:
+            uids = [uid for uid, em in emails.items()
+                    if user_email.lower() in (em or "").lower()]
+            q = q.filter(ChatMessage.user_id.in_(uids or [-1]))
+        if session:
+            q = q.filter(ChatMessage.session_id.like(f"%{session}%"))
+        total = q.count()
+        rows = (q.order_by(ChatMessage.created_at.desc())
+                .offset(offset).limit(limit).all())
+        out = [{
+            "id": r.id, "time": str(r.created_at),
+            "user": emails.get(r.user_id) or ("—" if r.user_id is None else f"user#{r.user_id}"),
+            "session_id": r.session_id, "role": r.role, "content": r.content,
+            "provider": (r.meta or {}).get("provider"),
+            "confidence": (r.meta or {}).get("confidence"),
+            "latency_ms": (r.meta or {}).get("latency_ms"),
+            "sources": (r.meta or {}).get("n_sources"),
+        } for r in rows]
+        return {"total": total, "rows": out}
+    finally:
+        db.close()
+
+
 # ── App settings (DB-configurable) ───────────────────────────────
 class SettingUpdate(BaseModel):
     key: str

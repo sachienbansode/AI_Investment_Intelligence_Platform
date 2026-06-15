@@ -25,7 +25,7 @@ export default function News() {
         <button onClick={() => load(true)} disabled={busy}>{busy ? 'Loading…' : 'Refresh news'}</button>
       </div>
       {err && <p className="note">{err}</p>}
-      {items.slice(page * 20, page * 20 + 20).map((n, i) => (
+      {items.slice(page * 10, page * 10 + 10).map((n, i) => (
         <article key={i} className="news-item">
           <h3><a href={n.link} target="_blank" rel="noreferrer">{n.title}</a></h3>
           <div className="meta">
@@ -40,7 +40,7 @@ export default function News() {
           </div>
         </article>
       ))}
-      <Pager page={page} setPage={setPage} total={items.length} label="news items" />
+      <Pager page={page} setPage={setPage} total={items.length} size={10} label="news items" />
     </div>
   )
 }

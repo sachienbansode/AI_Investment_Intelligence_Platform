@@ -113,7 +113,7 @@ export default function Assistant({ seed, clearSeed }) {
                 {m.role === 'assistant' && m.confidence != null && (
                   <div className="meta">
                     <span title="How much grounded context (quotes, scores, news) backed this answer">
-                      Confidence {(m.confidence * 100).toFixed(0)}%</span> · via {m.provider}
+                      Confidence {(m.confidence * 100).toFixed(0)}%</span>
                     {m.sources?.length > 0 && (
                       <details>
                         <summary>Sources ({m.sources.length})</summary>

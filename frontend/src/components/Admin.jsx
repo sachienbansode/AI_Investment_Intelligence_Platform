@@ -8,9 +8,9 @@ export default function Admin() {
   return (
     <div>
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
-            {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log',
+            {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
                review: 'Score review', research: 'Research (RAG)', users: 'Users',
                roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations',
                settings: 'Settings' }[v]}
@@ -20,6 +20,7 @@ export default function Admin() {
       {view === 'stats' && <Stats />}
       {view === 'llm' && <LlmBilling />}
       {view === 'audit' && <Audit />}
+      {view === 'chataudit' && <ChatAudit />}
       {view === 'review' && <Review />}
       {view === 'research' && <Research />}
       {view === 'users' && <Users />}
@@ -882,6 +883,57 @@ function Roles() {
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function ChatAudit() {
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState('')
+  const [email, setEmail] = useState('')
+  const [page, setPage] = useState(0)
+  const LIMIT = 20
+  const load = () => api.chatAudit({ user_email: email, limit: LIMIT, offset: page * LIMIT })
+    .then(setData).catch(e => setErr(e.message))
+  useEffect(() => { load() }, [page]) // eslint-disable-line
+  if (err) return <p className="note">{err}</p>
+  if (!data) return <p className="hint">Loading…</p>
+  return (
+    <div>
+      <p className="hint">Every question and AI response is logged here — user, time, the LLM
+        provider that answered, confidence and latency — for compliance audit.</p>
+      <div className="toolbar">
+        <input placeholder="Filter by user email…" value={email}
+               onChange={e => setEmail(e.target.value)}
+               onKeyDown={e => { if (e.key === 'Enter') { setPage(0); load() } }} />
+        <button className="ghost" onClick={() => { setPage(0); load() }}>Search</button>
+        <span className="hint">{data.total} messages</span>
+      </div>
+      <table className="audit-table">
+        <thead><tr>
+          <th title="When the message was recorded (IST)">Time (IST)</th>
+          <th title="Who sent it">User</th>
+          <th title="user question or assistant answer">Role</th>
+          <th title="Message / response text">Message</th>
+          <th title="LLM provider that produced the answer (recorded for audit; hidden from end users)">Provider</th>
+          <th title="Grounding confidence">Conf.</th>
+          <th title="Response latency (ms)">ms</th>
+        </tr></thead>
+        <tbody>
+          {data.rows.map(r => (
+            <tr key={r.id}>
+              <td>{fmtIST(r.time)}</td>
+              <td className="hint">{r.user}</td>
+              <td><span className="tag">{r.role}</span></td>
+              <td className="audit-detail" style={{ whiteSpace: 'normal', maxWidth: 460 }}>{r.content}</td>
+              <td className="hint">{r.provider || '—'}</td>
+              <td>{r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : '—'}</td>
+              <td className="hint">{r.latency_ms ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Pager page={page} setPage={setPage} total={data.total} label="messages" />
     </div>
   )
 }

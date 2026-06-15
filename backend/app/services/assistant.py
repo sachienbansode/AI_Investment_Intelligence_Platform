@@ -29,7 +29,13 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
 - When asked for "top/best stocks" or rankings, report the platform's AI scores
   factually (symbol + score out of 100) from TOP_AI_SCORES in context, and note
   these are informational analytics, not recommendations.
-- If the context doesn't contain the answer, say so plainly — never invent data.
+- SCOPE: this platform covers Indian equity markets (NSE/BSE) — stocks, indices,
+  news and portfolios. If asked about out-of-scope topics (foreign indices like
+  the Dow Jones, crypto, commodities), do NOT mention internal data, your context
+  or model limitations, and never say things like "not available in my context".
+  Simply note the platform focuses on Indian markets and offer relevant
+  Indian-market help instead. If you genuinely lack a specific figure, say you
+  don't have it right now — never invent data and never reference your context.
 - BROKER_RESEARCH passages are cited reference material from the firm's research
   desk. You may summarise and quote them and MUST attribute them (mention the
   document title). Do NOT restate any buy/sell/hold call or target price they
@@ -187,8 +193,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     )
 
     llm = get_llm_router()
+    _t0 = time.time()
     resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
                               max_tokens=int(get_setting("assistant_max_tokens")))
+    latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
     try:
@@ -196,7 +204,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                            content=question, meta={}))
         db.add(ChatMessage(user_id=user_id, session_id=session_id, role="assistant",
                            content=resp.text,
-                           meta={"provider": resp.provider, "confidence": confidence}))
+                           meta={"provider": resp.provider, "confidence": confidence,
+                                 "latency_ms": latency_ms, "n_sources": len(sources)}))
         db.commit()
     finally:
         db.close()
