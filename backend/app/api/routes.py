@@ -2,14 +2,14 @@
 import asyncio
 from datetime import date, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 
 from app.agents.pipeline import PIPELINE_STATE, live_snapshot, run_daily_pipeline
 from app.core.auth import get_current_user, require_admin
-from app.core.compliance import AI_DISCLAIMER
+from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
-from app.db.database import (ChatMessage, Instrument, SessionLocal, StockScore,
-                             User, WatchlistItem)
+from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
+                             StockScore, User, WatchlistItem)
 from app.llm.router import get_llm_router
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
@@ -209,6 +209,120 @@ async def portfolio_analyze(req: PortfolioRequest, user: User = Depends(get_curr
     if not req.holdings:
         raise HTTPException(400, "holdings cannot be empty")
     return await analyze_portfolio(req.holdings)
+
+
+def _parse_portfolio_file(filename: str, data: bytes) -> list[dict]:
+    """Parse an uploaded CSV/XLSX into [{symbol, quantity, avg_price}] with
+    flexible, case-insensitive column matching."""
+    import csv
+    import io
+    name = (filename or "").lower()
+    records: list[dict] = []
+    if name.endswith((".xlsx", ".xls")):
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        grid = [[c.value for c in row] for row in wb.active.iter_rows()]
+        if not grid:
+            return []
+        header = [str(x or "").strip().lower() for x in grid[0]]
+        records = [dict(zip(header, r)) for r in grid[1:]]
+    else:
+        text = data.decode("utf-8", errors="ignore")
+        reader = csv.DictReader(io.StringIO(text))
+        records = [{(k or "").strip().lower(): v for k, v in row.items()} for row in reader]
+
+    def pick(d, keys):
+        for k in keys:
+            if k in d and d[k] not in (None, ""):
+                return d[k]
+        return None
+
+    def num(x):
+        try:
+            return float(str(x).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return 0.0
+
+    out = []
+    for d in records:
+        sym = pick(d, ["symbol", "scrip", "scrip name", "scripname", "ticker", "stock",
+                       "instrument", "tradingsymbol", "nse symbol", "nse"])
+        qty = pick(d, ["qty", "quantity", "units", "shares", "qty."])
+        price = pick(d, ["avg_price", "avg price", "average price", "avgprice",
+                         "price", "buy price", "avg cost", "avg. price", "cost"])
+        if sym is None and qty is None and price is None:
+            continue
+        out.append({"symbol": str(sym or "").strip().upper(),
+                    "quantity": num(qty), "avg_price": num(price)})
+    return out
+
+
+@router.post("/portfolio/upload")
+async def portfolio_upload(file: UploadFile = File(...),
+                           user: User = Depends(get_current_user)):
+    """Parse an uploaded holdings file and validate symbols against the
+    instruments master. Returns a matched/unmatched summary for confirmation;
+    does NOT save until the user confirms via /portfolio/save."""
+    data = await file.read()
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 2 MB).")
+    if not (file.filename or "").lower().endswith((".csv", ".xlsx", ".xls", ".txt")):
+        raise HTTPException(400, "Upload a .csv or .xlsx file with columns: symbol, quantity, avg_price.")
+    rows = _parse_portfolio_file(file.filename, data)
+    if not rows:
+        raise HTTPException(422, "No holdings found. Use columns: symbol, quantity, avg_price.")
+    db = SessionLocal()
+    try:
+        valid = {r.symbol: (r.sector or "") for r in
+                 db.query(Instrument).filter_by(is_active=True).all()}
+    finally:
+        db.close()
+    matched, unmatched = [], []
+    for r in rows:
+        sym = r["symbol"]
+        if not sym:
+            unmatched.append({**r, "reason": "missing symbol"})
+        elif r["quantity"] <= 0 or r["avg_price"] <= 0:
+            unmatched.append({**r, "reason": "quantity and avg price must be greater than 0"})
+        elif sym not in valid:
+            unmatched.append({**r, "reason": "not in the instruments master (NIFTY500) / name not matching"})
+        else:
+            matched.append({"symbol": sym, "quantity": r["quantity"],
+                            "avg_price": r["avg_price"], "sector": valid[sym]})
+    audit_log("portfolio_upload", user_id=user.id, total=len(rows),
+              matched=len(matched), unmatched=len(unmatched))
+    return {"matched": matched, "unmatched": unmatched,
+            "counts": {"total": len(rows), "matched": len(matched),
+                       "unmatched": len(unmatched)}}
+
+
+@router.get("/portfolio/saved")
+async def portfolio_saved(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        p = db.query(Portfolio).filter_by(user_id=user.id).first()
+        return {"holdings": (p.holdings or []) if p else [],
+                "updated_at": str(p.updated_at) if p else None}
+    finally:
+        db.close()
+
+
+@router.post("/portfolio/save")
+async def portfolio_save(req: PortfolioRequest, user: User = Depends(get_current_user)):
+    """Persist the user's holdings (kept across sessions)."""
+    holdings = [h.model_dump() for h in req.holdings]
+    db = SessionLocal()
+    try:
+        p = db.query(Portfolio).filter_by(user_id=user.id).first()
+        if p:
+            p.holdings = holdings
+        else:
+            db.add(Portfolio(user_id=user.id, holdings=holdings))
+        db.commit()
+    finally:
+        db.close()
+    audit_log("portfolio_saved", user_id=user.id, holdings=len(holdings))
+    return {"saved": len(holdings)}
 
 
 # ── 5. Watchlist (persistent, per user) ──────────────────────────

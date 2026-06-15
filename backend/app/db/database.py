@@ -87,6 +87,16 @@ class WatchlistItem(Base):
     __table_args__ = (UniqueConstraint("user_id", "symbol", name="uq_watch_user_symbol"),)
 
 
+class Portfolio(Base):
+    """A user's saved holdings (uploaded or hand-entered). One row per user."""
+    __tablename__ = "portfolios"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, unique=True, index=True)
+    holdings = Column(JSON)   # [{symbol, quantity, avg_price, sector}]
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class PipelineRun(Base):
     """Persistent audit record of every agentic pipeline run."""
     __tablename__ = "pipeline_runs"

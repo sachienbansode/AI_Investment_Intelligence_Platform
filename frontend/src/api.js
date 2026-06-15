@@ -44,6 +44,17 @@ export const api = {
   indices: () => http('/market/indices'),
   analyzePortfolio: (holdings) =>
     http('/portfolio/analyze', { method: 'POST', body: JSON.stringify({ holdings }) }),
+  portfolioSaved: () => http('/portfolio/saved'),
+  savePortfolio: (holdings) =>
+    http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
+  portfolioUpload: async (file) => {
+    const fd = new FormData(); fd.append('file', file)
+    const headers = {}
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(BASE + '/portfolio/upload', { method: 'POST', headers, body: fd })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Upload failed (${res.status})`) }
+    return res.json()
+  },
   health: () => http('/health'),
   audit: (event = '', limit = 50, offset = 0) =>
     http(`/admin/audit?event=${encodeURIComponent(event)}&limit=${limit}&offset=${offset}`),

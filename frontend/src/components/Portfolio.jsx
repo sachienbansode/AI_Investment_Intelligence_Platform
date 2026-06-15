@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 
@@ -8,31 +8,99 @@ export default function Portfolio() {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [msg, setMsg] = useState('')
+  const [summary, setSummary] = useState(null)   // upload validation summary
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
 
   useEffect(() => {
     api.instruments().then(d => setAll(d.instruments)).catch(() => {})
+    // restore the user's saved holdings
+    api.portfolioSaved().then(d => {
+      if (d.holdings && d.holdings.length) {
+        setRows(d.holdings.map(h => ({ symbol: h.symbol, quantity: h.quantity, avg_price: h.avg_price })))
+        setMsg('Loaded your saved portfolio.')
+      }
+    }).catch(() => {})
   }, [])
 
   const update = (i, k, v) => setRows(r => r.map((row, j) => j === i ? { ...row, [k]: v } : row))
   const add = () => setRows(r => [...r, { symbol: '', quantity: 1, avg_price: 0 }])
   const remove = i => setRows(r => r.filter((_, j) => j !== i))
 
+  function cleanHoldings() {
+    return rows
+      .filter(r => r.symbol && r.quantity > 0 && r.avg_price > 0)
+      .map(r => ({ symbol: r.symbol.toUpperCase(), quantity: +r.quantity, avg_price: +r.avg_price }))
+  }
+
   async function analyze() {
-    setBusy(true); setErr(''); setResult(null)
+    setBusy(true); setErr(''); setMsg(''); setResult(null)
     try {
-      const holdings = rows
-        .filter(r => r.symbol && r.quantity > 0 && r.avg_price > 0)
-        .map(r => ({ symbol: r.symbol.toUpperCase(), quantity: +r.quantity, avg_price: +r.avg_price }))
+      const holdings = cleanHoldings()
       if (!holdings.length) throw new Error('Add at least one valid holding')
+      await api.savePortfolio(holdings)                 // persist for this user
       setResult(await api.analyzePortfolio(holdings))
     } catch (e) { setErr(e.message) }
     setBusy(false)
   }
 
+  async function onUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true); setErr(''); setMsg(''); setSummary(null)
+    try {
+      setSummary(await api.portfolioUpload(file))
+    } catch (ex) { setErr(ex.message) }
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function continueWithMatched() {
+    setRows(summary.matched.map(h => ({ symbol: h.symbol, quantity: h.quantity, avg_price: h.avg_price })))
+    setSummary(null)
+    setMsg(`Loaded ${summary.matched.length} matched holding(s). Review and click Analyze.`)
+  }
+
   return (
     <div>
-      <p className="hint">Search and add your holdings (demo). In production this connects to the
-        customer's holdings via the broker back office with consent.</p>
+      <p className="hint">Add holdings manually, or upload a CSV/Excel of your portfolio. In
+        production this connects to the customer's holdings via the broker back office with consent.
+        Your holdings are saved to your account and restored on your next visit.</p>
+
+      <div className="toolbar">
+        <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={onUpload} />
+        <button className="ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
+          {uploading ? 'Reading…' : 'Upload portfolio (CSV/Excel)'}</button>
+        <span className="hint">Columns: <code>symbol, quantity, avg_price</code></span>
+      </div>
+      {err && <p className="note">{err}</p>}
+      {msg && <p className="hint">{msg}</p>}
+
+      {summary && (
+        <div className="panel">
+          <h4>Upload summary</h4>
+          <p className="hint">{summary.counts.matched} of {summary.counts.total} holdings matched the
+            instruments master (NIFTY500). {summary.counts.unmatched > 0 &&
+            `${summary.counts.unmatched} could not be matched and will be skipped.`}</p>
+          {summary.unmatched.length > 0 && (
+            <table className="data-table">
+              <thead><tr><th>Symbol</th><th>Qty</th><th>Avg price</th><th>Why skipped</th></tr></thead>
+              <tbody>
+                {summary.unmatched.map((u, i) => (
+                  <tr key={i}><td><strong>{u.symbol || '—'}</strong></td><td>{u.quantity}</td>
+                    <td>{u.avg_price}</td><td className="down">{u.reason}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div className="toolbar">
+            <button onClick={continueWithMatched} disabled={summary.counts.matched === 0}>
+              Continue with {summary.counts.matched} matched holding(s)</button>
+            <button className="ghost" onClick={() => setSummary(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <datalist id="pf-inst">
         {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name} · {i.sector}</option>)}
@@ -59,9 +127,8 @@ export default function Portfolio() {
       </table>
       <div className="toolbar">
         <button onClick={add}>+ Add holding</button>
-        <button onClick={analyze} disabled={busy}>{busy ? 'Analyzing…' : 'Analyze portfolio'}</button>
+        <button onClick={analyze} disabled={busy}>{busy ? 'Analyzing…' : 'Analyze & save portfolio'}</button>
       </div>
-      {err && <p className="note">{err}</p>}
 
       {result && (
         <div className="panel">
