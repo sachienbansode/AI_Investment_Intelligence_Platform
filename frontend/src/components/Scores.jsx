@@ -149,9 +149,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
                 <td><span className="score" style={{ background: color(s.composite_score) }}>{s.composite_score}</span></td>
                 <td title={s.drivers?.length ? 'Drivers: ' + s.drivers.join(', ') : 'No previous score to compare'}>
                   {s.delta != null
-                    ? <span className={s.delta >= 0 ? 'up' : 'down'}>
+                    ? <span className={s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'hint'}>
                         {s.delta > 0 ? '▲' : s.delta < 0 ? '▼' : '–'} {Math.abs(s.delta)}
-                        {s.prev_score ? ` (${s.delta >= 0 ? '+' : '−'}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
+                        {s.prev_score ? ` (${s.delta > 0 ? '+' : s.delta < 0 ? '−' : ''}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
                       </span>
                     : <span className="hint">new</span>}
                 </td>
@@ -167,9 +167,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
                     <div className="card-body">
                       {s.delta != null && (
                         <p className="explain" style={{ marginTop: 0 }}>
-                          <strong className={s.delta >= 0 ? 'up' : 'down'}>
+                          <strong className={s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'hint'}>
                             {s.delta > 0 ? '▲ Up' : s.delta < 0 ? '▼ Down' : '– Unchanged'} {Math.abs(s.delta)} points
-                            {s.prev_score ? ` (${s.delta >= 0 ? '+' : '−'}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
+                            {s.prev_score ? ` (${s.delta > 0 ? '+' : s.delta < 0 ? '−' : ''}${Math.abs(s.delta / s.prev_score * 100).toFixed(1)}%)` : ''}
                           </strong> vs {s.prev_date} (was {s.prev_score}). Change = AI-score movement vs the previous scoring day.
                           {s.drivers?.length > 0 && <> Main drivers: {s.drivers.join(', ')}.</>}
                         </p>

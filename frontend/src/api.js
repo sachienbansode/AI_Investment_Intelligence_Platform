@@ -54,6 +54,19 @@ export const api = {
   },
   savePortfolio: (holdings) =>
     http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
+  compare: (a, b, language = 'en') =>
+    http('/compare?' + new URLSearchParams({ a, b, language })),
+  downloadPortfolioPdf: async (holdings) => {
+    const headers = { 'Content-Type': 'application/json' }
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(BASE + '/portfolio/report.pdf', {
+      method: 'POST', headers, body: JSON.stringify({ holdings }),
+    })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Export failed (${res.status})`) }
+    const blob = await res.blob()
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob); link.download = 'portfolio_analysis.pdf'; link.click(); URL.revokeObjectURL(link.href)
+  },
   portfolioUpload: async (file) => {
     const fd = new FormData(); fd.append('file', file)
     const headers = {}

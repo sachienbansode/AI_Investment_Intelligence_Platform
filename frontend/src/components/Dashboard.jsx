@@ -28,6 +28,11 @@ export default function Dashboard({ go, openScore }) {
   const top = [...list].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
   const approved = list.filter(s => s.quality_status === 'approved').length
   const maxAvg = Math.max(60, ...(trend?.daily || []).map(d => d.avg_score))
+  const sectorStats = Object.entries(list.reduce((m, s) => {
+    const k = s.sector || 'Other'; (m[k] = m[k] || []).push(s.composite_score); return m
+  }, {})).map(([sector, arr]) => ({
+    sector, count: arr.length, avg: arr.reduce((a, b) => a + b, 0) / arr.length,
+  })).sort((a, b) => b.avg - a.avg)
 
   return (
     <div>
@@ -49,6 +54,26 @@ export default function Dashboard({ go, openScore }) {
           <span className="kpi-value">{watch.length}</span>
           <span className="kpi-sub">scripts followed</span></div>
       </div>
+
+      {sectorStats.length > 0 && (
+        <div className="panel">
+          <div className="panel-head">
+            <h3 title="Average AI score per sector across all scored scripts. Greener = stronger average. Click a tile to open Stock Scores.">Sector strength</h3>
+            <button className="ghost sm" onClick={() => go('Stock Scores')}>View all →</button>
+          </div>
+          <div className="sector-heatmap">
+            {sectorStats.map(s => (
+              <div key={s.sector} className="sector-tile row-click"
+                   title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
+                   style={{ background: scoreColor(s.avg) }} onClick={() => go('Stock Scores')}>
+                <span className="sector-name">{s.sector}</span>
+                <span className="sector-avg">{s.avg.toFixed(0)}</span>
+                <span className="sector-count">{s.count} script{s.count > 1 ? 's' : ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="panel">
         <div className="panel-head">

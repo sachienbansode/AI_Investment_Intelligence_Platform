@@ -326,6 +326,35 @@ async def portfolio_save(req: PortfolioRequest, user: User = Depends(get_current
     return {"saved": len(holdings)}
 
 
+@router.post("/portfolio/report.pdf")
+async def portfolio_report_pdf(req: PortfolioRequest, user: User = Depends(get_current_user)):
+    """Generate a shareable PDF of the portfolio analysis."""
+    if not req.holdings:
+        raise HTTPException(400, "holdings cannot be empty")
+    analysis = await analyze_portfolio(req.holdings)
+    from app.services.portfolio_pdf import build_portfolio_pdf
+    holdings = [h.model_dump() for h in req.holdings]
+    pdf = build_portfolio_pdf(analysis.model_dump(), holdings)
+    audit_log("portfolio_pdf", user_id=user.id, holdings=len(holdings))
+    import io
+    return StreamingResponse(
+        io.BytesIO(pdf), media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="portfolio_analysis.pdf"'})
+
+
+@router.get("/compare")
+async def compare(a: str, b: str, language: str = "en",
+                  user: User = Depends(get_current_user)):
+    """Side-by-side comparison of two NSE scripts with an advice-free AI summary."""
+    a2, b2 = (a or "").upper().strip(), (b or "").upper().strip()
+    if not a2 or not b2:
+        raise HTTPException(400, "Provide two symbols")
+    if a2 == b2:
+        raise HTTPException(400, "Choose two different symbols")
+    from app.services.assistant import compare_stocks
+    return await compare_stocks(a2, b2, language)
+
+
 @router.get("/portfolio/template.csv")
 async def portfolio_template(user: User = Depends(get_current_user)):
     """Downloadable CSV pre-filled with every active script (NIFTY500) and its

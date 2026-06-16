@@ -12,6 +12,7 @@ export default function Portfolio() {
   const [summary, setSummary] = useState(null)   // upload validation summary
   const [uploading, setUploading] = useState(false)
   const [tplBusy, setTplBusy] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -67,6 +68,16 @@ export default function Portfolio() {
     setTplBusy(true); setErr('')
     try { await api.downloadPortfolioTemplate() } catch (e) { setErr(e.message) }
     setTplBusy(false)
+  }
+
+  async function downloadPdf() {
+    setPdfBusy(true); setErr('')
+    try {
+      const holdings = cleanHoldings()
+      if (!holdings.length) throw new Error('Add at least one valid holding')
+      await api.downloadPortfolioPdf(holdings)
+    } catch (e) { setErr(e.message) }
+    setPdfBusy(false)
   }
 
   function continueWithMatched() {
@@ -144,6 +155,11 @@ export default function Portfolio() {
       <div className="toolbar">
         <button onClick={add}>+ Add holding</button>
         <button onClick={analyze} disabled={busy}>{busy ? 'Analyzing…' : 'Analyze & save portfolio'}</button>
+        {result && (
+          <button className="ghost" onClick={downloadPdf} disabled={pdfBusy}
+                  title="Download a shareable PDF of this analysis for your client">
+            {pdfBusy ? 'Preparing PDF…' : '⤓ Export analysis as PDF'}</button>
+        )}
       </div>
 
       {result && (

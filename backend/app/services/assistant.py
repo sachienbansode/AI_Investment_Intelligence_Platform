@@ -233,3 +233,58 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     return AskAIResponse(answer=resp.text, sources=sources, confidence=round(confidence, 2),
                          provider=resp.provider, disclaimer=AI_DISCLAIMER)
+
+
+async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
+    """Side-by-side, advice-free comparison of two NSE scripts with an AI summary."""
+    md = get_market_data()
+
+    async def snapshot(sym: str) -> dict:
+        try:
+            q = await asyncio.wait_for(md.get_quote(sym), timeout=5.0)
+        except Exception:
+            q = None
+        db = SessionLocal()
+        try:
+            row = (db.query(StockScore).filter_by(symbol=sym)
+                   .order_by(StockScore.score_date.desc()).first())
+            inst = db.query(Instrument).filter_by(symbol=sym).first()
+        finally:
+            db.close()
+        approved = bool(row and row.quality_status == "approved")
+        return {
+            "symbol": sym,
+            "name": inst.name if inst else sym,
+            "sector": inst.sector if inst else "",
+            "last_price": q.last_price if q else None,
+            "change_pct": q.change_pct if q else None,
+            "pe": q.pe if q else None,
+            "week52_high": q.week52_high if q else None,
+            "week52_low": q.week52_low if q else None,
+            "source": q.source if q else None,
+            "ai_score": row.composite_score if approved else None,
+            "pillar_scores": row.pillar_scores if approved else None,
+            "score_date": row.score_date if row else None,
+        }
+
+    a, b = await asyncio.gather(snapshot(sym_a), snapshot(sym_b))
+    system = (get_setting("assistant_system_prompt") or "") + GUARDRAILS
+    prompt = (
+        "Compare these two NSE-listed stocks for an investor, factually and WITHOUT "
+        "any buy/sell/hold advice, recommendation or price target. Say which looks "
+        "stronger on the platform's AI score and on each available metric (price "
+        "action, P/E, 52-week range, pillar strengths), and flag missing data and key "
+        "caveats. Reply in language code '" + language + "'. 4-6 short markdown bullets; "
+        "bold the symbols and numbers.\n\nSTOCK A: " + json.dumps(a)
+        + "\nSTOCK B: " + json.dumps(b))
+    summary = ""
+    try:
+        resp = await get_llm_router().complete(system, prompt, task="compare",
+                                               max_tokens=600, temperature=0.3)
+        summary = resp.text.strip()
+    except Exception as e:
+        log.warning("Compare summary failed: %s", e)
+        summary = ("AI summary is unavailable right now — the side-by-side metrics "
+                   "above are still accurate.")
+    audit_log("stock_compare", a=sym_a, b=sym_b)
+    return {"a": a, "b": b, "summary": summary, "disclaimer": AI_DISCLAIMER}

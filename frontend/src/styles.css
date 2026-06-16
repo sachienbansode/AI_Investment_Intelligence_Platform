@@ -449,3 +449,14 @@ textarea:focus { border-color: var(--accent); }
   .ticker > span:not(.exch-badge) { padding: 2px 8px; }
   .brand-name { font-size: .78rem; }
 }
+
+/* Sector strength heatmap (Dashboard) */
+.sector-heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.sector-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 10px;
+  color: #fff; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; min-height: 78px; }
+.sector-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.sector-tile .sector-name { font-size: .74rem; font-weight: 600; opacity: .95; line-height: 1.2; }
+.sector-tile .sector-avg { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.sector-tile .sector-count { font-size: .68rem; opacity: .85; }
+.compare-panel .compare-table td, .compare-panel .compare-table th { text-align: left; }
+.compare-panel input { min-width: 150px; }
