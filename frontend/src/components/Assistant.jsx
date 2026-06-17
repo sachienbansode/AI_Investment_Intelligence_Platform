@@ -84,11 +84,14 @@ export default function Assistant({ seed, clearSeed }) {
   return (
     <div className="chat-layout">
       <aside className="chat-sidebar">
-        <button onClick={startNew}>+ New chat</button>
+        <button className="new-chat-btn" onClick={startNew}>+ New chat</button>
+        <div className="session-list-title">Recent chats</div>
         <div className="session-list">
+          {sessions.length === 0 && <div className="session-empty">No conversations yet</div>}
           {sessions.map(s => (
             <div key={s.session_id}
                  className={'session-item' + (s.session_id === sessionId ? ' active' : '')}
+                 title={s.title || '(empty)'}
                  onClick={() => openSession(s.session_id)}>
               {s.title || '(empty)'}
             </div>

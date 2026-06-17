@@ -115,13 +115,27 @@ async def all_scores():
         # all rows for the latest run (no truncation, works for 500+ scripts)
         rows = (db.query(StockScore).filter_by(score_date=latest_date)
                 .order_by(StockScore.composite_score.desc()).all())
-        prev_row = (db.query(StockScore.score_date)
-                    .filter(StockScore.score_date < latest_date)
-                    .order_by(StockScore.score_date.desc()).first())
-        prev_date = prev_row[0] if prev_row else None
-        prev = ({r.symbol: r for r in
-                 db.query(StockScore).filter_by(score_date=prev_date).all()}
-                if prev_date else {})
+        # Baseline for Δ Change = the most recent PRIOR run whose scores actually
+        # differ from the latest. Identical re-runs (e.g. two pre-market runs that
+        # read the same snapshot) are skipped so the column reflects real movement,
+        # consistent with the dashboard trend deltas.
+        latest_map = {r.symbol: r.composite_score for r in rows}
+        prior_dates = [d[0] for d in
+                       (db.query(StockScore.score_date)
+                        .filter(StockScore.score_date < latest_date)
+                        .distinct().order_by(StockScore.score_date.desc()).all())]
+        prev_date, prev = None, {}
+        for d in prior_dates:
+            cand = {r.symbol: r for r in
+                    db.query(StockScore).filter_by(score_date=d).all()}
+            if any(round(latest_map[sym] - c.composite_score, 1) != 0
+                   for sym, c in cand.items() if sym in latest_map):
+                prev_date, prev = d, cand
+                break
+        if prev_date is None and prior_dates:   # all prior runs identical to latest
+            prev_date = prior_dates[0]
+            prev = {r.symbol: r for r in
+                    db.query(StockScore).filter_by(score_date=prev_date).all()}
         sectors = {r.symbol: r.sector for r in db.query(Instrument).all()}
 
         out = []

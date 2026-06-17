@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-in-production"
     environment: str = "development"
     scoring_universe: str = "RELIANCE,TCS,HDFCBANK,INFY,ICICIBANK"
-    daily_scoring_hour: int = 7
+    daily_scoring_hour: int = 18   # 18:00 IST — after the 15:30 close, so each run captures the day's real price action
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     # Where the immutable audit trail is written. In Docker, point this at a
     # mounted volume (e.g. /data/audit.log) so it survives container restarts.

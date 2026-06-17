@@ -14,7 +14,7 @@ DEFAULTS: dict = {
         "momentum": 0.10, "earnings": 0.10, "news_sentiment": 0.10,
         "institutional": 0.05, "risk": 0.05,
     },
-    "daily_scoring_hour": 7,          # 0-23 IST server time (restart to apply)
+    "daily_scoring_hour": 18,         # 0-23 IST; post-close (after 15:30) so scores reflect daily moves (restart to apply)
     # Maker-checker: when True, the pipeline publishes scores as 'pending' and a
     # human admin must approve each before it reaches users/the assistant.
     "strict_maker_checker": False,

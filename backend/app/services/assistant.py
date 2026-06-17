@@ -139,19 +139,22 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         latest = (db.query(StockScore.score_date)
                   .order_by(StockScore.score_date.desc()).first())
         if latest:
-            appr = (db.query(StockScore)
-                    .filter_by(score_date=latest[0], quality_status="approved")
+            # Match the Stock Scores page: all published scores for the latest
+            # run (every status), so "stocks below 50" is answered from the same
+            # universe the user sees, not just the approved subset.
+            rows = (db.query(StockScore)
+                    .filter_by(score_date=latest[0])
                     .order_by(StockScore.composite_score.desc()).all())
-            if appr:
-                vals = [r.composite_score for r in appr]
+            if rows:
+                vals = [r.composite_score for r in rows]
                 n = len(vals)
                 strong = sum(1 for v in vals if v >= 65)
                 neutral = sum(1 for v in vals if 50 <= v < 65)
                 weak = sum(1 for v in vals if v < 50)
-                top = [{"symbol": r.symbol, "score": r.composite_score} for r in appr[:10]]
-                bottom = [{"symbol": r.symbol, "score": r.composite_score} for r in appr[-10:]]
+                top = [{"symbol": r.symbol, "score": r.composite_score} for r in rows[:10]]
+                bottom = [{"symbol": r.symbol, "score": r.composite_score} for r in rows[-10:]]
                 context_parts.append(
-                    f"AI_SCORES_SUMMARY (date {latest[0]}, approved only): total={n}, "
+                    f"AI_SCORES_SUMMARY (date {latest[0]}, all published scores): total={n}, "
                     f"avg={round(sum(vals)/n,1)}, max={max(vals)}, min={min(vals)}. "
                     f"Bands: 65+ (strong)={strong}, 50-64 (neutral)={neutral}, "
                     f"below 50 (weak)={weak}. TOP_10={json.dumps(top)}. "

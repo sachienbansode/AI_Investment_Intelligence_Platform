@@ -181,17 +181,29 @@ input:focus, select:focus { border-color: var(--accent); }
   line-height: 1.55; }
 
 /* ───────────────────────── Chat ───────────────────────── */
-.chat-layout { display: grid; grid-template-columns: 230px 1fr; gap: 14px; }
+.chat-layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
 @media (max-width: 760px) { .chat-layout { grid-template-columns: 1fr; } }
 .chat-sidebar { display: flex; flex-direction: column; gap: 10px; }
-.session-list { overflow-y: auto; max-height: 58vh; display: flex;
-  flex-direction: column; gap: 3px; }
-.session-item { padding: 9px 11px; border-radius: 8px; font-size: .8rem;
-  color: var(--muted); cursor: pointer; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; border: 1px solid transparent; }
-.session-item:hover { background: var(--panel); color: var(--text); }
-.session-item.active { background: var(--panel); color: var(--text);
+.chat-sidebar .new-chat-btn { width: 100%; }
+.session-list-title { font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 700; color: var(--muted);
+  padding: 4px 4px 0; }
+.session-list { overflow-y: auto; overflow-x: hidden; max-height: 56vh;
+  display: flex; flex-direction: column; gap: 5px; padding: 2px; }
+.session-list::-webkit-scrollbar { width: 8px; }
+.session-list::-webkit-scrollbar-thumb { background: var(--border2);
+  border-radius: 5px; }
+.session-list::-webkit-scrollbar-track { background: transparent; }
+.session-empty { font-size: .8rem; color: var(--muted); padding: 12px 6px; }
+.session-item { padding: 10px 12px; border-radius: 9px; font-size: .82rem;
+  line-height: 1.4; color: var(--text); cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; background: var(--panel);
+  border: 1px solid var(--border); opacity: .82;
+  transition: opacity .12s ease, background .12s ease, border-color .12s ease; }
+.session-item:hover { background: var(--panel2); opacity: 1;
   border-color: var(--border2); }
+.session-item.active { background: var(--panel2); opacity: 1;
+  border-color: var(--accent); font-weight: 600; }
 
 .chat-window { background: var(--panel); border: 1px solid var(--border);
   border-radius: var(--radius); height: 56vh; overflow-y: auto; padding: 16px;
