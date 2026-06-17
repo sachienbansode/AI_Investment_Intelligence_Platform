@@ -35,6 +35,8 @@ export const api = {
     http('/ask', { method: 'POST', body: JSON.stringify({ question, session_id, language }) }),
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
+  deleteSession: (sessionId) => http(`/chat/history/${sessionId}`, { method: 'DELETE' }),
+  clearChats: () => http('/chat/sessions', { method: 'DELETE' }),
   scores: () => http('/scores'),
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
   trends: (days = 30) => http(`/scores/trends?days=${days}`),

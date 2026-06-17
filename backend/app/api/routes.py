@@ -71,6 +71,31 @@ async def chat_history(session_id: str, user: User = Depends(get_current_user)):
         db.close()
 
 
+@router.delete("/chat/history/{session_id}")
+async def delete_chat_session(session_id: str, user: User = Depends(get_current_user)):
+    """Delete one conversation (all its messages) for the current user."""
+    db = SessionLocal()
+    try:
+        n = (db.query(ChatMessage)
+             .filter_by(user_id=user.id, session_id=session_id).delete())
+        db.commit()
+        return {"deleted": n}
+    finally:
+        db.close()
+
+
+@router.delete("/chat/sessions")
+async def clear_chat_history(user: User = Depends(get_current_user)):
+    """Clear ALL chat history for the current user."""
+    db = SessionLocal()
+    try:
+        n = db.query(ChatMessage).filter_by(user_id=user.id).delete()
+        db.commit()
+        return {"deleted": n}
+    finally:
+        db.close()
+
+
 # ── Instruments (read; admin manages via /admin) ─────────────────
 @router.get("/instruments")
 async def instruments(user: User = Depends(get_current_user)):

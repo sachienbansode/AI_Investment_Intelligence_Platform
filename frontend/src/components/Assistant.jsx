@@ -51,6 +51,20 @@ export default function Assistant({ seed, clearSeed }) {
     setMessages([])
   }
 
+  async function clearAll() {
+    if (!window.confirm('Clear all chat history? This cannot be undone.')) return
+    try { await api.clearChats(); setSessions([]); startNew() } catch {}
+  }
+
+  async function deleteSession(e, id) {
+    e.stopPropagation()
+    try {
+      await api.deleteSession(id)
+      if (id === sessionId) startNew()
+      loadSessions()
+    } catch {}
+  }
+
   async function send(text) {
     const q = (text ?? input).trim()
     if (!q || busy) return
@@ -85,7 +99,13 @@ export default function Assistant({ seed, clearSeed }) {
     <div className="chat-layout">
       <aside className="chat-sidebar">
         <button className="new-chat-btn" onClick={startNew}>+ New chat</button>
-        <div className="session-list-title">Recent chats</div>
+        <div className="session-head">
+          <span className="session-list-title">Recent chats</span>
+          {sessions.length > 0 && (
+            <button className="link-btn" title="Delete all conversations"
+                    onClick={clearAll}>Clear</button>
+          )}
+        </div>
         <div className="session-list">
           {sessions.length === 0 && <div className="session-empty">No conversations yet</div>}
           {sessions.map(s => (
@@ -93,7 +113,9 @@ export default function Assistant({ seed, clearSeed }) {
                  className={'session-item' + (s.session_id === sessionId ? ' active' : '')}
                  title={s.title || '(empty)'}
                  onClick={() => openSession(s.session_id)}>
-              {s.title || '(empty)'}
+              <span className="session-title">{s.title || '(empty)'}</span>
+              <button className="session-del" title="Delete chat"
+                      onClick={e => deleteSession(e, s.session_id)}>{String.fromCharCode(0xD7)}</button>
             </div>
           ))}
         </div>
