@@ -153,7 +153,7 @@ cd /home/ubuntu/AI_Investment_Intelligence_Platform/AI_Investment_Intelligence_P
 git pull
 # backend changed:
 cd backend && source .venv/bin/activate && pip install -r requirements.txt   # only if deps changed
-sudo systemctl restart broking-ai
+sudo systemctl restart broking-backend
 # frontend changed:
 cd ../frontend && npm run build && sudo cp -r dist/* /var/www/broking-ai/
 ```
