@@ -1,5 +1,6 @@
+import AiIcon from './AiIcon.jsx'
 const FEATURES = [
-  { icon: '✦', title: 'AI Assistant', desc: 'Conversational intelligence grounded in live quotes, AI scores and market news. Multilingual, with source attribution, confidence levels and per-user chat history.' },
+  { icon: <AiIcon />, title: 'AI Assistant', desc: 'Conversational intelligence grounded in live quotes, AI scores and market news. Multilingual, with source attribution, confidence levels and per-user chat history.' },
   { icon: '▤', title: 'Agentic Stock Scoring', desc: 'A daily multi-agent pipeline scores every script in the universe 0-100 using a proprietary blend of fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.' },
   { icon: '↺', title: 'On-demand Rescore', desc: 'Refresh any script score with a live quote at any time, with day-over-day change, the pillars that drove the move, and an AI-written rationale.' },
   { icon: '◈', title: 'Market News Intelligence', desc: 'Continuous collection from leading Indian financial sources, AI-summarized, tagged with impacted stocks, sectors and sentiment, linked to the original article.' },

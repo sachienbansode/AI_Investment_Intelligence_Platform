@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
+import AiIcon from './AiIcon.jsx'
 
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -20,16 +21,10 @@ export default function Assistant({ seed, clearSeed }) {
   const [input, setInput] = useState('')
   const [lang, setLang] = useState('en')
   const [busy, setBusy] = useState(false)
-  const [insts, setInsts] = useState([])
-  const [showCmp, setShowCmp] = useState(false)
-  const [cmp, setCmp] = useState({ a: '', b: '' })
-  const [cmpRes, setCmpRes] = useState(null)
-  const [cmpBusy, setCmpBusy] = useState(false)
-  const [cmpErr, setCmpErr] = useState('')
   const bottom = useRef(null)
 
   const loadSessions = () => api.chatSessions().then(d => setSessions(d.sessions)).catch(() => {})
-  useEffect(() => { loadSessions(); api.instruments().then(d => setInsts(d.instruments || [])).catch(() => {}) }, [])
+  useEffect(() => { loadSessions() }, [])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy])
   useEffect(() => {
     if (seed) { send(seed); clearSeed?.() }
@@ -85,16 +80,6 @@ export default function Assistant({ seed, clearSeed }) {
     }
   }
 
-  async function runCompare() {
-    const a = cmp.a.trim().toUpperCase(), b = cmp.b.trim().toUpperCase()
-    if (!a || !b) { setCmpErr('Enter two symbols'); return }
-    if (a === b) { setCmpErr('Choose two different symbols'); return }
-    setCmpBusy(true); setCmpErr(''); setCmpRes(null)
-    try { setCmpRes(await api.compare(a, b, lang)) }
-    catch (e) { setCmpErr(e.message) }
-    setCmpBusy(false)
-  }
-
   return (
     <div className="chat-layout">
       <aside className="chat-sidebar">
@@ -128,60 +113,12 @@ export default function Assistant({ seed, clearSeed }) {
               {Object.entries(LANGS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>
-          <button className={'ghost sm' + (showCmp ? ' active' : '')} style={{ marginLeft: 'auto' }}
-                  title="Compare two stocks side by side" onClick={() => setShowCmp(v => !v)}>
-            {String.fromCharCode(0x21C4)} Compare stocks</button>
         </div>
-
-        {showCmp && (
-          <div className="panel compare-panel">
-            <datalist id="cmp-inst">
-              {insts.map(i => <option key={i.symbol} value={i.symbol}>{i.name}</option>)}
-            </datalist>
-            <div className="toolbar">
-              <input list="cmp-inst" placeholder="Stock A (e.g. RELIANCE)" value={cmp.a}
-                     onChange={e => setCmp({ ...cmp, a: e.target.value.toUpperCase() })} />
-              <span className="hint">vs</span>
-              <input list="cmp-inst" placeholder="Stock B (e.g. TCS)" value={cmp.b}
-                     onChange={e => setCmp({ ...cmp, b: e.target.value.toUpperCase() })} />
-              <button onClick={runCompare} disabled={cmpBusy}>{cmpBusy ? 'Comparing…' : 'Compare'}</button>
-            </div>
-            {cmpErr && <p className="note">{cmpErr}</p>}
-            {cmpRes && (() => {
-              const A = cmpRes.a, B = cmpRes.b
-              const px = v => v != null ? String.fromCharCode(0x20B9) + Number(v).toLocaleString('en-IN') : '—'
-              const rng = h => h.week52_low != null ? `${h.week52_low} – ${h.week52_high}` : '—'
-              const rows = [
-                ['AI score', A.ai_score ?? '—', B.ai_score ?? '—'],
-                ['Last price', px(A.last_price), px(B.last_price)],
-                ['Day change', A.change_pct != null ? `${A.change_pct}%` : '—', B.change_pct != null ? `${B.change_pct}%` : '—'],
-                ['P/E', A.pe ?? '—', B.pe ?? '—'],
-                ['52-week range', rng(A), rng(B)],
-                ['Sector', A.sector || '—', B.sector || '—'],
-              ]
-              return (
-                <div>
-                  <table className="data-table compare-table">
-                    <thead><tr><th>Metric</th><th>{A.symbol}</th><th>{B.symbol}</th></tr></thead>
-                    <tbody>
-                      {rows.map((r, i) => (
-                        <tr key={i}><td className="hint">{r[0]}</td><td><strong>{r[1]}</strong></td><td><strong>{r[2]}</strong></td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <h4 style={{ marginBottom: 4 }}>AI comparison</h4>
-                  <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(cmpRes.summary) }} />
-                  <p className="disclaimer">{cmpRes.disclaimer}</p>
-                </div>
-              )
-            })()}
-          </div>
-        )}
 
         <div className="chat-window">
           {messages.length === 0 && (
             <div className="chat-empty">
-              <div className="chat-empty-mark">✦</div>
+              <div className="chat-empty-mark"><AiIcon /></div>
               <h3>Ask me about markets, scores & news</h3>
               <p className="hint">Grounded in live quotes, the platform's AI scores and today's news.</p>
               <div className="chip-row">
@@ -194,7 +131,7 @@ export default function Assistant({ seed, clearSeed }) {
 
           {messages.map((m, i) => (
             <div key={i} className={'msg ' + m.role}>
-              {m.role === 'assistant' && <span className="msg-avatar">✦</span>}
+              {m.role === 'assistant' && <span className="msg-avatar"><AiIcon /></span>}
               <div className="bubble">
                 {m.role === 'assistant'
                   ? <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
@@ -224,7 +161,7 @@ export default function Assistant({ seed, clearSeed }) {
 
           {busy && (
             <div className="msg assistant">
-              <span className="msg-avatar">✦</span>
+              <span className="msg-avatar"><AiIcon /></span>
               <div className="bubble typing"><span /><span /><span /></div>
             </div>
           )}
