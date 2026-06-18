@@ -52,9 +52,9 @@ class Role(Base):
 
 
 # Canonical page catalog (matches the frontend nav tab names)
-ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Market News",
+ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
              "Watchlist", "Portfolio", "About", "Agents", "Audit", "Admin"]
-USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Market News",
+USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
               "Watchlist", "Portfolio", "About"]
 
 

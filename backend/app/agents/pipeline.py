@@ -117,6 +117,33 @@ async def scoring_agent(ctx: AgentContext):
     audit_log("agent_scoring", composites=ctx.composites)
 
 
+_PILLAR_LABELS = {
+    "fundamental": "Fundamentals", "technical": "Technicals", "valuation": "Valuation",
+    "momentum": "Momentum", "earnings": "Earnings", "news_sentiment": "News sentiment",
+    "institutional": "Institutional activity", "risk": "Risk profile",
+}
+
+
+def _pillar_rationale(comp: float, pillars: dict) -> str:
+    """Clean, factual markdown-bullet rationale built from the pillar scores.
+    Used when the LLM explainability call fails, so users still get a readable
+    summary (not a raw data dump). Informational only \u2014 no advice."""
+    items = [(k, round(v)) for k, v in pillars.items()]
+    strong = sorted([i for i in items if i[1] >= 60], key=lambda x: -x[1])[:2]
+    weak = sorted([i for i in items if i[1] <= 40], key=lambda x: x[1])[:2]
+    neutral = [k for k, v in items if 40 < v < 60]
+    bullets = [f"- Composite AI score **{comp}/100**, a weighted blend of 8 pillars."]
+    for k, v in strong:
+        bullets.append(f"- **{_PILLAR_LABELS.get(k, k)}** is a key strength at **{v}/100**.")
+    for k, v in weak:
+        bullets.append(f"- **{_PILLAR_LABELS.get(k, k)}** weighs on the score at **{v}/100**.")
+    if neutral:
+        labels = ", ".join(_PILLAR_LABELS.get(k, k).lower() for k in neutral)
+        bullets.append(f"- {labels[:1].upper() + labels[1:]} sit neutral (~50/100), pending dedicated data feeds.")
+    bullets.append("- AI-generated from pillar analytics; informational only, not investment advice.")
+    return "\n".join(bullets)
+
+
 # ── 6. Explainability Agent ──────────────────────────────────────
 async def explainability_agent(ctx: AgentContext):
     llm = get_llm_router()
@@ -144,7 +171,7 @@ async def explainability_agent(ctx: AgentContext):
                 ctx.explanations[sym] = resp.text.strip()
                 ctx.explanations_provider[sym] = resp.provider
             except Exception as e:
-                ctx.explanations[sym] = f"Score derived from pillar data: {ctx.pillar_scores[sym]}"
+                ctx.explanations[sym] = _pillar_rationale(ctx.composites[sym], ctx.pillar_scores[sym])
                 log.warning("Explainability failed for %s: %s", sym, e)
 
     await asyncio.gather(*(explain(s) for s in ctx.composites))

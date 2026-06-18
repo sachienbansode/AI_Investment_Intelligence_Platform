@@ -35,16 +35,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
   const [refreshing, setRefreshing] = useState(null)
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 20
-  const [insts, setInsts] = useState([])
-  const [showCmp, setShowCmp] = useState(false)
-  const [cmp, setCmp] = useState({ a: '', b: '' })
-  const [cmpRes, setCmpRes] = useState(null)
-  const [cmpBusy, setCmpBusy] = useState(false)
-  const [cmpErr, setCmpErr] = useState('')
 
   const load = () => api.scores().then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
-  useEffect(() => { api.instruments().then(d => setInsts(d.instruments || [])).catch(() => {}) }, [])
   useEffect(() => {
     if (seed) { setQ(seed); setOpen(seed); clearSeed && clearSeed() }
   }, [seed]) // eslint-disable-line
@@ -67,16 +60,6 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
     poll()
     return () => clearTimeout(t)
   }, [])
-
-  async function runCompare() {
-    const a = cmp.a.trim().toUpperCase(), b = cmp.b.trim().toUpperCase()
-    if (!a || !b) { setCmpErr('Enter two symbols'); return }
-    if (a === b) { setCmpErr('Choose two different symbols'); return }
-    setCmpBusy(true); setCmpErr(''); setCmpRes(null)
-    try { setCmpRes(await api.compare(a, b)) }
-    catch (e) { setCmpErr(e.message) }
-    setCmpBusy(false)
-  }
 
   async function refreshOne(e, symbol) {
     e.stopPropagation()
@@ -142,55 +125,8 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
           {sectors.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {data?.score_date && <span className="hint">as of {data.score_date}</span>}
-        <button className={'ghost' + (showCmp ? ' active' : '')} style={{ marginLeft: 'auto' }}
-                title="Compare two stocks side by side"
-                onClick={() => setShowCmp(v => !v)}>{String.fromCharCode(0x21C4)} Compare stocks</button>
       </div>
 
-      {showCmp && (
-        <div className="panel compare-panel">
-          <datalist id="cmp-inst">
-            {insts.map(i => <option key={i.symbol} value={i.symbol}>{i.name}</option>)}
-          </datalist>
-          <div className="toolbar">
-            <input list="cmp-inst" placeholder="Stock A (e.g. RELIANCE)" value={cmp.a}
-                   onChange={e => setCmp({ ...cmp, a: e.target.value.toUpperCase() })} />
-            <span className="hint">vs</span>
-            <input list="cmp-inst" placeholder="Stock B (e.g. TCS)" value={cmp.b}
-                   onChange={e => setCmp({ ...cmp, b: e.target.value.toUpperCase() })} />
-            <button onClick={runCompare} disabled={cmpBusy}>{cmpBusy ? 'Comparing…' : 'Compare'}</button>
-          </div>
-          {cmpErr && <p className="note">{cmpErr}</p>}
-          {cmpRes && (() => {
-            const A = cmpRes.a, B = cmpRes.b
-            const px = v => v != null ? String.fromCharCode(0x20B9) + Number(v).toLocaleString('en-IN') : '\u2014'
-            const rng = h => h.week52_low != null ? `${h.week52_low} \u2013 ${h.week52_high}` : '\u2014'
-            const crows = [
-              ['AI score', A.ai_score ?? '\u2014', B.ai_score ?? '\u2014'],
-              ['Last price', px(A.last_price), px(B.last_price)],
-              ['Day change', A.change_pct != null ? `${A.change_pct}%` : '\u2014', B.change_pct != null ? `${B.change_pct}%` : '\u2014'],
-              ['P/E', A.pe ?? '\u2014', B.pe ?? '\u2014'],
-              ['52-week range', rng(A), rng(B)],
-              ['Sector', A.sector || '\u2014', B.sector || '\u2014'],
-            ]
-            return (
-              <div>
-                <table className="data-table compare-table">
-                  <thead><tr><th>Metric</th><th>{A.symbol}</th><th>{B.symbol}</th></tr></thead>
-                  <tbody>
-                    {crows.map((r, i) => (
-                      <tr key={i}><td className="hint">{r[0]}</td><td><strong>{r[1]}</strong></td><td><strong>{r[2]}</strong></td></tr>
-                    ))}
-                  </tbody>
-                </table>
-                <h4 style={{ marginBottom: 4 }}>Summary</h4>
-                <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(cmpRes.summary) }} />
-                <p className="disclaimer">{cmpRes.disclaimer}</p>
-              </div>
-            )
-          })()}
-        </div>
-      )}
       {err && <p className="note">{err}</p>}
       {filtered.length === 0 && <p className="hint">No scores yet for the current filter —
         newly imported scripts get scores on the next pipeline run (admins can trigger it

@@ -182,6 +182,41 @@ def review_score(score_id: int, req: ReviewRequest,
         db.close()
 
 
+class BulkReviewRequest(BaseModel):
+    set_status: str            # approved | rejected
+    score_date: str = ""       # limit to this run date
+    status: str = ""           # only rows currently in this status (e.g. pending)
+    symbol: str = ""           # symbol contains
+
+
+@router.post("/scores/review-bulk")
+def review_scores_bulk(req: BulkReviewRequest, admin: User = Depends(require_admin)):
+    """Approve or reject every score matching the given filters in one action.
+    Filters mirror the Score-review screen (run date, current status, symbol)."""
+    if req.set_status not in ("approved", "rejected"):
+        raise HTTPException(400, "set_status must be 'approved' or 'rejected'")
+    db = SessionLocal()
+    try:
+        q = db.query(StockScore)
+        if req.score_date:
+            q = q.filter(StockScore.score_date == req.score_date)
+        if req.status:
+            q = q.filter(StockScore.quality_status == req.status)
+        if req.symbol:
+            q = q.filter(StockScore.symbol.like(f"%{req.symbol.upper()}%"))
+        n = q.update({StockScore.quality_status: req.set_status,
+                      StockScore.reviewed_by: admin.email,
+                      StockScore.reviewed_at: datetime.now(timezone.utc)},
+                     synchronize_session=False)
+        db.commit()
+        audit_log("score_review_bulk", set_status=req.set_status, count=n,
+                  score_date=req.score_date or "all", status_filter=req.status or "all",
+                  symbol=req.symbol or "", reviewer=admin.email)
+        return {"updated": n}
+    finally:
+        db.close()
+
+
 @router.get("/users")
 def list_users():
     db = SessionLocal()

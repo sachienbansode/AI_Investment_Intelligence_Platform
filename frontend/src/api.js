@@ -96,6 +96,8 @@ export const api = {
   scoresHistory: (p = {}) => http('/admin/scores/history?' + new URLSearchParams(p)),
   reviewScore: (id, status) =>
     http(`/admin/scores/${id}/review`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  reviewScoresBulk: (set_status, { score_date = '', status = '', symbol = '' } = {}) =>
+    http('/admin/scores/review-bulk', { method: 'POST', body: JSON.stringify({ set_status, score_date, status, symbol }) }),
   users: () => http('/admin/users'),
   createUser: (email, password, full_name, is_admin, role_id) =>
     http('/admin/users', { method: 'POST', body: JSON.stringify({ email, password, full_name, is_admin, role_id }) }),

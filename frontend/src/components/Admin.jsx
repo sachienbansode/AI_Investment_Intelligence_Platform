@@ -639,6 +639,17 @@ function Review() {
     try { await api.reviewScore(id, status); load() } catch (e) { setErr(e.message) }
   }
 
+  async function decideAll(setStatus) {
+    const scope = [fDate && `run ${fDate}`, fStatus && `status "${fStatus}"`, fSymbol && `symbol "${fSymbol}"`]
+      .filter(Boolean).join(', ') || 'ALL runs and statuses'
+    if (!window.confirm(`Set status to "${setStatus}" for every score matching: ${scope}? This applies across all pages and cannot be undone.`)) return
+    try {
+      const r = await api.reviewScoresBulk(setStatus, { score_date: fDate, status: fStatus, symbol: fSymbol })
+      setErr(''); load()
+      window.alert(`Updated ${r.updated} score(s).`)
+    } catch (e) { setErr(e.message) }
+  }
+
   if (err) return <p className="note">{err}</p>
   if (!data) return <p className="hint">Loading…</p>
 
@@ -672,6 +683,10 @@ function Review() {
           <option value="rejected">rejected</option>
           <option value="pending">pending</option>
         </select>
+        <button className="ghost sm" onClick={() => decideAll('approved')}
+                title="Approve every score matching the current filter (all pages, not just this one)">✓ Approve all</button>
+        <button className="ghost sm" onClick={() => decideAll('rejected')}
+                title="Reject every score matching the current filter (all pages, not just this one)">✗ Reject all</button>
         <input placeholder="Symbol…" value={fSymbol}
                onChange={e => { setFSymbol(e.target.value); setPage(0) }} />
         <button className="ghost" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹ Prev</button>

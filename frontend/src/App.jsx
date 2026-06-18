@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Dashboard from './components/Dashboard.jsx'
 import Assistant from './components/Assistant.jsx'
 import AiIcon from './components/AiIcon.jsx'
+import Compare from './components/Compare.jsx'
 import Scores from './components/Scores.jsx'
 import News from './components/News.jsx'
 import Watchlist from './components/Watchlist.jsx'
@@ -19,7 +20,7 @@ const DOT = String.fromCharCode(0x00B7)
 
 // Icon for every page in the catalog; nav is built from the user's allowed pages.
 const ICONS = {
-  'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Stock Scores': '▤', 'Market News': '◈',
+  'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Stock Scores': '▤', 'Compare': '⇄', 'Market News': '◈',
   'Watchlist': '☆', 'Portfolio': '◐', 'Agents': '⚙', 'Audit': '≣',
   'Admin': '⛨', 'About': 'ⓘ',
 }
@@ -161,6 +162,7 @@ export default function App() {
           {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
           {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} />}
+          {tab === 'Compare' && can('Compare') && <Compare />}
           {tab === 'Market News' && can('Market News') && <News />}
           {tab === 'Watchlist' && can('Watchlist') && <Watchlist />}
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
