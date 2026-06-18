@@ -198,15 +198,19 @@ async def ai_checker_agent(ctx: AgentContext):
                     "independent": resp.provider != ctx.explanations_provider.get(sym),
                 }
             except Exception as e:
-                # Fail safe: do not auto-pass on checker error — mark for human review.
-                ctx.ai_reviews[sym] = {"verdict": "flag",
+                # Distinguish an infrastructure error (checker could not run) from a
+                # genuine content "flag". An error must NOT auto-reject the score —
+                # otherwise an LLM outage rejects the entire day's pipeline. We mark
+                # it "error" so the Quality Agent holds it for human review instead.
+                ctx.ai_reviews[sym] = {"verdict": "error",
                                        "reason": f"checker error: {str(e)[:80]}",
                                        "checker_provider": "", "independent": False}
                 log.warning("AI checker failed for %s: %s", sym, e)
 
     await asyncio.gather(*(check(s) for s in ctx.composites))
     flagged = [s for s, r in ctx.ai_reviews.items() if r.get("verdict") == "flag"]
-    audit_log("agent_ai_checker", reviewed=len(ctx.ai_reviews), flagged=flagged)
+    errored = [s for s, r in ctx.ai_reviews.items() if r.get("verdict") == "error"]
+    audit_log("agent_ai_checker", reviewed=len(ctx.ai_reviews), flagged=flagged, errored=errored)
 
 
 # ── 7. Quality Agent ─────────────────────────────────────────────
@@ -222,11 +226,13 @@ async def quality_agent(ctx: AgentContext):
             and all(0 <= v <= 100 for v in ctx.pillar_scores[sym].values())
             and len(ctx.explanations.get(sym, "")) > 20
         )
-        ai_flag = ctx.ai_reviews.get(sym, {}).get("verdict") == "flag"
+        verdict = ctx.ai_reviews.get(sym, {}).get("verdict")
+        ai_flag = verdict == "flag"     # genuine compliance/factual flag -> reject
+        ai_error = verdict == "error"   # checker could not run (e.g. LLM down) -> hold
         if not rules_ok or ai_flag:
             ctx.quality[sym] = "rejected"
-        elif strict:
-            ctx.quality[sym] = "pending"   # await human approval (maker-checker)
+        elif strict or ai_error:
+            ctx.quality[sym] = "pending"   # human review (strict mode, or checker unavailable)
         else:
             ctx.quality[sym] = "approved"
     audit_log("agent_quality", strict=strict, results=ctx.quality)

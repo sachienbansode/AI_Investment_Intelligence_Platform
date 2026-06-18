@@ -183,7 +183,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
                     ))}
                   </tbody>
                 </table>
-                <h4 style={{ marginBottom: 4 }}>AI comparison</h4>
+                <h4 style={{ marginBottom: 4 }}>Summary</h4>
                 <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(cmpRes.summary) }} />
                 <p className="disclaimer">{cmpRes.disclaimer}</p>
               </div>

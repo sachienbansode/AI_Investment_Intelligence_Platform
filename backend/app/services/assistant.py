@@ -238,6 +238,63 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                          provider=resp.provider, disclaimer=AI_DISCLAIMER)
 
 
+def _pct_in_range(last, lo, hi):
+    if last is None or lo is None or hi is None or hi <= lo:
+        return None
+    return round((last - lo) / (hi - lo) * 100)
+
+
+def _compare_fallback(a: dict, b: dict) -> str:
+    """Deterministic, advice-free comparison used when the LLM is unavailable.
+    States which script screens stronger on each available metric, plus a
+    conclusion. Informational only — no buy/sell/hold language."""
+    A, B = a["symbol"], b["symbol"]
+    lines, a_pts, b_pts = [], [], []
+
+    sa, sb = a.get("ai_score"), b.get("ai_score")
+    if sa is not None and sb is not None:
+        if sa != sb:
+            hi = A if sa > sb else B
+            lines.append(f"- **AI score**: **{A} {sa}** vs **{B} {sb}** \u2014 **{hi}** is higher by **{abs(round(sa - sb, 1))}** points.")
+            (a_pts if sa > sb else b_pts).append("AI score")
+        else:
+            lines.append(f"- **AI score**: tied at **{sa}**.")
+    else:
+        miss = "both" if sa is None and sb is None else (A if sa is None else B)
+        lines.append(f"- **AI score**: not available for **{miss}** (no approved score yet), so this factor can't be compared.")
+
+    ca, cb = a.get("change_pct"), b.get("change_pct")
+    if ca is not None and cb is not None and ca != cb:
+        hi = A if ca > cb else B
+        lines.append(f"- **Day change**: **{A} {ca}%** vs **{B} {cb}%** \u2014 **{hi}** is firmer today.")
+        (a_pts if ca > cb else b_pts).append("today's move")
+
+    pa, pb = a.get("pe"), b.get("pe")
+    if pa and pb and pa > 0 and pb > 0:
+        hi = A if pa < pb else B
+        lines.append(f"- **Valuation (P/E)**: **{A} {pa}** vs **{B} {pb}** \u2014 **{hi}** trades cheaper on P/E.")
+        (a_pts if pa < pb else b_pts).append("valuation (P/E)")
+    else:
+        lines.append("- **Valuation (P/E)**: not available for one or both, so P/E can't be compared.")
+
+    ra = _pct_in_range(a.get("last_price"), a.get("week52_low"), a.get("week52_high"))
+    rb = _pct_in_range(b.get("last_price"), b.get("week52_low"), b.get("week52_high"))
+    if ra is not None and rb is not None:
+        lines.append(f"- **52-week position**: **{A}** sits at **{ra}%** of its 52-week range, **{B}** at **{rb}%**.")
+        if ra != rb:
+            (a_pts if ra > rb else b_pts).append("52-week strength")
+
+    lines.append(f"- **Sector**: {A} \u2014 {a.get('sector') or 'n/a'}; {B} \u2014 {b.get('sector') or 'n/a'} (different business mix \u2014 compare with that in mind).")
+
+    def fmt(pts):
+        return ", ".join(pts) if pts else "no measured metric"
+    conclusion = (
+        f"\n\n**Conclusion:** On the platform's available metrics, **{A}** screens stronger on "
+        f"{fmt(a_pts)}, while **{B}** screens stronger on {fmt(b_pts)}. This is informational "
+        "analytics only \u2014 not a recommendation; review full fundamentals before any decision.")
+    return "\n".join(lines) + conclusion
+
+
 async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
     """Side-by-side, advice-free comparison of two NSE scripts with an AI summary."""
     md = get_market_data()
@@ -277,8 +334,11 @@ async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
         "any buy/sell/hold advice, recommendation or price target. Say which looks "
         "stronger on the platform's AI score and on each available metric (price "
         "action, P/E, 52-week range, pillar strengths), and flag missing data and key "
-        "caveats. Reply in language code '" + language + "'. 4-6 short markdown bullets; "
-        "bold the symbols and numbers.\n\nSTOCK A: " + json.dumps(a)
+        "caveats. Then end with a final line that starts with '**Conclusion:**' "
+        "summarising which screens stronger overall on the platform's metrics and why "
+        "\u2014 still WITHOUT any buy/sell/hold advice. Reply in language code '" + language
+        + "'. 4-6 short markdown bullets followed by the Conclusion line; bold the "
+        "symbols and numbers.\n\nSTOCK A: " + json.dumps(a)
         + "\nSTOCK B: " + json.dumps(b))
     summary = ""
     try:
@@ -287,7 +347,6 @@ async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
         summary = resp.text.strip()
     except Exception as e:
         log.warning("Compare summary failed: %s", e)
-        summary = ("AI summary is unavailable right now — the side-by-side metrics "
-                   "above are still accurate.")
+        summary = _compare_fallback(a, b)
     audit_log("stock_compare", a=sym_a, b=sym_b)
     return {"a": a, "b": b, "summary": summary, "disclaimer": AI_DISCLAIMER}
