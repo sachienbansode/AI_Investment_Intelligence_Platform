@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 import AiIcon from './AiIcon.jsx'
+import { confirmDialog } from '../dialog.jsx'
 
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -47,7 +48,7 @@ export default function Assistant({ seed, clearSeed }) {
   }
 
   async function clearAll() {
-    if (!window.confirm('Clear all chat history? This cannot be undone.')) return
+    if (!(await confirmDialog('Clear all chat history? This cannot be undone.', { title: 'Clear chat history', confirmText: 'Clear all', danger: true }))) return
     try { await api.clearChats(); setSessions([]); startNew() } catch {}
   }
 

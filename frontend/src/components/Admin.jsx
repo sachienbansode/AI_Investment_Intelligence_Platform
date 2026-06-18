@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { confirmDialog, alertDialog } from '../dialog.jsx'
 import Pager from './Pager.jsx'
 import { fmtIST } from '../fmt.js'
 
@@ -642,11 +643,11 @@ function Review() {
   async function decideAll(setStatus) {
     const scope = [fDate && `run ${fDate}`, fStatus && `status "${fStatus}"`, fSymbol && `symbol "${fSymbol}"`]
       .filter(Boolean).join(', ') || 'ALL runs and statuses'
-    if (!window.confirm(`Set status to "${setStatus}" for every score matching: ${scope}? This applies across all pages and cannot be undone.`)) return
+    if (!(await confirmDialog(`Set status to "${setStatus}" for every score matching: ${scope}? This applies across all pages and cannot be undone.`, { title: setStatus === 'approved' ? 'Approve all' : 'Reject all', confirmText: setStatus === 'approved' ? 'Approve all' : 'Reject all', danger: setStatus === 'rejected' }))) return
     try {
       const r = await api.reviewScoresBulk(setStatus, { score_date: fDate, status: fStatus, symbol: fSymbol })
       setErr(''); load()
-      window.alert(`Updated ${r.updated} score(s).`)
+      await alertDialog(`Updated ${r.updated} score(s).`, { title: 'Done' })
     } catch (e) { setErr(e.message) }
   }
 
@@ -769,7 +770,7 @@ function Research() {
   }
 
   async function remove(id) {
-    if (!window.confirm('Delete this research document and its embeddings?')) return
+    if (!(await confirmDialog('Delete this research document and its embeddings?', { title: 'Delete document', confirmText: 'Delete', danger: true }))) return
     try { await api.researchDelete(id); load() } catch (ex) { setErr(ex.message) }
   }
 
@@ -953,7 +954,7 @@ function Roles() {
     } catch (ex) { setErr(ex.message) }
   }
   async function remove(r) {
-    if (!window.confirm(`Delete role "${r.name}"?`)) return
+    if (!(await confirmDialog(`Delete role "${r.name}"?`, { title: 'Delete role', confirmText: 'Delete', danger: true }))) return
     try { await api.deleteRole(r.id); load() } catch (ex) { setErr(ex.message) }
   }
 

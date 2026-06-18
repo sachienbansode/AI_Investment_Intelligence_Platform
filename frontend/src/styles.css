@@ -181,6 +181,24 @@ input:focus, select:focus { border-color: var(--accent); }
   line-height: 1.55; }
 
 /* ───────────────────────── Chat ───────────────────────── */
+/* themed dialogs (replace native confirm/alert/prompt) */
+.modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex;
+  align-items: center; justify-content: center; padding: 20px;
+  background: rgba(15, 18, 28, .5); backdrop-filter: blur(2px); }
+.modal { width: 100%; max-width: 440px; background: var(--panel);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 20px 22px; box-shadow: 0 24px 64px rgba(0, 0, 0, .4);
+  animation: modalIn .14s ease; }
+@keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: none; } }
+.modal-title { margin: 0 0 10px; font-size: 1.05rem; }
+.modal-msg { margin: 0 0 20px; color: var(--muted); line-height: 1.5; font-size: .9rem; }
+.modal-input { width: 100%; margin: 0 0 18px; padding: 11px 13px; border-radius: 10px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.modal-actions button { min-width: 88px; }
+button.danger { background: #d9534f; border: 1px solid #d9534f; color: #fff; }
+button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; }
+
 .chat-layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px;
   height: calc(100vh - 215px); min-height: 380px; }
 .chat-sidebar { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
