@@ -16,6 +16,7 @@ class Quote:
     week52_high: float | None = None
     week52_low: float | None = None
     pe: float | None = None
+    market_cap: float | None = None
     sector: str | None = None
     source: str = ""
     extra: dict = field(default_factory=dict)

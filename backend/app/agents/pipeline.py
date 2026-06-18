@@ -271,6 +271,7 @@ async def publishing_agent(ctx: AgentContext):
     db = SessionLocal()
     try:
         for sym, comp in ctx.composites.items():
+            q = ctx.quotes.get(sym)
             db.query(StockScore).filter_by(symbol=sym, score_date=today).delete()
             db.add(StockScore(
                 symbol=sym, score_date=today, composite_score=comp,
@@ -278,6 +279,8 @@ async def publishing_agent(ctx: AgentContext):
                 explanation=ctx.explanations.get(sym, ""),
                 quality_status=ctx.quality.get(sym, "pending"),
                 ai_review=ctx.ai_reviews.get(sym),
+                pe=q.pe if q else None,
+                market_cap=q.market_cap if q else None,
             ))
         db.commit()
     finally:

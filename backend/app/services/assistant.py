@@ -319,6 +319,7 @@ async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
             "last_price": q.last_price if q else None,
             "change_pct": q.change_pct if q else None,
             "pe": q.pe if q else None,
+            "market_cap": q.market_cap if q else None,
             "week52_high": q.week52_high if q else None,
             "week52_low": q.week52_low if q else None,
             "source": q.source if q else None,

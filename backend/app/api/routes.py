@@ -171,6 +171,7 @@ async def all_scores():
                 "pillar_scores": r.pillar_scores, "explanation": r.explanation,
                 "quality_status": r.quality_status,
                 "sector": sectors.get(r.symbol, ""),
+                "pe": r.pe, "market_cap": r.market_cap,
                 "prev_score": p.composite_score if p else None,
                 "prev_date": p.score_date if p else None,
                 "delta": round(r.composite_score - p.composite_score, 1) if p else None,

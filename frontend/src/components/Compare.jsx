@@ -48,12 +48,14 @@ export default function Compare() {
         {res && (() => {
           const A = res.a, B = res.b
           const px = v => v != null ? RS + Number(v).toLocaleString('en-IN') : DASH
+          const mcap = v => v != null ? RS + Math.round(v / 1e7).toLocaleString('en-IN') + ' Cr' : DASH
           const rng = h => h.week52_low != null ? `${h.week52_low} ${NDASH} ${h.week52_high}` : DASH
           const rows = [
             ['AI score', A.ai_score ?? DASH, B.ai_score ?? DASH],
             ['Last price', px(A.last_price), px(B.last_price)],
             ['Day change', A.change_pct != null ? `${A.change_pct}%` : DASH, B.change_pct != null ? `${B.change_pct}%` : DASH],
-            ['P/E', A.pe ?? DASH, B.pe ?? DASH],
+            ['P/E', A.pe != null ? Number(A.pe).toFixed(1) : DASH, B.pe != null ? Number(B.pe).toFixed(1) : DASH],
+            ['Market cap', mcap(A.market_cap), mcap(B.market_cap)],
             ['52-week range', rng(A), rng(B)],
             ['Sector', A.sector || DASH, B.sector || DASH],
           ]

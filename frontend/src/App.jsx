@@ -76,8 +76,11 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return
-    api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
+    const loadIndices = () => api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
+    loadIndices()
     api.health().then(setHealth).catch(() => {})
+    const t = setInterval(loadIndices, 45000)   // live NSE/BSE ticker refresh
+    return () => clearInterval(t)
   }, [user])
 
   if (!authChecked) return null
