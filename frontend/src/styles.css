@@ -598,3 +598,7 @@ textarea:focus { border-color: var(--accent); }
   .md, .explain, p, li { overflow-wrap: anywhere; }
   pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
+
+/* score-trend per-bar data labels (avg on top, min–max below) */
+.trend-val { font-size: .6rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.trend-mm { font-size: .56rem; color: var(--muted); margin-top: 2px; white-space: nowrap; }

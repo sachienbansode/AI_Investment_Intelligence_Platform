@@ -136,6 +136,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
         <thead><tr>
           <th title="Click to sort by script symbol" style={{ cursor: 'pointer' }} onClick={() => setSort('symbol')}>Script{arrow('symbol')}</th>
           <th title="Sector classification from the instruments master">Sector</th>
+          <th title="Last traded price captured at scoring time">LTP</th>
           <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>{scoreLabel} / 100{arrow('score')} <span className="info-i">i</span></th>
           <th title="Trailing P/E captured at scoring time">P/E</th>
           <th title="Δ Change = change in the AI score vs the previous scoring day, shown as points and %. Click to sort." style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
@@ -148,6 +149,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
               <tr className="row-click" onClick={() => setOpen(open === s.symbol ? null : s.symbol)}>
                 <td><strong>{s.symbol}</strong></td>
                 <td className="hint">{s.sector || '—'}</td>
+                <td>{s.last_price != null ? '₹' + Number(s.last_price).toLocaleString('en-IN') : '—'}</td>
                 <td><span className="score" style={{ background: color(s.composite_score) }}>{s.composite_score}</span></td>
                 <td>{s.pe != null ? Number(s.pe).toFixed(1) : '—'}</td>
                 <td title={s.drivers?.length ? 'Drivers: ' + s.drivers.join(', ') : 'No previous score to compare'}>
@@ -166,7 +168,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
               </tr>
               {open === s.symbol && (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="card-body">
                       <p className="explain" style={{ marginTop: 0 }}>
                         <strong>P/E:</strong> {s.pe != null ? Number(s.pe).toFixed(1) : '—'}{'  ·  '}<strong>Market cap:</strong> {s.market_cap != null ? '₹' + Math.round(s.market_cap / 1e7).toLocaleString('en-IN') + ' Cr' : '—'}

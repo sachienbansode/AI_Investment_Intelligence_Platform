@@ -113,11 +113,13 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
           <div className="trend-chart">
             {trend.daily.map(d => (
               <div key={d.date} className="trend-col"
-                   title={`${d.date} · avg ${d.avg_score}/100 · ${d.count} scripts`}>
+                   title={`${d.date} · avg ${d.avg_score} · min ${d.min_score ?? '—'} · max ${d.max_score ?? '—'} · ${d.count} scripts`}>
+                <span className="trend-val">{d.avg_score}</span>
                 <div className="trend-bar"
                      style={{ height: `${Math.max(4, d.avg_score / maxAvg * 100)}%`,
                               background: scoreColor(d.avg_score) }} />
                 <span className="trend-label">{d.date.slice(8)}/{d.date.slice(5, 7)}</span>
+                <span className="trend-mm">{d.min_score ?? '—'}–{d.max_score ?? '—'}</span>
               </div>
             ))}
           </div>
@@ -164,7 +166,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             <div key={s.symbol} className="rank-row row-click" title="Open in Stock Scores"
                  onClick={() => openScore && openScore(s.symbol)}>
               <strong>{s.symbol}</strong>
-              <span className="hint">{s.sector}</span>
+              <span className="hint">{s.sector}{s.last_price != null ? ' · ₹' + Number(s.last_price).toLocaleString('en-IN') : ''}</span>
               <div className="bar slim"><div style={{ width: `${s.composite_score}%`, background: scoreColor(s.composite_score) }} /></div>
               <span className="score sm" style={{ background: scoreColor(s.composite_score) }}>{s.composite_score}</span>
             </div>
