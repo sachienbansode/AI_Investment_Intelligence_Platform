@@ -52,6 +52,30 @@ def _ran_today() -> bool:
         db.close()
 
 
+def reschedule_scoring(hour) -> bool:
+    """Apply a new daily scoring hour to the RUNNING scheduler — no restart."""
+    try:
+        scheduler.reschedule_job(
+            "daily_scoring",
+            trigger=CronTrigger(hour=int(hour), minute=0, timezone=IST))
+        log.info("Daily scoring rescheduled live to %02d:00 IST", int(hour))
+        return True
+    except Exception:
+        log.exception("Live reschedule of daily scoring failed")
+        return False
+
+
+def reschedule_news(minutes) -> bool:
+    """Apply a new news-refresh interval to the running scheduler — no restart."""
+    try:
+        scheduler.reschedule_job("news_refresh", trigger="interval", minutes=int(minutes))
+        log.info("News refresh rescheduled live to every %d min", int(minutes))
+        return True
+    except Exception:
+        log.exception("Live reschedule of news refresh failed")
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()

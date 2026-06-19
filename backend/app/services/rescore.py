@@ -89,7 +89,8 @@ async def rescore_symbol(symbol: str) -> dict | None:
         db.query(StockScore).filter_by(symbol=symbol, score_date=today).delete()
         db.add(StockScore(symbol=symbol, score_date=today, composite_score=composite,
                           pillar_scores=pillars, explanation=explanation,
-                          quality_status=quality))
+                          quality_status=quality,
+                          pe=q.pe, market_cap=q.market_cap))
         db.commit()
     finally:
         db.close()

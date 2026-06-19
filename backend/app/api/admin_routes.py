@@ -879,6 +879,19 @@ def update_setting(req: SettingUpdate, admin: User = Depends(require_admin)):
         set_setting(req.key, req.value)
     except (KeyError, ValueError) as e:
         raise HTTPException(400, str(e))
+    note = "Saved."
+    try:
+        if req.key == "daily_scoring_hour":
+            from app.main import reschedule_scoring
+            ok = reschedule_scoring(req.value)
+            note = (f"Scheduler updated live - next daily run at {int(req.value):02d}:00 IST."
+                    if ok else "Saved, but live reschedule failed - restart to apply.")
+        elif req.key == "news_refresh_minutes":
+            from app.main import reschedule_news
+            ok = reschedule_news(req.value)
+            note = ("News refresh interval updated live."
+                    if ok else "Saved, but live reschedule failed - restart to apply.")
+    except Exception:
+        note = "Saved - restart the backend to apply the new schedule."
     audit_log("setting_updated", key=req.key, value=req.value, by=admin.email)
-    return {"key": req.key, "value": req.value,
-            "note": "Schedule changes (hour/interval) apply after backend restart."}
+    return {"key": req.key, "value": req.value, "note": note}

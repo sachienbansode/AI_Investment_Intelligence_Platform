@@ -40,9 +40,14 @@ class LLMRouter:
         models = get_setting("llm_models") or {}
         strategy = get_setting("llm_strategy") or "failover"
         enabled = get_setting("llm_enabled") or {}
-        # drop admin-disabled providers; never end up with an empty order
-        filtered = [n for n in order if enabled.get(n, True)]
-        return (filtered or order), models, strategy
+        # Configured order first, then EVERY other registered provider appended,
+        # so any provider that has a valid key is always tried as automatic
+        # failover (auto-switch to Anthropic/Gemini when, say, OpenAI's key is
+        # missing or failing). Providers explicitly disabled by an admin are
+        # still excluded. Keyless providers get filtered later by available().
+        candidates = list(order) + [n for n in _REGISTRY if n not in order]
+        candidates = [n for n in candidates if enabled.get(n, True)]
+        return (candidates or order), models, strategy
 
     def _ordered(self, rotate=True):
         order, models, strategy = self._config()

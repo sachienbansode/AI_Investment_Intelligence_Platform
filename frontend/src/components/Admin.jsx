@@ -535,7 +535,8 @@ function Settings() {
               save(key, Number(document.getElementById(`set-${key}`).value))}>Save</button>
           </div>
         ))}
-        <p className="hint">Schedule changes apply after a backend restart.</p>
+        <p className="hint">Schedule changes (scoring hour, news interval) apply immediately -
+          no restart needed. The confirmation appears at the top of this Settings tab.</p>
       </div>
     </div>
   )

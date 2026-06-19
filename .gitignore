@@ -39,3 +39,4 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.tmp_admin
