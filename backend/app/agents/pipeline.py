@@ -255,11 +255,12 @@ async def quality_agent(ctx: AgentContext):
         )
         verdict = ctx.ai_reviews.get(sym, {}).get("verdict")
         ai_flag = verdict == "flag"     # genuine compliance/factual flag -> reject
-        ai_error = verdict == "error"   # checker could not run (e.g. LLM down) -> hold
+        # A genuine AI-checker FLAG rejects. A checker ERROR (e.g. LLM down) does
+        # NOT block publishing: only strict maker-checker holds scores as pending.
         if not rules_ok or ai_flag:
             ctx.quality[sym] = "rejected"
-        elif strict or ai_error:
-            ctx.quality[sym] = "pending"   # human review (strict mode, or checker unavailable)
+        elif strict:
+            ctx.quality[sym] = "pending"   # await human approval (maker-checker)
         else:
             ctx.quality[sym] = "approved"
     audit_log("agent_quality", strict=strict, results=ctx.quality)

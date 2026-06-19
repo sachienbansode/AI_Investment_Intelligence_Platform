@@ -140,9 +140,10 @@ export default function App() {
                 <div key={exch} className="ticker">
                   <span className="exch-badge">{exch}</span>
                   {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
-                    <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
-                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
-                      <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
+                    <span key={i.index} className={'tk-item' + (isPrimary(i.index) ? ' primary-index' : '')}>
+                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b>
+                      <span className="tk-val">{i.last?.toLocaleString('en-IN')}</span>
+                      <em className={i.pct_change >= 0 ? 'up' : 'down'}>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
                     </span>
                   ))}
                 </div>

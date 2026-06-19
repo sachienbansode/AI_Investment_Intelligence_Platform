@@ -71,14 +71,21 @@ main { padding: 20px 26px; flex: 1; max-width: 1180px; width: 100%; margin: 0 au
   background: var(--topbar-bg); backdrop-filter: blur(6px);
   position: sticky; top: 0; z-index: 10; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
-.ticker { display: flex; gap: 18px; flex-wrap: wrap; font-size: .8rem; align-items: center; }
-.ticker b { font-weight: 600; color: var(--muted); margin-right: 5px; }
-.ticker em { font-style: normal; margin-left: 4px; font-size: .72rem; }
-.ticker .primary-index b { color: var(--text); }
-.ticker-rows { display: flex; flex-direction: column; gap: 5px; }
+.ticker-rows { display: flex; flex-direction: column; gap: 7px; }
+.ticker { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tk-item { display: inline-flex; align-items: baseline; gap: 7px; white-space: nowrap;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 12px; font-size: .76rem; transition: border-color .12s ease; }
+.tk-item:hover { border-color: var(--border2); }
+.tk-item b { font-weight: 700; color: var(--text); font-size: .72rem; letter-spacing: .02em; }
+.tk-item .tk-val { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tk-item em { font-style: normal; font-weight: 600; font-size: .72rem; }
+.tk-item em.up { color: var(--green); }
+.tk-item em.down { color: var(--red); }
+.tk-item.primary-index { border-color: var(--accent); background: rgba(79,142,247,.10); }
 .exch-badge { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 38px; padding: 1px 8px; border-radius: 6px; font-size: .68rem;
-  font-weight: 700; letter-spacing: .06em; color: var(--accent);
+  min-width: 40px; padding: 3px 9px; border-radius: 7px; font-size: .64rem;
+  font-weight: 700; letter-spacing: .07em; color: var(--accent);
   background: rgba(79,142,247,.12); border: 1px solid rgba(79,142,247,.35); }
 .up { color: var(--green); } .down { color: var(--red); }
 .status { color: var(--muted); font-size: .75rem; white-space: nowrap;
