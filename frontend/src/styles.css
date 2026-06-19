@@ -646,3 +646,15 @@ textarea:focus { border-color: var(--accent); }
   .ticker-rows { gap: 4px; }
   .ticker { gap: 6px; }
 }
+
+/* ── Mobile: indices as ONE short swipeable strip (contained scroll only) ──
+   Replaces the tall wrapped ticker; the strip scrolls inside itself, never the
+   page, so the topbar stays ~one line tall. ── */
+@media (max-width: 860px) {
+  .ticker-rows { flex-direction: row; flex-wrap: nowrap; gap: 10px;
+    overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; min-width: 0; }
+  .ticker-rows::-webkit-scrollbar { display: none; }
+  .ticker { flex-wrap: nowrap; overflow: visible; gap: 6px; }
+  .tk-item, .exch-badge { flex: 0 0 auto; }
+}
