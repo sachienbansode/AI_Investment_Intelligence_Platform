@@ -320,12 +320,14 @@ function Settings() {
   const [msg, setMsg] = useState('')
   const [weights, setWeights] = useState(null)
   const [llm, setLlm] = useState(null)
+  const [disp, setDisp] = useState({ score_label: 'NITRI Score', ticker_position: 'top' })
   const load = () => api.settings().then(d => {
     setData(d); setWeights({ ...d.settings.scoring_weights })
     setLlm({ order: [...(d.settings.llm_provider_order || [])],
              strategy: d.settings.llm_strategy || 'failover',
              models: { ...(d.settings.llm_models || {}) },
              enabled: { ...(d.settings.llm_enabled || {}) } })
+    setDisp({ score_label: d.settings.score_label || 'NITRI Score', ticker_position: d.settings.ticker_position || 'top' })
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
@@ -381,6 +383,27 @@ function Settings() {
     <div>
       {err && <p className="note">{err}</p>}
       {msg && <p className="hint">{msg}</p>}
+
+      <div className="panel">
+        <h4 title="The display name for the composite score across the app, and where the NSE/BSE index ticker sits.">Display</h4>
+        <div className="toolbar">
+          <span style={{ minWidth: 240 }}>Score label (shown everywhere)</span>
+          <input value={disp.score_label} style={{ width: 180 }}
+                 onChange={e => setDisp({ ...disp, score_label: e.target.value })} />
+          <button className="ghost" onClick={() => save('score_label', disp.score_label.trim())}>Save</button>
+        </div>
+        <div className="toolbar">
+          <span style={{ minWidth: 240 }}>Index ticker position</span>
+          <select value={disp.ticker_position}
+                  onChange={e => { setDisp({ ...disp, ticker_position: e.target.value }); save('ticker_position', e.target.value) }}>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <p className="hint">Score label and ticker position save to the database and apply
+          app-wide once users reload.</p>
+      </div>
 
       <div className="panel">
         <h4 title="Upload your company logo. It replaces the default icon as the app logo (login + sidebar) and the browser favicon for everyone.">Branding — logo &amp; favicon</h4>

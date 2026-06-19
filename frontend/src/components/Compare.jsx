@@ -6,7 +6,7 @@ const DASH = String.fromCharCode(0x2014)   // em dash
 const NDASH = String.fromCharCode(0x2013)  // en dash
 const RS = String.fromCharCode(0x20B9)     // rupee
 
-export default function Compare() {
+export default function Compare({ scoreLabel = 'NITRI Score' }) {
   const [insts, setInsts] = useState([])
   const [cmp, setCmp] = useState({ a: '', b: '' })
   const [res, setRes] = useState(null)
@@ -30,7 +30,7 @@ export default function Compare() {
   return (
     <div>
       <p className="hint">Side-by-side comparison of two NSE scripts — live metrics, the
-        platform's AI score and an advice-free summary. Informational only, not a recommendation.</p>
+        platform's {scoreLabel} and an advice-free summary. Informational only, not a recommendation.</p>
 
       <div className="panel compare-panel">
         <datalist id="cmp-inst">
@@ -51,7 +51,7 @@ export default function Compare() {
           const mcap = v => v != null ? RS + Math.round(v / 1e7).toLocaleString('en-IN') + ' Cr' : DASH
           const rng = h => h.week52_low != null ? `${h.week52_low} ${NDASH} ${h.week52_high}` : DASH
           const rows = [
-            ['AI score', A.ai_score ?? DASH, B.ai_score ?? DASH],
+            [scoreLabel, A.ai_score ?? DASH, B.ai_score ?? DASH],
             ['Last price', px(A.last_price), px(B.last_price)],
             ['Day change', A.change_pct != null ? `${A.change_pct}%` : DASH, B.change_pct != null ? `${B.change_pct}%` : DASH],
             ['P/E', A.pe != null ? Number(A.pe).toFixed(1) : DASH, B.pe != null ? Number(B.pe).toFixed(1) : DASH],

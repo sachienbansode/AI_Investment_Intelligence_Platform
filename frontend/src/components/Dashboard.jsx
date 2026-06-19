@@ -7,7 +7,7 @@ function scoreColor(v) {
   return 'var(--red)'
 }
 
-export default function Dashboard({ go, openScore }) {
+export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' }) {
   const [scores, setScores] = useState(null)
   const [news, setNews] = useState([])
   const [watch, setWatch] = useState([])
@@ -42,7 +42,7 @@ export default function Dashboard({ go, openScore }) {
           <span className="kpi-value">{list.length || '—'}</span>
           <span className="kpi-sub">{scores?.score_date || ''}</span></div>
         <div className="kpi" title="Mean AI composite score (0–100) across all scored scripts. The score is a proprietary weighted blend of 8 factors: fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.">
-          <span className="kpi-label">Average AI score</span>
+          <span className="kpi-label">Average {scoreLabel}</span>
           <span className="kpi-value">{avg}</span>
           <span className="kpi-sub">out of 100</span></div>
         <div className="kpi" title="Scores that passed the Quality Agent's validation (or admin review). Only approved scores are used by the AI Assistant.">
@@ -135,7 +135,7 @@ export default function Dashboard({ go, openScore }) {
       <div className="grid2">
         <div className="panel">
           <div className="panel-head">
-            <h3>Top AI scores</h3>
+            <h3>Top {scoreLabel}</h3>
             <button className="ghost sm" onClick={() => go('Stock Scores')}>View all →</button>
           </div>
           {top.length === 0 && <p className="hint">No scores yet — run the pipeline from Stock Scores.</p>}

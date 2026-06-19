@@ -478,23 +478,21 @@ textarea:focus { border-color: var(--accent); }
 .toast-success .toast-icon { background: #2e9e5b; }
 .toast-error { border-color: #d9534f; }
 .toast-error .toast-icon { background: #d9534f; }
-ius: 999px; padding: 3px 10px; }
-  .ticker b { margin-right: 1px; font-size: .72rem; }
-  .ticker em { font-size: .66rem; margin-left: 2px; }
-  .exch-badge { font-size: .58rem; min-width: 28px; padding: 1px 6px; align-self: center; }
-}
-@media (max-width: 480px) {
-  .ticker-rows { gap: 4px; }
-  .ticker { font-size: .66rem; }
-  .ticker > span:not(.exch-badge) { padding: 2px 8px; }
-  .brand-name { font-size: .78rem; }
-}
 
-/* Sector strength heatmap (Dashboard) */
-.sector-heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
-.sector-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 10px;
-  color: #fff; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; min-height: 78px; }
-.sector-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+/* index ticker placement: top (default in topbar), bottom bar, or right rail */
+.ticker-bar { border-top: 1px solid var(--border); background: var(--topbar-bg);
+  backdrop-filter: blur(6px); padding: 8px 26px; position: sticky; bottom: 0; z-index: 9; }
+.ticker-rail { position: fixed; top: 58px; right: 0; bottom: 0; width: 222px;
+  border-left: 1px solid var(--border); background: var(--bg2); padding: 14px 14px;
+  overflow-y: auto; z-index: 9; }
+.ticker-rail .ticker-rows { flex-direction: column; gap: 12px; }
+.ticker-rail .ticker { flex-direction: column; align-items: flex-start; gap: 5px; }
+.shell[data-ticker="right"] main { padding-right: 246px; }
+@media (max-width: 900px) {
+  .ticker-rail { display: none; }
+  .shell[data-ticker="right"] main { padding-right: 26px; }
+}
+r-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
 .sector-tile .sector-name { font-size: .74rem; font-weight: 600; opacity: .95; line-height: 1.2; }
 .sector-tile .sector-avg { font-size: 1.5rem; font-weight: 700; line-height: 1; }
 .sector-tile .sector-count { font-size: .68rem; opacity: .85; }

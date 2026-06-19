@@ -24,7 +24,7 @@ function color(v) {
   return 'var(--red)'
 }
 
-export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
+export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = 'NITRI Score' }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)
@@ -96,7 +96,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
     <div>
       <div className="panel score-legend" title={SCORE_DEFINITION}>
         <span className="info-i">i</span>
-        <span><strong>AI Score</strong> is out of <strong>100</strong> — a proprietary weighted
+        <span><strong>{scoreLabel}</strong> is out of <strong>100</strong> — a proprietary weighted
         blend of 8 factors: fundamentals, technicals, valuation, momentum, earnings,
         news sentiment, institutional activity and risk.&nbsp;
         <span style={{ color: 'var(--green)' }}>■ 65+ strong</span>&nbsp;
@@ -136,7 +136,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed }) {
         <thead><tr>
           <th title="Click to sort by script symbol" style={{ cursor: 'pointer' }} onClick={() => setSort('symbol')}>Script{arrow('symbol')}</th>
           <th title="Sector classification from the instruments master">Sector</th>
-          <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>AI Score / 100{arrow('score')} <span className="info-i">i</span></th>
+          <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>{scoreLabel} / 100{arrow('score')} <span className="info-i">i</span></th>
           <th title="Δ Change = change in the AI score vs the previous scoring day, shown as points and %. Click to sort." style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
           <th title={STATUS_TIP}>Status <span className="info-i">i</span></th>
           <th title="Re-score this script now with a fresh live quote">Refresh</th>

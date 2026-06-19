@@ -555,7 +555,9 @@ async def branding():
     """Public: the admin-uploaded logo (data URI) or empty. Used for the app
     logo + favicon, including on the pre-login screen."""
     from app.services.app_settings import get_setting
-    return {"logo": get_setting("brand_logo") or ""}
+    return {"logo": get_setting("brand_logo") or "",
+            "score_label": get_setting("score_label") or "NITRI Score",
+            "ticker_position": get_setting("ticker_position") or "top"}
 
 
 @router.get("/health")

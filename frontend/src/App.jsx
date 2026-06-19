@@ -91,8 +91,30 @@ export default function App() {
 
   function logout() { setToken(null); setUser(null); setTab('Dashboard') }
 
+  const scoreLabel = brand.score_label || 'NITRI Score'
+  const tickerPos = brand.ticker_position || 'top'
+  const tickerEl = (
+    <div className="ticker-rows">
+      {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
+        ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
+        ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
+        .filter(([, list]) => list.length > 0)
+        .map(([exch, list]) => (
+          <div key={exch} className="ticker">
+            <span className="exch-badge">{exch}</span>
+            {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
+              <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
+                <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
+                <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
+              </span>
+            ))}
+          </div>
+        ))}
+    </div>
+  )
+
   return (
-    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`}>
+    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`} data-ticker={tickerPos}>
       <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">
@@ -131,23 +153,7 @@ export default function App() {
           <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">
             {String.fromCharCode(0x2630)}
           </button>
-          <div className="ticker-rows">
-            {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
-              ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
-              ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
-              .filter(([, list]) => list.length > 0)
-              .map(([exch, list]) => (
-                <div key={exch} className="ticker">
-                  <span className="exch-badge">{exch}</span>
-                  {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
-                    <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
-                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
-                      <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
-                    </span>
-                  ))}
-                </div>
-              ))}
-          </div>
+          {tickerPos === 'top' && tickerEl}
           <div className="topbar-right">
             {health && (
               <div className="status" title="Active engines">
@@ -160,21 +166,23 @@ export default function App() {
             </button>
           </div>
         </header>
+        {tickerPos === 'right' && <aside className="ticker-rail">{tickerEl}</aside>}
 
         <main>
           <h2 className="page-title">{tab}</h2>
-          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} />}
+          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} scoreLabel={scoreLabel} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} />}
-          {tab === 'Compare' && can('Compare') && <Compare />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} scoreLabel={scoreLabel} />}
+          {tab === 'Compare' && can('Compare') && <Compare scoreLabel={scoreLabel} />}
           {tab === 'Market News' && can('Market News') && <News />}
-          {tab === 'Watchlist' && can('Watchlist') && <Watchlist />}
+          {tab === 'Watchlist' && can('Watchlist') && <Watchlist scoreLabel={scoreLabel} />}
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
           {tab === 'About' && can('About') && <About />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
           {tab === 'Admin' && can('Admin') && <Admin />}
         </main>
+        {tickerPos === 'bottom' && <div className="ticker-bar">{tickerEl}</div>}
 
         <footer>
           AI-generated content for information only - not investment advice. Investments in
