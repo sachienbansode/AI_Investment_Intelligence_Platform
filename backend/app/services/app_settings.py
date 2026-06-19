@@ -36,6 +36,7 @@ DEFAULTS: dict = {
     # Global markets: when on, include global indices + global news alongside India
     "global_markets_enabled": False,
     "score_label": "NITRI Score",     # display name for the composite score (was "AI Score")
+    "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
                    "gemini": "gemini-1.5-pro"},
@@ -136,9 +137,9 @@ def _validate(key: str, value) -> None:
     elif key == "global_markets_enabled":
         if not isinstance(value, bool):
             raise ValueError("global_markets_enabled must be true or false")
-    elif key == "score_label":
+    elif key in ("score_label", "platform_label"):
         if not (isinstance(value, str) and 1 <= len(value.strip()) <= 40):
-            raise ValueError("score_label must be 1-40 characters")
+            raise ValueError(f"{key} must be 1-40 characters")
     elif key == "ticker_position":
         if value not in ("top", "bottom", "right"):
             raise ValueError("ticker_position must be top, bottom or right")

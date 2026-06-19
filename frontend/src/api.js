@@ -35,6 +35,7 @@ export const api = {
     http('/ask', { method: 'POST', body: JSON.stringify({ question, session_id, language }) }),
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
+  chatSuggestions: () => http('/chat/suggestions'),
   deleteSession: (sessionId) => http(`/chat/history/${sessionId}`, { method: 'DELETE' }),
   clearChats: () => http('/chat/sessions', { method: 'DELETE' }),
   scores: () => http('/scores'),
@@ -58,6 +59,7 @@ export const api = {
     http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
   compare: (a, b, language = 'en') =>
     http('/compare?' + new URLSearchParams({ a, b, language })),
+  compareRandom: () => http('/compare/random'),
   downloadPortfolioPdf: async (holdings) => {
     const headers = { 'Content-Type': 'application/json' }
     if (_token) headers['Authorization'] = `Bearer ${_token}`

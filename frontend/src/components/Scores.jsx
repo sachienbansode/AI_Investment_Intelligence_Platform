@@ -168,6 +168,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
                 <tr>
                   <td colSpan={7}>
                     <div className="card-body">
+                      <p className="explain" style={{ marginTop: 0 }}>
+                        <strong>P/E:</strong> {s.pe != null ? Number(s.pe).toFixed(1) : '—'}{'  ·  '}<strong>Market cap:</strong> {s.market_cap != null ? '₹' + Math.round(s.market_cap / 1e7).toLocaleString('en-IN') + ' Cr' : '—'}
+                      </p>
                       {s.delta != null && (
                         <p className="explain" style={{ marginTop: 0 }}>
                           <strong className={s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'hint'}>

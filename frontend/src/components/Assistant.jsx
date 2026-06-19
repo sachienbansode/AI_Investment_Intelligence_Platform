@@ -22,10 +22,14 @@ export default function Assistant({ seed, clearSeed }) {
   const [input, setInput] = useState('')
   const [lang, setLang] = useState('en')
   const [busy, setBusy] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
   const bottom = useRef(null)
 
   const loadSessions = () => api.chatSessions().then(d => setSessions(d.sessions)).catch(() => {})
-  useEffect(() => { loadSessions() }, [])
+  useEffect(() => {
+    loadSessions()
+    api.chatSuggestions().then(d => setSuggestions(d.suggestions || [])).catch(() => {})
+  }, [])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy])
   useEffect(() => {
     if (seed) { send(seed); clearSeed?.() }
@@ -123,7 +127,7 @@ export default function Assistant({ seed, clearSeed }) {
               <h3>Ask me about markets, scores & news</h3>
               <p className="hint">Grounded in live quotes, the platform's AI scores and today's news.</p>
               <div className="chip-row">
-                {SUGGESTIONS.map(s => (
+                {(suggestions.length ? suggestions : SUGGESTIONS).map(s => (
                   <button key={s} className="chip" onClick={() => send(s)}>{s}</button>
                 ))}
               </div>

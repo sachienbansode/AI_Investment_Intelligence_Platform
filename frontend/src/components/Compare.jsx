@@ -27,6 +27,16 @@ export default function Compare({ scoreLabel = 'NITRI Score' }) {
     setBusy(false)
   }
 
+  async function runRandom() {
+    setBusy(true); setErr(''); setRes(null)
+    try {
+      const r = await api.compareRandom()
+      setCmp({ a: r.a.symbol, b: r.b.symbol })
+      setRes(r)
+    } catch (e) { setErr(e.message) }
+    setBusy(false)
+  }
+
   return (
     <div>
       <p className="hint">Side-by-side comparison of two NSE scripts — live metrics, the
@@ -43,6 +53,8 @@ export default function Compare({ scoreLabel = 'NITRI Score' }) {
           <input list="cmp-inst" placeholder="Stock B (e.g. TCS)" value={cmp.b}
                  onChange={e => setCmp({ ...cmp, b: e.target.value.toUpperCase() })} />
           <button onClick={run} disabled={busy}>{busy ? 'Comparing…' : 'Compare'}</button>
+          <button className="ghost" onClick={runRandom} disabled={busy}
+                  title="Compare two random Nifty 500 stocks from the same sector">Compare random (Nifty 500)</button>
         </div>
         {err && <p className="note">{err}</p>}
         {res && (() => {

@@ -3,7 +3,7 @@ SQLite for dev / PostgreSQL (AWS RDS) for production."""
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, Integer, String,
+from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, Index, Integer, String,
                         Text, UniqueConstraint, create_engine, text)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -85,6 +85,23 @@ class WatchlistItem(Base):
     symbol = Column(String)
     created_at = Column(DateTime, default=utcnow)
     __table_args__ = (UniqueConstraint("user_id", "symbol", name="uq_watch_user_symbol"),)
+
+
+class UserActivity(Base):
+    """Per-user interest signal for personalising assistant suggestions.
+    One row per (user, kind, value), with a hit count and recency. Learned from
+    the symbols a user asks about. Indexed for fast per-user lookups."""
+    __tablename__ = "user_activity"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    kind = Column(String, default="symbol")   # 'symbol' (extensible: sector/topic)
+    value = Column(String)
+    count = Column(Integer, default=1)
+    last_at = Column(DateTime, default=utcnow)
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "value", name="uq_user_activity"),
+        Index("ix_user_activity_user_last", "user_id", "last_at"),
+    )
 
 
 class Portfolio(Base):

@@ -10,7 +10,7 @@ from app.core.auth import get_current_user, require_admin
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
 from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
-                             StockScore, User, WatchlistItem)
+                             StockScore, User, UserActivity, WatchlistItem)
 from app.llm.router import get_llm_router
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
@@ -94,6 +94,40 @@ async def clear_chat_history(user: User = Depends(get_current_user)):
         return {"deleted": n}
     finally:
         db.close()
+
+
+@router.get("/chat/suggestions")
+async def chat_suggestions(user: User = Depends(get_current_user)):
+    """Personalised starter prompts: learned from the user's most-asked symbols
+    and their watchlist, topped up with evergreen defaults."""
+    from app.services.app_settings import get_setting
+    label = get_setting("score_label") or "NITRI Score"
+    db = SessionLocal()
+    try:
+        acts = (db.query(UserActivity)
+                .filter_by(user_id=user.id, kind="symbol").all())
+        liked = [a.value for a in sorted(
+            acts, key=lambda r: (r.count or 0, r.last_at or 0), reverse=True)]
+        watch = [w.symbol for w in
+                 db.query(WatchlistItem).filter_by(user_id=user.id).limit(10).all()]
+    finally:
+        db.close()
+
+    sugg = []
+    for sym in liked[:2]:
+        sugg.append(f"What's driving {sym}'s {label}?")
+    for sym in watch[:2]:
+        q = f"Latest news on {sym}"
+        if q not in sugg:
+            sugg.append(q)
+    for d in [f"Top stocks by {label}", "What moved the market today?",
+              "Summarize today's market news",
+              f"Which stocks are below 50 on {label}?", "What is a P/E ratio?"]:
+        if len(sugg) >= 5:
+            break
+        if d not in sugg:
+            sugg.append(d)
+    return {"suggestions": sugg[:5], "personalized": bool(liked or watch)}
 
 
 # ── Instruments (read; admin manages via /admin) ─────────────────
@@ -393,6 +427,28 @@ async def compare(a: str, b: str, language: str = "en",
         raise HTTPException(400, "Choose two different symbols")
     from app.services.assistant import compare_stocks
     return await compare_stocks(a2, b2, language)
+
+
+@router.get("/compare/random")
+async def compare_random(language: str = "en", user: User = Depends(get_current_user)):
+    """Pick two random active instruments from the SAME sector and compare them."""
+    import random
+    from collections import defaultdict
+    db = SessionLocal()
+    try:
+        rows = db.query(Instrument).filter_by(is_active=True).all()
+        by_sector = defaultdict(list)
+        for i in rows:
+            if i.sector:
+                by_sector[i.sector].append(i.symbol)
+    finally:
+        db.close()
+    pools = [syms for syms in by_sector.values() if len(syms) >= 2]
+    if not pools:
+        raise HTTPException(400, "Not enough instruments in any single sector to compare")
+    a, b = random.sample(random.choice(pools), 2)
+    from app.services.assistant import compare_stocks
+    return await compare_stocks(a, b, language)
 
 
 @router.get("/portfolio/template.csv")
