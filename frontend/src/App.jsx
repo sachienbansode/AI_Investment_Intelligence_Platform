@@ -166,7 +166,6 @@ export default function App() {
           </button>
           {tickerPos === 'top' && tickerEl}
         </header>
-        {tickerPos === 'right' && <aside className="ticker-rail">{tickerEl}</aside>}
 
         <main>
           <h2 className="page-title">{tab}</h2>
@@ -190,6 +189,7 @@ export default function App() {
           investment adviser before investing.
         </footer>
       </div>
+      {tickerPos === 'right' && <aside className="ticker-rail">{tickerEl}</aside>}
       <DialogHost />
       <ToastHost />
     </div>

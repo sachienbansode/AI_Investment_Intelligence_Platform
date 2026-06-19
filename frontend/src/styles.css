@@ -30,11 +30,12 @@ h2, h3, h4 { margin: 0 0 10px; font-weight: 650; }
 a { color: var(--accent); }
 
 /* ───────────────────────── App shell ───────────────────────── */
-.shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 232px 1fr; height: 100vh; overflow: hidden; }
+.shell[data-ticker="right"] { grid-template-columns: 232px 1fr clamp(180px, 16vw, 240px); }
 
 .sidenav { background: var(--bg2); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 18px 12px; gap: 18px;
-  position: sticky; top: 0; height: 100vh; }
+  height: 100vh; overflow-y: auto; }
 .brand { display: flex; gap: 10px; align-items: center; padding: 0 8px; }
 .brand-mark { width: 38px; height: 38px; border-radius: 10px; flex: none;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -62,14 +63,14 @@ a { color: var(--accent); }
 .user-name { font-size: .85rem; font-weight: 600; max-width: 130px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.main-col { display: flex; flex-direction: column; min-width: 0; }
-main { padding: 20px 26px; flex: 1; max-width: 1180px; width: 100%; margin: 0 auto; }
+.main-col { display: flex; flex-direction: column; min-width: 0; height: 100vh; overflow: hidden; }
+main { padding: 20px 26px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .page-title { font-size: 1.25rem; margin-bottom: 16px; }
 
 .topbar { display: flex; justify-content: space-between; align-items: center;
   gap: 14px; padding: 10px 26px; border-bottom: 1px solid var(--border);
   background: var(--topbar-bg); backdrop-filter: blur(6px);
-  position: sticky; top: 0; z-index: 10; }
+  flex: none; z-index: 10; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
 .ticker { display: flex; gap: 18px; flex-wrap: wrap; font-size: .8rem; align-items: center; }
 .ticker b { font-weight: 600; color: var(--muted); margin-right: 5px; }
@@ -86,7 +87,7 @@ main { padding: 20px 26px; flex: 1; max-width: 1180px; width: 100%; margin: 0 au
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.ok { background: var(--green); }
 
-footer { padding: 14px 26px; border-top: 1px solid var(--border);
+footer { flex: none; padding: 14px 26px; border-top: 1px solid var(--border);
   color: var(--faint); font-size: .72rem; }
 
 /* ───────────────────────── Primitives ───────────────────────── */
@@ -428,6 +429,7 @@ textarea:focus { border-color: var(--accent); }
 
 /* ---------- Minimized (collapsed) desktop sidebar ---------- */
 .shell.collapsed { grid-template-columns: 68px 1fr; }
+.shell.collapsed[data-ticker="right"] { grid-template-columns: 68px 1fr clamp(180px, 16vw, 240px); }
 .shell.collapsed .sidenav { padding: 18px 10px; }
 .shell.collapsed .brand { flex-direction: column; gap: 12px; padding: 0; }
 .shell.collapsed .brand-name { display: none; }
@@ -441,7 +443,8 @@ textarea:focus { border-color: var(--accent); }
 
 /* ---------- Responsive / mobile ---------- */
 @media (max-width: 860px) {
-  .shell, .shell.collapsed { grid-template-columns: 1fr; }
+  .shell, .shell.collapsed,
+  .shell[data-ticker="right"], .shell.collapsed[data-ticker="right"] { grid-template-columns: 1fr; }
   .sidenav { position: fixed; top: 0; left: 0; z-index: 60; height: 100vh; width: 260px;
     transform: translateX(-100%); transition: transform .22s ease; padding: 18px 12px; }
   .shell.nav-open .sidenav { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.55); }
@@ -461,7 +464,21 @@ textarea:focus { border-color: var(--accent); }
   main { padding: 16px 14px; overflow-x: auto; }
   .page-title { font-size: 1.1rem; margin-bottom: 12px; }
   .panel { overflow-x: auto; padding: 15px; }
-  .data-table, .audit
+  .data-table, .audit-table, .holdings { font-size: .82rem; }
+  .data-table th, .data-table td,
+  .audit-table th, .audit-table td,
+  .holdings th, .holdings td { padding: 8px 9px; }
+  .kpi-value { font-size: 1.45rem; }
+  .bubble { max-width: 88%; }
+  .login-card { width: min(380px, 92vw); padding: 26px 22px; }
+}
+@media (max-width: 600px) {
+  .status { display: none; }
+  .topbar { padding: 8px 10px; }
+  main { padding: 14px 11px; }
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .agent-grid, .feature-grid { grid-template-columns: 1fr; }
+}
 /* toast notifications (scroll-independent confirmations) */
 .toast-host { position: fixed; bottom: 22px; right: 22px; z-index: 1100;
   display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
@@ -479,20 +496,17 @@ textarea:focus { border-color: var(--accent); }
 .toast-error { border-color: #d9534f; }
 .toast-error .toast-icon { background: #d9534f; }
 
-/* index ticker placement: top (default in topbar), bottom bar, or right rail */
-.ticker-bar { border-top: 1px solid var(--border); background: var(--topbar-bg);
-  backdrop-filter: blur(6px); padding: 8px 26px; position: sticky; bottom: 0; z-index: 9; }
-.ticker-rail { position: fixed; top: 58px; right: 0; bottom: 0; width: 222px;
-  border-left: 1px solid var(--border); background: var(--bg2); padding: 14px 14px;
-  overflow-y: auto; z-index: 9; }
+/* index ticker placement (app-shell: chrome fixed, only main scrolls) */
+.ticker-bar { flex: none; border-top: 1px solid var(--border); background: var(--topbar-bg);
+  backdrop-filter: blur(6px); padding: 8px 26px; overflow-x: auto; }
+.ticker-rail { grid-row: 1 / -1; height: 100vh; overflow-y: auto;
+  border-left: 1px solid var(--border); background: var(--bg2); padding: 14px; }
 .ticker-rail .ticker-rows { flex-direction: column; gap: 12px; }
 .ticker-rail .ticker { flex-direction: column; align-items: flex-start; gap: 5px; }
-.shell[data-ticker="right"] main { padding-right: 246px; }
-@media (max-width: 900px) {
-  .ticker-rail { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 38vh;
-    border-left: none; border-top: 1px solid var(--border); }
+@media (max-width: 860px) {
+  .ticker-rail { position: fixed; left: 0; right: 0; bottom: 0; height: auto;
+    max-height: 32vh; border-left: none; border-top: 1px solid var(--border); z-index: 40; }
   .ticker-rail .ticker-rows { flex-direction: row; flex-wrap: wrap; gap: 10px; }
-  .shell[data-ticker="right"] main { padding-right: 26px; }
 }
 
 /* ── restored rules (recovered after an edit truncated the file tail) ── */
