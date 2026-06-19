@@ -1,4 +1,6 @@
-const BASE = '/api/v1'
+// Web build uses the relative '/api/v1' (same origin via nginx). The native
+// (Capacitor) build sets VITE_API_BASE to the absolute API URL at build time.
+const BASE = (import.meta.env && import.meta.env.VITE_API_BASE) || '/api/v1'
 
 let _token = localStorage.getItem('token') || null
 let _onUnauthorized = null
@@ -36,6 +38,7 @@ export const api = {
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
   chatSuggestions: () => http('/chat/suggestions'),
+  registerDevice: (token, platform = '') => http('/devices/register', { method: 'POST', body: JSON.stringify({ token, platform }) }),
   deleteSession: (sessionId) => http(`/chat/history/${sessionId}`, { method: 'DELETE' }),
   clearChats: () => http('/chat/sessions', { method: 'DELETE' }),
   scores: () => http('/scores'),

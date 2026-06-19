@@ -6,14 +6,27 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:app": "vite build && cap copy",
+    "cap:sync": "cap sync",
+    "cap:ios": "cap open ios",
+    "cap:android": "cap open android"
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/status-bar": "^6.0.1",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/push-notifications": "^6.0.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
-    "vite": "^5.2.0"
+    "vite": "^5.2.0",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/android": "^6.1.2"
   }
 }

@@ -534,3 +534,38 @@ textarea:focus { border-color: var(--accent); }
 .engine-status .icon-btn { flex: none; }
 .shell.collapsed .engine-status { flex-direction: column; gap: 8px; justify-content: center; }
 .shell.collapsed .engine-status .status { display: none; }
+
+/* ── Mobile bottom tab bar (phones only; desktop keeps the sidebar) ── */
+.bottom-nav { display: none; }
+@media (max-width: 860px) {
+  .bottom-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 6px 2px calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around; box-shadow: 0 -2px 14px rgba(0, 0, 0, .18); }
+  .bottom-nav button { background: none; border: none; color: var(--muted); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 0;
+    padding: 4px 2px; font-size: .6rem; font-weight: 600; }
+  .bottom-nav button.active { color: var(--accent); }
+  .bottom-nav .bn-icon { font-size: 1.2rem; line-height: 1; display: inline-flex; }
+  .bottom-nav .bn-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* room so content/footer aren't hidden behind the bar */
+  main { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  footer { padding-bottom: calc(14px + 76px + env(safe-area-inset-bottom)); }
+  /* notch safe-areas */
+  .topbar { padding-top: calc(8px + env(safe-area-inset-top)); }
+  .sidenav { padding-top: calc(18px + env(safe-area-inset-top)); }
+}
+
+/* ── Mobile touch & input polish ── */
+@media (max-width: 860px) {
+  /* 16px inputs stop iOS Safari from auto-zooming on focus */
+  input, select, textarea { font-size: 16px; }
+  /* comfortable tap targets */
+  button { min-height: 40px; }
+  button.sm { min-height: 34px; }
+  .session-item { min-height: 44px; }
+  .chip { min-height: 38px; }
+  /* wide data tables scroll horizontally instead of breaking the layout */
+  main table.data-table { display: block; width: 100%; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}

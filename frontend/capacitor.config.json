@@ -1,0 +1,16 @@
+{
+  "appId": "com.niytri.ai",
+  "appName": "NIYTRI AI",
+  "webDir": "dist",
+  "backgroundColor": "#0a0d13",
+  "ios": { "contentInset": "always", "backgroundColor": "#0a0d13" },
+  "android": { "backgroundColor": "#0a0d13" },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#0a0d13",
+      "showSpinner": false
+    },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0a0d13" }
+  }
+}

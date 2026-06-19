@@ -113,9 +113,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = [o.strip() for o in get_settings().cors_origins.split(",") if o.strip()]
+# Capacitor / Ionic native app shells load from these origins; allow them so the
+# packaged iOS/Android app can call the API.
+_cors_origins += ["capacitor://localhost", "ionic://localhost",
+                  "http://localhost", "https://localhost"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins.split(","),
+    allow_origins=list(dict.fromkeys(_cors_origins)),
     allow_methods=["*"], allow_headers=["*"],
 )
 

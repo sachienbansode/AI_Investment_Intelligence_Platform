@@ -4,6 +4,7 @@ import Assistant from './components/Assistant.jsx'
 import AiIcon from './components/AiIcon.jsx'
 import Compare from './components/Compare.jsx'
 import { DialogHost, ToastHost } from './dialog.jsx'
+import { registerPush } from './native.js'
 import Scores from './components/Scores.jsx'
 import News from './components/News.jsx'
 import Watchlist from './components/Watchlist.jsx'
@@ -25,6 +26,9 @@ const ICONS = {
   'Watchlist': '☆', 'Portfolio': '◐', 'Agents': '⚙', 'Audit': '≣',
   'Admin': '⛨', 'About': 'ⓘ',
 }
+// Primary tabs shown in the mobile bottom bar; the rest live behind "More".
+const MOBILE_TABS = ['Dashboard', 'Stock Scores', 'AI Assistant', 'Compare']
+const SHORT_LABEL = { 'AI Assistant': 'Assistant', 'Stock Scores': 'Scores', 'Market News': 'News' }
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
 
 export default function App() {
@@ -79,6 +83,7 @@ export default function App() {
     const loadIndices = () => api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
     loadIndices()
     api.health().then(setHealth).catch(() => {})
+    registerPush(t => api.registerDevice(t, 'native').catch(() => {}))  // native only; no-op on web
     const t = setInterval(loadIndices, 45000)   // live NSE/BSE ticker refresh
     return () => clearInterval(t)
   }, [user])
@@ -183,6 +188,19 @@ export default function App() {
           investment adviser before investing.
         </footer>
       </div>
+      <nav className="bottom-nav">
+        {MOBILE_TABS.filter(can).map(name => (
+          <button key={name} className={tab === name ? 'active' : ''}
+                  onClick={() => selectTab(name)}>
+            <span className="bn-icon">{ICONS[name] || String.fromCharCode(0x2022)}</span>
+            <span className="bn-label">{SHORT_LABEL[name] || name}</span>
+          </button>
+        ))}
+        <button className={navOpen ? 'active' : ''} onClick={() => setNavOpen(true)}>
+          <span className="bn-icon">{String.fromCharCode(0x2630)}</span>
+          <span className="bn-label">More</span>
+        </button>
+      </nav>
       <DialogHost />
       <ToastHost />
     </div>

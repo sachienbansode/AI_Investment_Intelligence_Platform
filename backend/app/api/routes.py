@@ -4,13 +4,15 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.agents.pipeline import PIPELINE_STATE, live_snapshot, run_daily_pipeline
 from app.core.auth import get_current_user, require_admin
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
 from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
-                             StockScore, User, UserActivity, WatchlistItem)
+                             DeviceToken, StockScore, User, UserActivity,
+                             WatchlistItem)
 from app.llm.router import get_llm_router
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
@@ -128,6 +130,42 @@ async def chat_suggestions(user: User = Depends(get_current_user)):
         if d not in sugg:
             sugg.append(d)
     return {"suggestions": sugg[:5], "personalized": bool(liked or watch)}
+
+
+class DeviceRegister(BaseModel):
+    token: str
+    platform: str = ""
+
+
+@router.post("/devices/register")
+async def register_device(req: DeviceRegister, user: User = Depends(get_current_user)):
+    """Store a push-notification device token for the current user (mobile app)."""
+    tok = (req.token or "").strip()
+    if not tok:
+        raise HTTPException(400, "token required")
+    db = SessionLocal()
+    try:
+        row = db.query(DeviceToken).filter_by(token=tok).first()
+        if row:
+            row.user_id = user.id
+            row.platform = req.platform or row.platform
+        else:
+            db.add(DeviceToken(user_id=user.id, token=tok, platform=req.platform or ""))
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@router.delete("/devices/{token}")
+async def unregister_device(token: str, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        n = db.query(DeviceToken).filter_by(token=token, user_id=user.id).delete()
+        db.commit()
+        return {"deleted": n}
+    finally:
+        db.close()
 
 
 # ── Instruments (read; admin manages via /admin) ─────────────────
