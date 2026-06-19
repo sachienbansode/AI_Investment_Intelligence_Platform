@@ -566,6 +566,35 @@ textarea:focus { border-color: var(--accent); }
   .session-item { min-height: 44px; }
   .chip { min-height: 38px; }
   /* wide data tables scroll horizontally instead of breaking the layout */
-  main table.data-table { display: block; width: 100%; overflow-x: auto;
-    -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}
+
+/* ── No horizontal scroll on mobile: clamp width + stack tables into cards ── */
+@media (max-width: 860px) {
+  html, body, #root, .shell, .main-col { overflow-x: hidden; max-width: 100%; }
+  /* index ticker wraps instead of scrolling */
+  .ticker { flex-wrap: wrap; overflow: visible; }
+  main, .panel, .table-wrap, .compare-panel { overflow-x: hidden; }
+  /* data tables become stacked label:value cards (no side-scroll) */
+  table.data-table { display: block; width: 100%; }
+  table.data-table thead { display: none; }
+  table.data-table tbody,
+  table.data-table tr,
+  table.data-table td { display: block; width: 100%; }
+  table.data-table tr { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; margin: 0 0 10px; padding: 4px 12px; }
+  table.data-table td { display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; border: none; padding: 7px 0; text-align: right; white-space: normal;
+    overflow-wrap: anywhere; }
+  table.data-table td::before { content: attr(data-label); color: var(--muted);
+    font-weight: 600; text-align: left; flex: 0 0 42%; }
+  table.data-table td:first-child { font-weight: 700; }
+  /* full-width detail/expanded rows (colSpan) — no label, no split */
+  table.data-table td[colspan] { display: block; text-align: left; }
+  table.data-table td[colspan]::before { display: none; }
+}
+
+/* mobile: long words / code wrap instead of forcing width */
+@media (max-width: 860px) {
+  .md, .explain, p, li { overflow-wrap: anywhere; }
+  pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 }

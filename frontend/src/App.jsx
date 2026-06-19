@@ -5,6 +5,7 @@ import AiIcon from './components/AiIcon.jsx'
 import Compare from './components/Compare.jsx'
 import { DialogHost, ToastHost } from './dialog.jsx'
 import { registerPush } from './native.js'
+import { startTableLabels } from './tablelabels.js'
 import Scores from './components/Scores.jsx'
 import News from './components/News.jsx'
 import Watchlist from './components/Watchlist.jsx'
@@ -51,6 +52,7 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
   useEffect(() => { localStorage.setItem('navCollapsed', collapsed ? '1' : '0') }, [collapsed])
+  useEffect(() => { const o = startTableLabels(); return () => o.disconnect() }, [])
 
   function selectTab(name) { setTab(name); setNavOpen(false) }
   function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
