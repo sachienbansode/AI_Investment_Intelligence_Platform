@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 GUARDRAILS = """
 
 NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
-- Ground answers ONLY in the CONTEXT provided plus general financial-literacy knowledge.
+- Answer any Indian stock-market question. Use the CONTEXT (live quotes, NITRI scores, news, broker research) when it covers the question; otherwise answer from your general market knowledge. Do NOT refuse an in-scope question just because it is not in the platform data.
 - NEVER give buy/sell/hold recommendations, price targets, or personalized
   investment advice. If asked for advice, say you can only provide information
   and suggest consulting a SEBI-registered investment adviser.
@@ -53,6 +53,7 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   customer support (and SEBI's SCORES portal for formal grievances).
 - Use the conversation history to resolve follow-ups naturally.
 - Reply in the user's requested language.
+- SOURCE TAG: finish every answer with ONE short final line stating the basis - "Basis: platform data" when it came mainly from the CONTEXT (our core data), "Basis: general knowledge" when from your own knowledge, or "Basis: platform data + general knowledge" when both.
 - FORMAT: short and conclusive. Lead with the direct answer in one sentence.
   Then at most 3-5 markdown bullets ('- '). Bold key numbers/symbols with **.
   No long paragraphs. No headings unless asked for a detailed report."""
@@ -99,6 +100,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     md = get_market_data()
     sources: list[dict] = []
     context_parts: list[str] = []
+    score_label = get_setting("score_label") or "NITRI Score"
+    context_parts.append(
+        f'TERMINOLOGY: the composite score is branded "{score_label}". Always call it '
+        f'"{score_label}" (or simply "score") in your answer; never call it "AI score".')
 
     async def _safe(coro, default=None, timeout=4.0):
         # Never let a slow/blocked market-data source (e.g. NSE on a datacenter
@@ -131,6 +136,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             if row and row.quality_status == "approved":
                 context_parts.append(
                     f"AI_SCORE {sym} ({row.score_date}): {row.composite_score}/100. "
+                    f"P/E: {round(row.pe, 1) if row.pe is not None else 'n/a'}. "
                     f"Pillars: {json.dumps(row.pillar_scores)}. {row.explanation}")
                 sources.append({"type": "ai_score", "symbol": sym, "date": row.score_date})
 
@@ -151,18 +157,40 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 strong = sum(1 for v in vals if v >= 65)
                 neutral = sum(1 for v in vals if 50 <= v < 65)
                 weak = sum(1 for v in vals if v < 50)
-                top = [{"symbol": r.symbol, "score": r.composite_score} for r in rows[:10]]
-                bottom = [{"symbol": r.symbol, "score": r.composite_score} for r in rows[-10:]]
+                with_pe = sum(1 for r in rows if r.pe is not None)
+                def _row(r):
+                    return {"symbol": r.symbol, "score": r.composite_score,
+                            "pe": round(r.pe, 1) if r.pe is not None else None}
+                top = [_row(r) for r in rows[:10]]
+                bottom = [_row(r) for r in rows[-10:]]
                 context_parts.append(
                     f"AI_SCORES_SUMMARY (date {latest[0]}, all published scores): total={n}, "
                     f"avg={round(sum(vals)/n,1)}, max={max(vals)}, min={min(vals)}. "
                     f"Bands: 65+ (strong)={strong}, 50-64 (neutral)={neutral}, "
-                    f"below 50 (weak)={weak}. TOP_10={json.dumps(top)}. "
-                    f"BOTTOM_10={json.dumps(bottom)}. You may quote these counts and the "
-                    "listed top/bottom scripts exactly. You do NOT have every script's "
-                    "score, so for 'all stocks below/above X' give the band count and the "
-                    "listed examples, and note the full list is on the Stock Scores page.")
+                    f"below 50 (weak)={weak}. P/E available for {with_pe} of {n} scripts. "
+                    f"TOP_10={json.dumps(top)}. BOTTOM_10={json.dumps(bottom)}. "
+                    "Each TOP_10/BOTTOM_10 entry includes its P/E (null = not available). "
+                    "You may quote these counts, scores and P/E exactly. You do NOT have "
+                    "every script's row here, so for 'all stocks below/above X' give the band "
+                    "count and the listed examples with their P/E, and note the full list "
+                    "(with P/E) is on the Stock Scores page.")
                 sources.append({"type": "ai_scores_summary", "date": latest[0], "count": n})
+
+                # We DO keep daily history — provide recent per-day top-10 so the
+                # assistant can answer "consistently in top N over the last K days".
+                recent_dates = [d[0] for d in
+                                (db.query(StockScore.score_date).distinct()
+                                 .order_by(StockScore.score_date.desc()).limit(5).all())]
+                by_day = {}
+                for d in reversed(recent_dates):
+                    tops = (db.query(StockScore.symbol).filter_by(score_date=d)
+                            .order_by(StockScore.composite_score.desc()).limit(10).all())
+                    by_day[d] = [t[0] for t in tops]
+                if len(by_day) >= 2:
+                    context_parts.append(
+                        "RECENT_TOP10_BY_DAY (each listed day's top 10 symbols by score; "
+                        "answer 'in top N for the last K days' by intersecting these lists "
+                        "- you DO have this history): " + json.dumps(by_day))
 
         # conversation memory for follow-ups
         n_hist = int(get_setting("assistant_history_messages"))

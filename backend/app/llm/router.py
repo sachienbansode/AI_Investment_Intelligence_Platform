@@ -74,7 +74,7 @@ class LLMRouter:
         if exclude and any(p.name != exclude for p in providers):
             providers = ([p for p in providers if p.name != exclude]
                          + [p for p in providers if p.name == exclude])
-        last_err = None
+        errors = []
         for provider in providers:
             try:
                 resp = await self._call(provider, system, prompt, max_tokens, temperature)
@@ -82,10 +82,15 @@ class LLMRouter:
                           model=resp.model, usage=resp.usage)
                 return resp
             except Exception as e:
-                last_err = e
+                msg = (str(e).splitlines() or [""])[0][:180]
+                errors.append(f"{provider.name} -> {msg}")
                 log.warning("Provider %s failed (%s); failing over", provider.name, e)
                 audit_log("llm_failover", task=task, provider=provider.name, error=str(e))
-        raise RuntimeError(f"All LLM providers failed. Last error: {last_err}")
+        tried = ", ".join(p.name for p in providers) or "none configured"
+        # Report EVERY provider's failure so the real cause is visible (not just
+        # the last one). e.g. anthropic auth error vs openai quota.
+        raise RuntimeError("All LLM providers failed. Tried: " + tried + ". "
+                           + " | ".join(errors))
 
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4), reraise=True)
     async def _call(self, provider, system, prompt, max_tokens, temperature):

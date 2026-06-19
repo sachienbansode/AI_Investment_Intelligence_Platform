@@ -137,6 +137,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
           <th title="Click to sort by script symbol" style={{ cursor: 'pointer' }} onClick={() => setSort('symbol')}>Script{arrow('symbol')}</th>
           <th title="Sector classification from the instruments master">Sector</th>
           <th title="Click to sort by AI score" style={{ cursor: 'pointer' }} onClick={() => setSort('score')}>{scoreLabel} / 100{arrow('score')} <span className="info-i">i</span></th>
+          <th title="Trailing P/E captured at scoring time">P/E</th>
           <th title="Δ Change = change in the AI score vs the previous scoring day, shown as points and %. Click to sort." style={{ cursor: 'pointer' }} onClick={() => setSort('change')}>Δ Change{arrow('change')}</th>
           <th title={STATUS_TIP}>Status <span className="info-i">i</span></th>
           <th title="Re-score this script now with a fresh live quote">Refresh</th>
@@ -148,6 +149,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
                 <td><strong>{s.symbol}</strong></td>
                 <td className="hint">{s.sector || '—'}</td>
                 <td><span className="score" style={{ background: color(s.composite_score) }}>{s.composite_score}</span></td>
+                <td>{s.pe != null ? Number(s.pe).toFixed(1) : '—'}</td>
                 <td title={s.drivers?.length ? 'Drivers: ' + s.drivers.join(', ') : 'No previous score to compare'}>
                   {s.delta != null
                     ? <span className={s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'hint'}>
@@ -164,7 +166,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
               </tr>
               {open === s.symbol && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="card-body">
                       {s.delta != null && (
                         <p className="explain" style={{ marginTop: 0 }}>
