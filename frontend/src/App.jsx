@@ -91,30 +91,8 @@ export default function App() {
 
   function logout() { setToken(null); setUser(null); setTab('Dashboard') }
 
-  const scoreLabel = brand.score_label || 'NITRI Score'
-  const tickerPos = brand.ticker_position || 'top'
-  const tickerEl = (
-    <div className="ticker-rows">
-      {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
-        ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
-        ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
-        .filter(([, list]) => list.length > 0)
-        .map(([exch, list]) => (
-          <div key={exch} className="ticker">
-            <span className="exch-badge">{exch}</span>
-            {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
-              <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
-                <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
-                <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
-              </span>
-            ))}
-          </div>
-        ))}
-    </div>
-  )
-
   return (
-    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`} data-ticker={tickerPos}>
+    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`}>
       <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">
@@ -137,17 +115,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidenav-foot">
-          <div className="engine-status">
-            {health && (
-              <div className="status" title="Active engines (LLM | market data)">
-                <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
-              </div>
-            )}
-            <button className="icon-btn" title="Toggle theme"
-                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
-            </button>
-          </div>
           <div className="user-pill" title={user.email}>
             <span className="avatar">{(user.full_name || user.email)[0].toUpperCase()}</span>
             <div>
@@ -164,24 +131,50 @@ export default function App() {
           <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">
             {String.fromCharCode(0x2630)}
           </button>
-          {tickerPos === 'top' && tickerEl}
+          <div className="ticker-rows">
+            {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
+              ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
+              ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
+              .filter(([, list]) => list.length > 0)
+              .map(([exch, list]) => (
+                <div key={exch} className="ticker">
+                  <span className="exch-badge">{exch}</span>
+                  {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
+                    <span key={i.index} className={`${i.pct_change >= 0 ? 'up' : 'down'}${isPrimary(i.index) ? ' primary-index' : ''}`}>
+                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b> {i.last?.toLocaleString('en-IN')}
+                      <em>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
+                    </span>
+                  ))}
+                </div>
+              ))}
+          </div>
+          <div className="topbar-right">
+            {health && (
+              <div className="status" title="Active engines">
+                <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
+              </div>
+            )}
+            <button className="icon-btn" title="Toggle theme"
+                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
+            </button>
+          </div>
         </header>
 
         <main>
           <h2 className="page-title">{tab}</h2>
-          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} scoreLabel={scoreLabel} />}
+          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} scoreLabel={scoreLabel} />}
-          {tab === 'Compare' && can('Compare') && <Compare scoreLabel={scoreLabel} />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} />}
+          {tab === 'Compare' && can('Compare') && <Compare />}
           {tab === 'Market News' && can('Market News') && <News />}
-          {tab === 'Watchlist' && can('Watchlist') && <Watchlist scoreLabel={scoreLabel} />}
+          {tab === 'Watchlist' && can('Watchlist') && <Watchlist />}
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
           {tab === 'About' && can('About') && <About />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
           {tab === 'Admin' && can('Admin') && <Admin />}
         </main>
-        {tickerPos === 'bottom' && <div className="ticker-bar">{tickerEl}</div>}
 
         <footer>
           AI-generated content for information only - not investment advice. Investments in
@@ -189,7 +182,6 @@ export default function App() {
           investment adviser before investing.
         </footer>
       </div>
-      {tickerPos === 'right' && <aside className="ticker-rail">{tickerEl}</aside>}
       <DialogHost />
       <ToastHost />
     </div>
