@@ -489,12 +489,30 @@ textarea:focus { border-color: var(--accent); }
 .ticker-rail .ticker { flex-direction: column; align-items: flex-start; gap: 5px; }
 .shell[data-ticker="right"] main { padding-right: 246px; }
 @media (max-width: 900px) {
-  .ticker-rail { display: none; }
+  .ticker-rail { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 38vh;
+    border-left: none; border-top: 1px solid var(--border); }
+  .ticker-rail .ticker-rows { flex-direction: row; flex-wrap: wrap; gap: 10px; }
   .shell[data-ticker="right"] main { padding-right: 26px; }
 }
-r-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+/* ── restored rules (recovered after an edit truncated the file tail) ── */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Sector strength heatmap (Dashboard) */
+.sector-heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.sector-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 10px;
+  color: #fff; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; min-height: 78px; }
+.sector-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
 .sector-tile .sector-name { font-size: .74rem; font-weight: 600; opacity: .95; line-height: 1.2; }
 .sector-tile .sector-avg { font-size: 1.5rem; font-weight: 700; line-height: 1; }
 .sector-tile .sector-count { font-size: .68rem; opacity: .85; }
 .compare-panel .compare-table td, .compare-panel .compare-table th { text-align: left; }
 .compare-panel input { min-width: 150px; }
+
+/* engine + theme strip relocated into the sidebar, above the user name */
+.engine-status { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 0 4px 10px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+.engine-status .status { white-space: normal; font-size: .7rem; line-height: 1.35; }
+.engine-status .icon-btn { flex: none; }
+.shell.collapsed .engine-status { flex-direction: column; gap: 8px; justify-content: center; }
+.shell.collapsed .engine-status .status { display: none; }

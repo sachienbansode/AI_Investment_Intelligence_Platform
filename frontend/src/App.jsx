@@ -137,6 +137,17 @@ export default function App() {
           ))}
         </nav>
         <div className="sidenav-foot">
+          <div className="engine-status">
+            {health && (
+              <div className="status" title="Active engines (LLM | market data)">
+                <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
+              </div>
+            )}
+            <button className="icon-btn" title="Toggle theme"
+                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
+            </button>
+          </div>
           <div className="user-pill" title={user.email}>
             <span className="avatar">{(user.full_name || user.email)[0].toUpperCase()}</span>
             <div>
@@ -154,17 +165,6 @@ export default function App() {
             {String.fromCharCode(0x2630)}
           </button>
           {tickerPos === 'top' && tickerEl}
-          <div className="topbar-right">
-            {health && (
-              <div className="status" title="Active engines">
-                <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
-              </div>
-            )}
-            <button className="icon-btn" title="Toggle theme"
-                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
-            </button>
-          </div>
         </header>
         {tickerPos === 'right' && <aside className="ticker-rail">{tickerEl}</aside>}
 
