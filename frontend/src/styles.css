@@ -461,33 +461,24 @@ textarea:focus { border-color: var(--accent); }
   main { padding: 16px 14px; overflow-x: auto; }
   .page-title { font-size: 1.1rem; margin-bottom: 12px; }
   .panel { overflow-x: auto; padding: 15px; }
-  .data-table, .audit-table, .holdings { font-size: .82rem; }
-  .data-table th, .data-table td,
-  .audit-table th, .audit-table td,
-  .holdings th, .holdings td { padding: 8px 9px; }
-  .kpi-value { font-size: 1.45rem; }
-  .bubble { max-width: 88%; }
-  .login-card { width: min(380px, 92vw); padding: 26px 22px; }
-}
-@media (max-width: 600px) {
-  .status { display: none; }
-  .topbar { padding: 8px 10px; }
-  main { padding: 14px 11px; }
-  .kpi-row { grid-template-columns: 1fr 1fr; }
-  .agent-grid, .feature-grid { grid-template-columns: 1fr; }
-}
-.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-
-/* ---------- Mobile header / ticker polish ---------- */
-@media (max-width: 860px) {
-  .topbar { align-items: center; min-height: 52px; }
-  .ticker-rows { gap: 5px; }
-  .ticker { gap: 6px; font-size: .7rem; padding-bottom: 2px; }
-  .ticker > span:not(.exch-badge) {
-    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
-    background: var(--panel2); border: 1px solid var(--border);
-    border-radius: 999px; padding: 3px 10px; }
+  .data-table, .audit
+/* toast notifications (scroll-independent confirmations) */
+.toast-host { position: fixed; bottom: 22px; right: 22px; z-index: 1100;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.toast { display: flex; align-items: center; gap: 10px; min-width: 220px;
+  max-width: 380px; padding: 12px 15px; border-radius: 10px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--border2); color: var(--text);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .32); font-size: .88rem;
+  animation: toastIn .18s ease; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; } }
+.toast-msg { line-height: 1.35; }
+.toast-icon { width: 22px; height: 22px; border-radius: 50%; flex: none; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .8rem; }
+.toast-success .toast-icon { background: #2e9e5b; }
+.toast-error { border-color: #d9534f; }
+.toast-error .toast-icon { background: #d9534f; }
+ius: 999px; padding: 3px 10px; }
   .ticker b { margin-right: 1px; font-size: .72rem; }
   .ticker em { font-size: .66rem; margin-left: 2px; }
   .exch-badge { font-size: .58rem; min-width: 28px; padding: 1px 6px; align-self: center; }

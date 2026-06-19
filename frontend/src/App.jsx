@@ -3,7 +3,7 @@ import Dashboard from './components/Dashboard.jsx'
 import Assistant from './components/Assistant.jsx'
 import AiIcon from './components/AiIcon.jsx'
 import Compare from './components/Compare.jsx'
-import { DialogHost } from './dialog.jsx'
+import { DialogHost, ToastHost } from './dialog.jsx'
 import Scores from './components/Scores.jsx'
 import News from './components/News.jsx'
 import Watchlist from './components/Watchlist.jsx'
@@ -183,6 +183,7 @@ export default function App() {
         </footer>
       </div>
       <DialogHost />
+      <ToastHost />
     </div>
   )
 }

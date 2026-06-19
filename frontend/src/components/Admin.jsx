@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { confirmDialog, alertDialog } from '../dialog.jsx'
+import { confirmDialog, alertDialog, toast } from '../dialog.jsx'
 import Pager from './Pager.jsx'
 import { fmtIST } from '../fmt.js'
 
@@ -334,8 +334,9 @@ function Settings() {
     try {
       const r = await api.updateSetting(key, value)
       setMsg(`Saved ${key}. ${r.note || ''}`)
+      toast(r.note || `Saved ${key}.`)
       load()
-    } catch (ex) { setErr(ex.message) }
+    } catch (ex) { setErr(ex.message); toast(ex.message, { type: 'error' }) }
   }
 
   async function uploadLogo(e) {
@@ -368,8 +369,8 @@ function Settings() {
       await api.updateSetting('llm_strategy', llm.strategy)
       await api.updateSetting('llm_models', llm.models)
       await api.updateSetting('llm_enabled', Object.fromEntries(llm.order.map(p => [p, llm.enabled[p] !== false])))
-      setMsg('LLM routing saved.'); load()
-    } catch (ex) { setErr(ex.message) }
+      setMsg('LLM routing saved.'); toast('LLM routing saved.'); load()
+    } catch (ex) { setErr(ex.message); toast(ex.message, { type: 'error' }) }
   }
 
   if (!data) return err ? <p className="note">{err}</p> : <p className="hint">Loading…</p>
@@ -638,7 +639,8 @@ function Review() {
   useEffect(() => { load() }, [fDate, fStatus, fSymbol, page])
 
   async function decide(id, status) {
-    try { await api.reviewScore(id, status); load() } catch (e) { setErr(e.message) }
+    try { await api.reviewScore(id, status); toast(`Score ${status}.`); load() }
+    catch (e) { setErr(e.message); toast(e.message, { type: 'error' }) }
   }
 
   async function decideAll(setStatus) {

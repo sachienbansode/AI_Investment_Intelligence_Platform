@@ -76,3 +76,42 @@ export function DialogHost() {
     </div>
   )
 }
+
+
+// ── Toasts ──────────────────────────────────────────────────────────────────
+// Lightweight, scroll-independent confirmations. toast('Saved') / toast(msg,
+// { type: 'error' }). Mount <ToastHost /> once at the app root.
+let _toastEmit = null
+let _tseq = 0
+const _toastPending = []
+
+export function toast(message, { type = 'success', duration = 3500 } = {}) {
+  const item = { id: ++_tseq, message, type, duration }
+  if (_toastEmit) _toastEmit(item)
+  else _toastPending.push(item)
+}
+
+export function ToastHost() {
+  const [items, setItems] = useState([])
+  useEffect(() => {
+    const push = item => {
+      setItems(x => [...x, item])
+      setTimeout(() => setItems(x => x.filter(i => i.id !== item.id)), item.duration)
+    }
+    _toastEmit = push
+    while (_toastPending.length) push(_toastPending.shift())
+    return () => { _toastEmit = null }
+  }, [])
+  const dismiss = id => setItems(x => x.filter(i => i.id !== id))
+  if (!items.length) return null
+  return (
+    <div className="toast-host">
+      {items.map(t => (
+        <div key={t.id} className={'toast toast-' + t.type} onClick={() => dismiss(t.id)} role="status">
+          <span className="toast-icon">{t.type === 'error' ? String.fromCharCode(0x21) : String.fromCharCode(0x2713)}</span>
+          <span className="toast-msg">{t.message}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
