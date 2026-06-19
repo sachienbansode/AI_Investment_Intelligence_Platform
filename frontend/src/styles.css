@@ -250,9 +250,13 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
 @media (max-width: 860px) {
   /* fill the gap between the topbar and the bottom tab bar; main already
      reserves bottom-nav padding, so the input lands just above the tab bar */
-  .chat-layout { grid-template-columns: 1fr; gap: 8px;
-    height: calc(100dvh - 244px); min-height: 300px; }
-  .chat-sidebar { flex-direction: row; align-items: center; gap: 8px; }
+  /* flex column (not grid) so the chat stretches to fill the height instead of
+     sitting at content height with dead space below */
+  .chat-layout { display: flex; flex-direction: column; gap: 8px;
+    height: calc(100dvh - 212px); min-height: 340px; }
+  .chat { flex: 1 1 auto; min-height: 0; }
+  .chat-window { min-height: 0; }
+  .chat-sidebar { flex: none; flex-direction: row; align-items: center; gap: 8px; }
   .chat-sidebar .new-chat-btn { width: auto; flex: none; padding: 7px 12px;
     font-size: .8rem; min-height: 34px; }
   .chat-sidebar .session-head, .chat-sidebar .session-list { display: none; }
