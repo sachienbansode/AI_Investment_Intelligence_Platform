@@ -168,6 +168,25 @@ async def unregister_device(token: str, user: User = Depends(get_current_user)):
         db.close()
 
 
+@router.get("/indices/constituents")
+async def index_constituents(user: User = Depends(get_current_user)):
+    """Index -> member symbols, for filtering dashboards by index. Nifty 50 from
+    the constituent seed; sectors are derived from the instruments master."""
+    from app.db.database import NIFTY50_SEED
+    db = SessionLocal()
+    try:
+        sectors = {}
+        for inst in db.query(Instrument).filter_by(is_active=True).all():
+            if inst.sector:
+                sectors.setdefault(inst.sector, []).append(inst.symbol)
+    finally:
+        db.close()
+    return {
+        "Nifty 50": [sym for sym, _name, _sec in NIFTY50_SEED],
+        "sectors": sectors,
+    }
+
+
 # ── Instruments (read; admin manages via /admin) ─────────────────
 @router.get("/instruments")
 async def instruments(user: User = Depends(get_current_user)):
@@ -243,7 +262,7 @@ async def all_scores():
                 "pillar_scores": r.pillar_scores, "explanation": r.explanation,
                 "quality_status": r.quality_status,
                 "sector": sectors.get(r.symbol, ""),
-                "pe": r.pe, "market_cap": r.market_cap,
+                "pe": r.pe, "market_cap": r.market_cap, "last_price": r.last_price,
                 "prev_score": p.composite_score if p else None,
                 "prev_date": p.score_date if p else None,
                 "delta": round(r.composite_score - p.composite_score, 1) if p else None,
@@ -266,12 +285,15 @@ async def score_trends(days: int = 30):
     try:
         daily_rows = (db.query(StockScore.score_date,
                                func.avg(StockScore.composite_score),
-                               func.count(StockScore.id))
+                               func.count(StockScore.id),
+                               func.min(StockScore.composite_score),
+                               func.max(StockScore.composite_score))
                       .filter(StockScore.score_date >= cutoff)
                       .group_by(StockScore.score_date)
                       .order_by(StockScore.score_date).all())
-        daily = [{"date": d, "avg_score": round(float(a), 1), "count": n}
-                 for d, a, n in daily_rows]
+        daily = [{"date": d, "avg_score": round(float(a), 1), "count": n,
+                  "min_score": round(float(mn), 1), "max_score": round(float(mx), 1)}
+                 for d, a, n, mn, mx in daily_rows]
 
         gainers, losers = [], []
         if len(daily) >= 2:

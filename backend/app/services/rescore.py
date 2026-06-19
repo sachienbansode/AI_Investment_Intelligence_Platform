@@ -90,7 +90,7 @@ async def rescore_symbol(symbol: str) -> dict | None:
         db.add(StockScore(symbol=symbol, score_date=today, composite_score=composite,
                           pillar_scores=pillars, explanation=explanation,
                           quality_status=quality,
-                          pe=q.pe, market_cap=q.market_cap))
+                          pe=q.pe, market_cap=q.market_cap, last_price=q.last_price))
         db.commit()
     finally:
         db.close()

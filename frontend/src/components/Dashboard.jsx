@@ -13,22 +13,35 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
   const [watch, setWatch] = useState([])
   const [trend, setTrend] = useState(null)
   const [range, setRange] = useState(7)
+  const [idx, setIdx] = useState('Nifty 500 (all)')
+  const [consts, setConsts] = useState({})
 
   useEffect(() => {
     api.scores().then(setScores).catch(() => {})
     api.news().then(d => setNews((d.items || []).slice(0, 5))).catch(() => {})
     api.watchlist().then(d => setWatch(d.watchlist || [])).catch(() => {})
+    api.indexConstituents().then(setConsts).catch(() => {})
   }, [])
   useEffect(() => {
     api.trends(range).then(setTrend).catch(() => {})
   }, [range])
 
   const list = scores?.scores || []
-  const avg = list.length ? (list.reduce((a, s) => a + s.composite_score, 0) / list.length).toFixed(1) : '—'
-  const top = [...list].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
-  const approved = list.filter(s => s.quality_status === 'approved').length
+  const allSectors = [...new Set(list.map(s => s.sector).filter(Boolean))].sort()
+  const idxOptions = ['Nifty 500 (all)', ...Object.keys(consts).filter(k => Array.isArray(consts[k])),
+                      ...allSectors.map(s => 'Sector: ' + s)]
+  const inIndex = s => idx === 'Nifty 500 (all)' ? true
+    : idx.startsWith('Sector: ') ? s.sector === idx.slice(8)
+    : (Array.isArray(consts[idx]) ? consts[idx].includes(s.symbol) : true)
+  const flist = list.filter(inIndex)
+  const fsyms = new Set(flist.map(s => s.symbol))
+  const avg = flist.length ? (flist.reduce((a, s) => a + s.composite_score, 0) / flist.length).toFixed(1) : '—'
+  const top = [...flist].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
+  const approved = flist.filter(s => s.quality_status === 'approved').length
   const maxAvg = Math.max(60, ...(trend?.daily || []).map(d => d.avg_score))
-  const sectorStats = Object.entries(list.reduce((m, s) => {
+  const gainers = (trend?.gainers || []).filter(m => fsyms.has(m.symbol))
+  const losers = (trend?.losers || []).filter(m => fsyms.has(m.symbol))
+  const sectorStats = Object.entries(flist.reduce((m, s) => {
     const k = s.sector || 'Other'; (m[k] = m[k] || []).push(s.composite_score); return m
   }, {})).map(([sector, arr]) => ({
     sector, count: arr.length, avg: arr.reduce((a, b) => a + b, 0) / arr.length,
@@ -36,10 +49,18 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
 
   return (
     <div>
+      <div className="toolbar" style={{ marginTop: 0 }}>
+        <span className="hint">Index</span>
+        <select value={idx} onChange={e => setIdx(e.target.value)}
+                title="Filter the dashboard by index or sector">
+          {idxOptions.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+        {idx !== 'Nifty 500 (all)' && <span className="hint">{flist.length} scripts</span>}
+      </div>
       <div className="kpi-row">
         <div className="kpi" title="Number of scripts scored by the AI pipeline on the latest scoring date">
           <span className="kpi-label">Scripts scored</span>
-          <span className="kpi-value">{list.length || '—'}</span>
+          <span className="kpi-value">{flist.length || '—'}</span>
           <span className="kpi-sub">{scores?.score_date || ''}</span></div>
         <div className="kpi" title="Mean AI composite score (0–100) across all scored scripts. The score is a proprietary weighted blend of 8 factors: fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.">
           <span className="kpi-label">Average {scoreLabel}</span>
@@ -103,12 +124,12 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
         )}
       </div>
 
-      {trend && (trend.gainers.length > 0 || trend.losers.length > 0) && (
+      {trend && (gainers.length > 0 || losers.length > 0) && (
         <div className="grid2">
           <div className="panel">
             <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %. Informational analytics, not recommendations.`}>▲ Top score gainers ({range}d)</h4>
-            {trend.gainers.length === 0 && <p className="hint">No gainers in window.</p>}
-            {trend.gainers.map(m => (
+            {gainers.length === 0 && <p className="hint">No gainers in window.</p>}
+            {gainers.map(m => (
               <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
                    title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
@@ -119,8 +140,8 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
           </div>
           <div className="panel">
             <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %.`}>▼ Top score decliners ({range}d)</h4>
-            {trend.losers.length === 0 && <p className="hint">No decliners in window.</p>}
-            {trend.losers.map(m => (
+            {losers.length === 0 && <p className="hint">No decliners in window.</p>}
+            {losers.map(m => (
               <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
                    title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>

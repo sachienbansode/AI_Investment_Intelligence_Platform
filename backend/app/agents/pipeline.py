@@ -282,6 +282,7 @@ async def publishing_agent(ctx: AgentContext):
                 ai_review=ctx.ai_reviews.get(sym),
                 pe=q.pe if q else None,
                 market_cap=q.market_cap if q else None,
+                last_price=q.last_price if q else None,
             ))
         db.commit()
     finally:
