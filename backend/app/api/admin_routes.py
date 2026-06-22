@@ -13,8 +13,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
-from app.db.database import (ALL_PAGES, Instrument, PipelineRun, Role, SessionLocal,
-                             StockScore, User)
+from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, PipelineRun, Role,
+                             SessionLocal, StockScore, User)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -895,3 +895,24 @@ def update_setting(req: SettingUpdate, admin: User = Depends(require_admin)):
         note = "Saved - restart the backend to apply the new schedule."
     audit_log("setting_updated", key=req.key, value=req.value, by=admin.email)
     return {"key": req.key, "value": req.value, "note": note}
+
+
+@router.get("/chat-feedback")
+async def chat_feedback_list(rating: int = 0, limit: int = 50,
+                             admin: User = Depends(require_admin)):
+    """Assistant-quality view: thumbs up/down totals + recent rated answers
+    (rating=-1 to see only negatives)."""
+    db = SessionLocal()
+    try:
+        q = db.query(ChatFeedback)
+        if rating in (1, -1):
+            q = q.filter_by(rating=rating)
+        rows = q.order_by(ChatFeedback.created_at.desc()).limit(min(max(limit, 1), 200)).all()
+        up = db.query(ChatFeedback).filter_by(rating=1).count()
+        down = db.query(ChatFeedback).filter_by(rating=-1).count()
+        return {"up": up, "down": down, "items": [
+            {"id": r.id, "rating": r.rating, "question": r.question, "answer": r.answer,
+             "provider": r.provider, "session_id": r.session_id, "at": str(r.created_at)}
+            for r in rows]}
+    finally:
+        db.close()

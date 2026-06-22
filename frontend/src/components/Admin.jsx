@@ -9,10 +9,10 @@ export default function Admin() {
   return (
     <div>
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'chataudit', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
-               review: 'Score review', research: 'Research (RAG)', users: 'Users',
+               feedback: 'Assistant quality', review: 'Score review', research: 'Research (RAG)', users: 'Users',
                roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations',
                settings: 'Settings' }[v]}
           </button>
@@ -22,6 +22,7 @@ export default function Admin() {
       {view === 'llm' && <LlmBilling />}
       {view === 'audit' && <Audit />}
       {view === 'chataudit' && <ChatAudit />}
+      {view === 'feedback' && <Feedback />}
       {view === 'review' && <Review />}
       {view === 'research' && <Research />}
       {view === 'users' && <Users />}
@@ -1105,6 +1106,49 @@ function ChatAudit() {
         </tbody>
       </table>
       <Pager page={page} setPage={setPage} total={data.total} label="messages" />
+    </div>
+  )
+}
+
+function Feedback() {
+  const [data, setData] = useState(null)
+  const [rating, setRating] = useState(-1)
+  const [err, setErr] = useState('')
+  const load = () => api.chatFeedback(rating ? { rating } : {}).then(setData).catch(e => setErr(e.message))
+  useEffect(() => { load() }, [rating])  // eslint-disable-line
+  if (err) return <p className="note">{err}</p>
+  if (!data) return <p className="hint">Loading…</p>
+  const total = data.up + data.down
+  return (
+    <div>
+      <p className="hint">User ratings on assistant answers. Review the <strong>Not helpful</strong>
+        ones to spot patterns and improve grounding/prompts &mdash; fix categories, not single chats.</p>
+      <div className="kpi-row">
+        <div className="kpi"><span className="kpi-label">Helpful</span><span className="kpi-value">{data.up}</span></div>
+        <div className="kpi"><span className="kpi-label">Not helpful</span><span className="kpi-value">{data.down}</span></div>
+        <div className="kpi"><span className="kpi-label">Satisfaction</span>
+          <span className="kpi-value">{total ? Math.round(data.up / total * 100) + '%' : '—'}</span></div>
+      </div>
+      <div className="toolbar">
+        <span className="hint">Show</span>
+        <select value={rating} onChange={e => setRating(Number(e.target.value))}>
+          <option value={-1}>Not helpful (to fix)</option>
+          <option value={1}>Helpful</option>
+          <option value={0}>All</option>
+        </select>
+        <button className="ghost sm" onClick={load}>Refresh</button>
+      </div>
+      {data.items.length === 0 && <p className="hint">No feedback in this view yet.</p>}
+      {data.items.map(it => (
+        <div key={it.id} className="panel">
+          <div className="card-head">
+            <strong>{it.rating === 1 ? 'Helpful' : 'Not helpful'}</strong>
+            <span className="hint">{fmtIST(it.at)}{it.provider ? ' \u00b7 ' + it.provider : ''}</span>
+          </div>
+          <p style={{ margin: '6px 0 2px' }}><strong>Q:</strong> {it.question || '—'}</p>
+          <p className="hint" style={{ whiteSpace: 'pre-wrap' }}><strong>A:</strong> {it.answer || '—'}</p>
+        </div>
+      ))}
     </div>
   )
 }

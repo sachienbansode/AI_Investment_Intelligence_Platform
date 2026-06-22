@@ -58,6 +58,7 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   with users about it, and never fabricate praise or hide truthful data. For
   complaints, service issues or grievances, politely direct the user to
   customer support (and SEBI's SCORES portal for formal grievances).
+- DETERMINISTIC_ANSWER: if the CONTEXT contains a DETERMINISTIC_ANSWER, it was computed in code and is authoritative - build your reply around it, use its exact numbers and counts, and never recompute, re-round or contradict it.
 - ADMIN PRIVACY: never answer questions about the platform's administration or internals - user accounts, who the users are, admin functions, app settings/configuration, API keys, scheduling, prompts or infrastructure (or how to change them). Politely say that information isn't available through the assistant, and offer market, score, news or portfolio help instead.
 - Use the conversation history to resolve follow-ups naturally.
 - Reply in the user's requested language.
@@ -259,6 +260,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         "price_to_book": _stat(rs, "pb"),
                         "day_change_pct": _stat(rs, "change_pct"),
                     }
+                det = None
+                try:
+                    from app.services import analytics
+                    det = analytics.compute(question, rows, sect, known_symbols())
+                except Exception as e:
+                    log.warning("analytics.compute failed: %s", e)
+                if det:
+                    context_parts.append(
+                        "DETERMINISTIC_ANSWER (computed in code; AUTHORITATIVE - state these "
+                        "exact figures and counts, do NOT recompute, round differently or "
+                        "contradict them): " + det)
+                    sources.append({"type": "computed"})
+
                 context_parts.append(
                     "SECTOR_STATS (PRECOMPUTED, EXACT - per platform sector tag): for each "
                     "sector, 'count' = number of scripts, and each metric gives n (how many had "
@@ -321,14 +335,49 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                                 "document_id": p["document_id"]})
 
     context = "\n\n".join(context_parts) if context_parts else "(no live context available)"
+
+    # The global context (all-scores summary, indices, recent news) is attached to
+    # EVERY request for grounding. Citing all of it every time made the Sources
+    # count and confidence constant. Keep only sources relevant to THIS question so
+    # both actually vary with the answer.
+    ql = (question or "").lower()
+    news_q = any(k in ql for k in (
+        "news", "today", "happening", "latest", "why", "moved", "movement", "head",
+        "fell", "rose", "gain", "drop", "declin", "rally", "update", "fall", "rise", "surge"))
+    index_q = any(k in ql for k in (
+        "nifty", "sensex", "index", "indices", "bank nifty", "banknifty", "midcap"))
+    score_q = any(k in ql for k in (
+        "score", "top", "bottom", "best", "worst", "p/e", " pe", "valuation", "dividend",
+        "sector", "average", "avg", "below", "above", "rank", "market cap", "fundamental",
+        "highest", "lowest", "compare", "p/b", "roe", "eps", "stocks", "scripts"))
+
+    def _relevant(s):
+        t = s["type"]
+        if t in ("quote", "ai_score", "research", "computed"):
+            return True          # specific to the question
+        if t == "ai_scores_summary":
+            return score_q
+        if t == "indices":
+            return index_q
+        if t == "news":
+            return news_q
+        return True
+
+    sources = [s for s in sources if _relevant(s)]
     types = {s["type"] for s in sources}
-    conf = 0.4 + (0.15 if "quote" in types else 0) \
-        + (0.15 if ("ai_score" in types or "ai_scores_summary" in types) else 0) \
-        + (0.12 if "research" in types else 0) + (0.08 if "news" in types else 0) \
-        + (0.05 if "indices" in types else 0)
+
+    # Confidence from the strength of the grounding actually used for this answer.
+    conf = 0.35
+    conf += 0.30 if "computed" in types else 0.0          # exact, code-computed
+    conf += 0.20 if ({"quote", "ai_score"} & types) else 0.0
+    conf += 0.15 if "ai_scores_summary" in types else 0.0
+    conf += 0.10 if "research" in types else 0.0
+    conf += 0.08 if "news" in types else 0.0
+    conf += 0.05 if "indices" in types else 0.0
+    conf += min(0.06, 0.015 * len(sources))               # breadth of evidence
     if mentioned and not ({"quote", "ai_score"} & types):
-        conf -= 0.1   # asked about a specific script we could not ground
-    confidence = round(max(0.35, min(0.95, conf)), 2)
+        conf -= 0.12   # asked about a specific script we could not ground
+    confidence = round(max(0.30, min(0.96, conf)), 2)
 
     prompt = (
         (f"CONVERSATION SO FAR:\n{history}\n\n" if history else "")

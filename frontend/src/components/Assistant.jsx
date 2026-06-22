@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 import AiIcon from './AiIcon.jsx'
-import { confirmDialog } from '../dialog.jsx'
+import { confirmDialog, toast } from '../dialog.jsx'
 
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -38,6 +38,7 @@ export default function Assistant({ seed, clearSeed }) {
   const [suggestions, setSuggestions] = useState([])
   const [followups, setFollowups] = useState([])
   const [histOpen, setHistOpen] = useState(false)
+  const [rated, setRated] = useState({})
   const bottom = useRef(null)
 
   const loadSessions = () => api.chatSessions().then(d => setSessions(d.sessions)).catch(() => {})
@@ -49,6 +50,17 @@ export default function Assistant({ seed, clearSeed }) {
   useEffect(() => {
     if (seed) { send(seed); clearSeed?.() }
   }, [seed])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function rate(i, val) {
+    if (rated[i]) return
+    setRated(r => ({ ...r, [i]: val }))
+    const ans = messages[i]?.text || ''
+    const q = (i > 0 && messages[i - 1]?.role === 'user') ? messages[i - 1].text : ''
+    try {
+      await api.sendFeedback(val, { session_id: sessionId, question: q, answer: ans, provider: messages[i]?.provider || '' })
+      toast('Thanks for the feedback')
+    } catch {}
+  }
 
   // 3 follow-ups after each reply: 2 data-oriented + 1 general-knowledge.
   function buildFollowups() {
@@ -198,6 +210,17 @@ export default function Assistant({ seed, clearSeed }) {
                         </ul>
                       </details>
                     )}
+                  </div>
+                )}
+                {m.role === 'assistant' && !m.text.startsWith('Error:') && (
+                  <div className="fb-row">
+                    {rated[i]
+                      ? <span className="fb-thanks">Thanks for the feedback</span>
+                      : <>
+                          <span className="fb-q">Was this helpful?</span>
+                          <button className="fb-btn" onClick={() => rate(i, 1)}>Yes</button>
+                          <button className="fb-btn" onClick={() => rate(i, -1)}>No</button>
+                        </>}
                   </div>
                 )}
               </div>

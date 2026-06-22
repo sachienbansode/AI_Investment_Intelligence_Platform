@@ -38,6 +38,9 @@ export const api = {
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
   chatSuggestions: () => http('/chat/suggestions'),
+  sendFeedback: (rating, { session_id = '', question = '', answer = '', provider = '' } = {}) =>
+    http('/chat/feedback', { method: 'POST', body: JSON.stringify({ rating, session_id, question, answer, provider }) }),
+  chatFeedback: (p = {}) => http('/admin/chat-feedback?' + new URLSearchParams(p)),
   registerDevice: (token, platform = '') => http('/devices/register', { method: 'POST', body: JSON.stringify({ token, platform }) }),
   deleteSession: (sessionId) => http(`/chat/history/${sessionId}`, { method: 'DELETE' }),
   clearChats: () => http('/chat/sessions', { method: 'DELETE' }),

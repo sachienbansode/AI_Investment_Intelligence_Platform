@@ -10,9 +10,9 @@ from app.agents.pipeline import PIPELINE_STATE, live_snapshot, run_daily_pipelin
 from app.core.auth import get_current_user, require_admin
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
-from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
-                             DeviceToken, StockScore, User, UserActivity,
-                             WatchlistItem)
+from app.db.database import (ChatFeedback, ChatMessage, Instrument, Portfolio,
+                             SessionLocal, DeviceToken, StockScore, User,
+                             UserActivity, WatchlistItem)
 from app.llm.router import get_llm_router
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
@@ -94,6 +94,30 @@ async def clear_chat_history(user: User = Depends(get_current_user)):
         n = db.query(ChatMessage).filter_by(user_id=user.id).delete()
         db.commit()
         return {"deleted": n}
+    finally:
+        db.close()
+
+
+class FeedbackReq(BaseModel):
+    rating: int
+    session_id: str = ""
+    question: str = ""
+    answer: str = ""
+    provider: str = ""
+
+
+@router.post("/chat/feedback")
+async def chat_feedback(req: FeedbackReq, user: User = Depends(get_current_user)):
+    """Record a thumbs up/down on an assistant answer (assistant quality loop)."""
+    if req.rating not in (1, -1):
+        raise HTTPException(400, "rating must be 1 (up) or -1 (down)")
+    db = SessionLocal()
+    try:
+        db.add(ChatFeedback(user_id=user.id, session_id=req.session_id[:120],
+                            rating=req.rating, question=(req.question or "")[:2000],
+                            answer=(req.answer or "")[:4000], provider=(req.provider or "")[:40]))
+        db.commit()
+        return {"ok": True}
     finally:
         db.close()
 

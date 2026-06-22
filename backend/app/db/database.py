@@ -158,6 +158,19 @@ class StockScore(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class ChatFeedback(Base):
+    """User rating of an assistant answer (thumbs up/down) for quality tracking."""
+    __tablename__ = "chat_feedback"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    session_id = Column(String, index=True)
+    rating = Column(Integer)        # +1 up, -1 down
+    question = Column(Text)
+    answer = Column(Text)
+    provider = Column(String, default="")
+    created_at = Column(DateTime, default=utcnow)
+
+
 class NewsItem(Base):
     __tablename__ = "news_items"
     id = Column(Integer, primary_key=True)
