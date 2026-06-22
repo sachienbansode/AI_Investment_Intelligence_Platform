@@ -188,13 +188,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 # Full per-script list for the latest run so the assistant can
                 # answer about ANY script or sector group, not just top/bottom.
                 sect = {i.symbol: (i.sector or "") for i in db.query(Instrument).all()}
-                full = [[r.symbol, r.composite_score, sect.get(r.symbol, "")] for r in rows]
+                full = [[r.symbol, r.composite_score, sect.get(r.symbol, ""),
+                         round(r.pe, 1) if r.pe is not None else None] for r in rows]
+                pe_cov = sum(1 for r in rows if r.pe is not None)
                 context_parts.append(
                     "ALL_SCORES for " + str(latest[0]) + " - EVERY published script as "
-                    "[symbol, score_out_of_100, sector]. You DO have the COMPLETE list here; "
-                    "use it to answer about any specific script, any sector group, counts "
-                    "above/below a threshold, sector averages, etc. (per-name P/E is in the "
-                    "QUOTE/AI_SCORE lines above): "
+                    "[symbol, score_out_of_100, sector, pe]. You DO have the COMPLETE list "
+                    "here; use it to answer about any specific script, any sector group, counts "
+                    "above/below a threshold, sector score averages AND P/E questions including "
+                    f"sector P/E averages. P/E is present for {pe_cov} of {len(rows)} scripts "
+                    "(null only where the data source had none). When averaging P/E for a sector, "
+                    "use EVERY non-null P/E for that sector from this list, state how many names "
+                    "you averaged, and never claim P/E is unavailable for a name whose P/E is "
+                    "shown here: "
                     + json.dumps(full, separators=(",", ":")))
 
                 # We DO keep daily history — provide recent per-day top-10 so the

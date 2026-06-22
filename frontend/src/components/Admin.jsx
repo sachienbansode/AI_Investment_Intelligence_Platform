@@ -477,6 +477,35 @@ function Settings() {
           global news joins the feed on the next scheduled refresh (or after Refresh News in Agents).</p>
       </div>
 
+      <div className="panel">
+        <h4 title="Cache the stable part of each request (the assistant's system prompt + compliance rules) at the model provider so it isn't reprocessed every time.">
+          Prompt caching <span className="info-i">i</span></h4>
+        <div className="deductions" style={{ marginTop: 0 }}>
+          <p style={{ margin: 0 }}><strong>How prompt caching works.</strong> Every assistant
+            request repeats a large, unchanging prefix - the system prompt plus the SEBI compliance
+            rules. With caching ON, the provider stores that prefix after the first call and reuses
+            it for later calls instead of re-reading it, so answers come back faster and the repeated
+            input tokens are billed at a steep discount (the cache lives for a few minutes and
+            refreshes on each hit). It only activates once the cached prefix is long enough -
+            otherwise it is a harmless no-op. Turn it OFF to send every request fresh. Changes apply
+            live, no restart.</p>
+          <p style={{ margin: '8px 0 0' }}>
+            <strong>Anthropic</strong> - explicit caching: the system prompt is tagged{' '}
+            <code>cache_control: ephemeral</code>.{' '}
+            <strong>OpenAI</strong> - automatic for prompts over ~1024 tokens; we send a stable
+            cache key to raise hit rates.{' '}
+            <strong>Gemini</strong> - context caching of the system instruction (2.5 models also
+            cache implicitly). Cached-token usage is recorded for billing estimates.</p>
+        </div>
+        <div className="toolbar">
+          <label title="Cache the stable system prefix across providers to cut repeated input-token cost and latency.">
+            <input type="checkbox" defaultChecked={!!s.prompt_caching_enabled}
+                   onChange={e => save('prompt_caching_enabled', e.target.checked)} />
+            {' '}Enable prompt caching (Anthropic, OpenAI &amp; Gemini)
+          </label>
+        </div>
+      </div>
+
       {llm && (
       <div className="panel">
         <h4>LLM routing</h4>

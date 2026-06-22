@@ -82,6 +82,11 @@ class YahooProvider(MarketDataProvider):
         if last is None:
             return None
         chg = q.get("regularMarketChangePercent")
+        pe = q.get("trailingPE")
+        if pe is None:
+            # Secondary source: Yahoo quoteSummary often carries trailingPE even
+            # when the v7 quote field is blank — keeps P/E coverage near-complete.
+            pe = await self._pe_via_summary(client, ysym)
         return Quote(
             symbol=symbol.upper(),
             last_price=last,
@@ -92,10 +97,36 @@ class YahooProvider(MarketDataProvider):
             week52_high=q.get("fiftyTwoWeekHigh"),
             week52_low=q.get("fiftyTwoWeekLow"),
             volume=q.get("regularMarketVolume"),
-            pe=q.get("trailingPE"),
+            pe=pe,
             market_cap=q.get("marketCap"),
             source="yahoo",
         )
+
+    async def _pe_via_summary(self, client, ysym):
+        """Fallback trailing P/E from Yahoo quoteSummary (summaryDetail /
+        defaultKeyStatistics). Returns a float or None; never raises."""
+        try:
+            r = await client.get(
+                f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ysym}",
+                params={"modules": "summaryDetail,defaultKeyStatistics", "crumb": _crumb},
+                headers={**_HEADERS, "Cookie": _cookie_hdr})
+            if r.status_code in (401, 403):
+                _reset_auth()
+                return None
+            r.raise_for_status()
+            res = (r.json().get("quoteSummary", {}).get("result") or [])
+            if not res:
+                return None
+            node = res[0]
+            for mod in ("summaryDetail", "defaultKeyStatistics"):
+                tp = (node.get(mod) or {}).get("trailingPE")
+                if isinstance(tp, dict):
+                    tp = tp.get("raw")
+                if isinstance(tp, (int, float)):
+                    return float(tp)
+        except Exception as e:
+            log.warning("Yahoo P/E fallback failed for %s: %s", ysym, e)
+        return None
 
     async def _quote_chart(self, client, symbol):
         """No-auth fallback: price + 52-week range (no P/E or market cap)."""

@@ -70,6 +70,8 @@ class LLMRouter:
     async def complete(self, system: str, prompt: str, *, task: str = "general",
                        max_tokens: int = 1024, temperature: float = 0.3,
                        exclude: str | None = None) -> LLMResponse:
+        from app.services.app_settings import get_setting
+        cache = bool(get_setting("prompt_caching_enabled"))
         providers = self._ordered()
         if exclude and any(p.name != exclude for p in providers):
             providers = ([p for p in providers if p.name != exclude]
@@ -77,7 +79,7 @@ class LLMRouter:
         errors = []
         for provider in providers:
             try:
-                resp = await self._call(provider, system, prompt, max_tokens, temperature)
+                resp = await self._call(provider, system, prompt, max_tokens, temperature, cache)
                 audit_log("llm_call", task=task, provider=provider.name,
                           model=resp.model, usage=resp.usage)
                 return resp
@@ -93,9 +95,9 @@ class LLMRouter:
                            + " | ".join(errors))
 
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4), reraise=True)
-    async def _call(self, provider, system, prompt, max_tokens, temperature):
+    async def _call(self, provider, system, prompt, max_tokens, temperature, cache=False):
         return await provider.complete(system, prompt, max_tokens=max_tokens,
-                                       temperature=temperature)
+                                       temperature=temperature, cache=cache)
 
 
 _router: LLMRouter | None = None
