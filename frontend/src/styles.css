@@ -661,3 +661,28 @@ textarea:focus { border-color: var(--accent); }
   .ticker::-webkit-scrollbar { display: none; }
   .tk-item, .exch-badge { flex: 0 0 auto; }
 }
+
+/* ── AI Assistant: post-reply follow-up suggestions ── */
+.followups { margin: 8px 0 2px; }
+.followup-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--faint); font-weight: 700; margin-left: 2px; }
+.followups .chip-row { justify-content: flex-start; margin-top: 6px; }
+
+/* ── Mobile-only History trigger (desktop keeps the sidebar list) ── */
+.mobile-only { display: none !important; }
+@media (max-width: 860px) { .mobile-only { display: inline-flex !important; } }
+
+/* ── Mobile chat-history bottom-sheet drawer ── */
+.hist-drawer-backdrop { position: fixed; inset: 0; z-index: 70;
+  background: rgba(0,0,0,.5); display: flex; align-items: flex-end; }
+.hist-drawer { width: 100%; max-height: 72vh; background: var(--panel);
+  border-top-left-radius: 16px; border-top-right-radius: 16px;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 -10px 44px rgba(0,0,0,.5); animation: sheetIn .18s ease; }
+@keyframes sheetIn { from { transform: translateY(24px); opacity: .5; }
+  to { transform: none; opacity: 1; } }
+.hist-drawer .session-head { display: flex; align-items: center; justify-content: space-between; }
+.hist-drawer .session-list { display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto; min-height: 0; }
+.hist-drawer .session-del { opacity: .8; }

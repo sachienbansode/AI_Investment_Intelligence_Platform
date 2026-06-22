@@ -35,7 +35,7 @@ DEFAULTS: dict = {
     "llm_enabled": {"anthropic": True, "openai": True, "gemini": True},
     # Global markets: when on, include global indices + global news alongside India
     "global_markets_enabled": False,
-    "score_label": "NITRI Score",     # display name for the composite score (was "AI Score")
+    "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",

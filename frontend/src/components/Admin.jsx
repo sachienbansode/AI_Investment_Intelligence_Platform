@@ -396,6 +396,24 @@ function Settings() {
       </div>
 
       <div className="panel">
+        <h4 title="Names shown across the app. 'App AI name' is the platform brand used in the assistant's Basis tag; 'Score label' renames the composite score everywhere (dashboard, tables, compare).">
+          Display names <span className="info-i">i</span></h4>
+        <div className="weights-grid">
+          <label>App AI name
+            <input id="set-platform-label" defaultValue={s.platform_label} maxLength={40} />
+          </label>
+          <label>Score label
+            <input id="set-score-label" defaultValue={s.score_label} maxLength={40} />
+          </label>
+        </div>
+        <div className="toolbar">
+          <button onClick={() => save('platform_label', document.getElementById('set-platform-label').value.trim())}>Save app name</button>
+          <button onClick={() => save('score_label', document.getElementById('set-score-label').value.trim())}>Save score label</button>
+        </div>
+        <p className="hint">Applies app-wide after users reload. Defaults: <strong>NIYTRI AI</strong> / <strong>NIYTRI Score</strong>.</p>
+      </div>
+
+      <div className="panel">
         <h4>Scoring weights <span className="hint">(must sum to 1.0 — current: {wSum.toFixed(2)})</span></h4>
         <div className="weights-grid">
           {weights && Object.entries(weights).map(([k, v]) => (

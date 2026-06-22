@@ -15,6 +15,19 @@ const SUGGESTIONS = [
   'Summarize today’s market news',
 ]
 
+// General-knowledge prompts — at least one of these is always offered after a
+// reply, so follow-ups aren't all about the platform's scores.
+const GENERAL_Q = [
+  'What is a P/E ratio?',
+  'How do I read a stock’s 52-week range?',
+  'What does market capitalisation mean?',
+  'What is market volatility?',
+  'How does the Nifty 50 index work?',
+  'What is the difference between large-cap and small-cap?',
+]
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
+
 export default function Assistant({ seed, clearSeed }) {
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(newSession())
@@ -23,6 +36,8 @@ export default function Assistant({ seed, clearSeed }) {
   const [lang, setLang] = useState('en')
   const [busy, setBusy] = useState(false)
   const [suggestions, setSuggestions] = useState([])
+  const [followups, setFollowups] = useState([])
+  const [histOpen, setHistOpen] = useState(false)
   const bottom = useRef(null)
 
   const loadSessions = () => api.chatSessions().then(d => setSessions(d.sessions)).catch(() => {})
@@ -30,13 +45,23 @@ export default function Assistant({ seed, clearSeed }) {
     loadSessions()
     api.chatSuggestions().then(d => setSuggestions(d.suggestions || [])).catch(() => {})
   }, [])
-  useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy])
+  useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy, followups])
   useEffect(() => {
     if (seed) { send(seed); clearSeed?.() }
   }, [seed])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 3 follow-ups after each reply: 2 data-oriented + 1 general-knowledge.
+  function buildFollowups() {
+    const dataPool = (suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q))
+    const pool = [...dataPool]
+    const picks = []
+    while (picks.length < 2 && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
+    return [...picks, pick(GENERAL_Q)]
+  }
+
   async function openSession(id) {
     setSessionId(id)
+    setFollowups([])
     try {
       const d = await api.chatHistory(id)
       setMessages(d.messages.map(m => ({
@@ -49,6 +74,7 @@ export default function Assistant({ seed, clearSeed }) {
   function startNew() {
     setSessionId(newSession())
     setMessages([])
+    setFollowups([])
   }
 
   async function clearAll() {
@@ -69,6 +95,7 @@ export default function Assistant({ seed, clearSeed }) {
     const q = (text ?? input).trim()
     if (!q || busy) return
     setInput('')
+    setFollowups([])
     setMessages(m => [...m, { role: 'user', text: q }])
     setBusy(true)
     try {
@@ -77,6 +104,7 @@ export default function Assistant({ seed, clearSeed }) {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider,
       }])
+      setFollowups(buildFollowups())
       loadSessions()
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', text: 'Error: ' + e.message }])
@@ -85,10 +113,32 @@ export default function Assistant({ seed, clearSeed }) {
     }
   }
 
+  const lastIsAssistant = messages.length > 0 && messages[messages.length - 1].role === 'assistant'
+
+  function SessionRows({ onOpen }) {
+    return (
+      <>
+        {sessions.length === 0 && <div className="session-empty">No conversations yet</div>}
+        {sessions.map(s => (
+          <div key={s.session_id}
+               className={'session-item' + (s.session_id === sessionId ? ' active' : '')}
+               title={s.title || '(empty)'}
+               onClick={() => onOpen(s.session_id)}>
+            <span className="session-title">{s.title || '(empty)'}</span>
+            <button className="session-del" title="Delete chat"
+                    onClick={e => deleteSession(e, s.session_id)}>{String.fromCharCode(0xD7)}</button>
+          </div>
+        ))}
+      </>
+    )
+  }
+
   return (
     <div className="chat-layout">
       <aside className="chat-sidebar">
         <button className="new-chat-btn" onClick={startNew}>+ New chat</button>
+        <button className="ghost sm mobile-only" title="Recent chats"
+                onClick={() => { loadSessions(); setHistOpen(true) }}>History</button>
         <div className="session-head">
           <span className="session-list-title">Recent chats</span>
           {sessions.length > 0 && (
@@ -97,17 +147,7 @@ export default function Assistant({ seed, clearSeed }) {
           )}
         </div>
         <div className="session-list">
-          {sessions.length === 0 && <div className="session-empty">No conversations yet</div>}
-          {sessions.map(s => (
-            <div key={s.session_id}
-                 className={'session-item' + (s.session_id === sessionId ? ' active' : '')}
-                 title={s.title || '(empty)'}
-                 onClick={() => openSession(s.session_id)}>
-              <span className="session-title">{s.title || '(empty)'}</span>
-              <button className="session-del" title="Delete chat"
-                      onClick={e => deleteSession(e, s.session_id)}>{String.fromCharCode(0xD7)}</button>
-            </div>
-          ))}
+          <SessionRows onOpen={openSession} />
         </div>
       </aside>
 
@@ -124,7 +164,7 @@ export default function Assistant({ seed, clearSeed }) {
           {messages.length === 0 && (
             <div className="chat-empty">
               <div className="chat-empty-mark"><AiIcon /></div>
-              <h3>Ask me about markets, scores & news</h3>
+              <h3>Ask me about markets, scores &amp; news</h3>
               <p className="hint">Grounded in live quotes, the platform's AI scores and today's news.</p>
               <div className="chip-row">
                 {(suggestions.length ? suggestions : SUGGESTIONS).map(s => (
@@ -164,6 +204,15 @@ export default function Assistant({ seed, clearSeed }) {
             </div>
           ))}
 
+          {!busy && lastIsAssistant && followups.length > 0 && (
+            <div className="followups">
+              <span className="followup-label">Try next</span>
+              <div className="chip-row">
+                {followups.map(s => <button key={s} className="chip" onClick={() => send(s)}>{s}</button>)}
+              </div>
+            </div>
+          )}
+
           {busy && (
             <div className="msg assistant">
               <span className="msg-avatar"><AiIcon /></span>
@@ -180,6 +229,25 @@ export default function Assistant({ seed, clearSeed }) {
           <button onClick={() => send()} disabled={busy || !input.trim()}>Send</button>
         </div>
       </div>
+
+      {histOpen && (
+        <div className="hist-drawer-backdrop" onClick={() => setHistOpen(false)}>
+          <div className="hist-drawer" onClick={e => e.stopPropagation()}>
+            <div className="session-head">
+              <span className="session-list-title">Recent chats</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {sessions.length > 0 && (
+                  <button className="link-btn" onClick={clearAll}>Clear all</button>
+                )}
+                <button className="link-btn" onClick={() => setHistOpen(false)}>Close</button>
+              </div>
+            </div>
+            <div className="session-list">
+              <SessionRows onOpen={id => { openSession(id); setHistOpen(false) }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

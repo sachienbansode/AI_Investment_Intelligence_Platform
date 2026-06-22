@@ -55,7 +55,7 @@ async def chat_sessions(user: User = Depends(get_current_user)):
                 sessions.append({"session_id": r.session_id,
                                  "title": r.content[:60],
                                  "last_at": str(r.created_at)})
-        return {"sessions": sessions[:30]}
+        return {"sessions": sessions[:10]}  # keep the last 10 conversations
     finally:
         db.close()
 
@@ -103,7 +103,7 @@ async def chat_suggestions(user: User = Depends(get_current_user)):
     """Personalised starter prompts: learned from the user's most-asked symbols
     and their watchlist, topped up with evergreen defaults."""
     from app.services.app_settings import get_setting
-    label = get_setting("score_label") or "NITRI Score"
+    label = get_setting("score_label") or "NIYTRI Score"
     db = SessionLocal()
     try:
         acts = (db.query(UserActivity)
@@ -672,7 +672,8 @@ async def branding():
     logo + favicon, including on the pre-login screen."""
     from app.services.app_settings import get_setting
     return {"logo": get_setting("brand_logo") or "",
-            "score_label": get_setting("score_label") or "NITRI Score",
+            "score_label": get_setting("score_label") or "NIYTRI Score",
+            "platform_label": get_setting("platform_label") or "NIYTRI AI",
             "ticker_position": get_setting("ticker_position") or "top"}
 
 
