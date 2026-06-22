@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import time
+from collections import defaultdict
 from datetime import date
 
 from sqlalchemy import func
@@ -132,9 +133,12 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     )
     for sym, q in zip(mentioned, quotes):
         if q:
+            mcap_cr = round(q.market_cap / 1e7) if q.market_cap else None
             context_parts.append(
                 f"QUOTE {sym}: price={q.last_price}, day_change={q.change_pct}%, "
-                f"PE={q.pe}, 52w={q.week52_low}-{q.week52_high} (source: {q.source})")
+                f"PE={q.pe}, EPS={q.eps}, P/B={q.pb}, div_yield%={q.dividend_yield}, "
+                f"beta={q.beta}, ROE%={q.roe}, mcap_cr={mcap_cr}, "
+                f"52w={q.week52_low}-{q.week52_high} (source: {q.source})")
             sources.append({"type": "quote", "symbol": sym, "source": q.source})
     if indices:
         context_parts.append("INDICES: " + json.dumps(indices))
@@ -146,10 +150,22 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             row = (db.query(StockScore).filter_by(symbol=sym)
                    .order_by(StockScore.score_date.desc()).first())
             if row and row.quality_status == "approved":
+                fu = row.fundamentals or {}
+                pe_v = row.pe if row.pe is not None else fu.get("pe")
+                mc = row.market_cap if row.market_cap is not None else fu.get("market_cap")
+                extras = []
+                if mc:
+                    extras.append("mcap=" + str(round(mc / 1e7)) + " cr")
+                for k, lab in (("eps", "EPS"), ("pb", "P/B"), ("dividend_yield", "div%"),
+                               ("roe", "ROE%"), ("change_pct", "day%")):
+                    if fu.get(k) is not None:
+                        extras.append(lab + "=" + str(fu[k]))
+                pe_txt = str(round(pe_v, 1)) if pe_v is not None else "n/a"
                 context_parts.append(
-                    f"AI_SCORE {sym} ({row.score_date}): {row.composite_score}/100. "
-                    f"P/E: {round(row.pe, 1) if row.pe is not None else 'n/a'}. "
-                    f"Pillars: {json.dumps(row.pillar_scores)}. {row.explanation}")
+                    "AI_SCORE " + sym + " (" + str(row.score_date) + "): "
+                    + str(row.composite_score) + "/100. P/E: " + pe_txt + ". "
+                    + (("Fundamentals: " + ", ".join(extras) + ". ") if extras else "")
+                    + "Pillars: " + json.dumps(row.pillar_scores) + ". " + (row.explanation or ""))
                 sources.append({"type": "ai_score", "symbol": sym, "date": row.score_date})
 
         # Platform-wide score context: full distribution + extremes so questions
@@ -188,20 +204,70 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 # Full per-script list for the latest run so the assistant can
                 # answer about ANY script or sector group, not just top/bottom.
                 sect = {i.symbol: (i.sector or "") for i in db.query(Instrument).all()}
-                full = [[r.symbol, r.composite_score, sect.get(r.symbol, ""),
-                         round(r.pe, 1) if r.pe is not None else None] for r in rows]
-                pe_cov = sum(1 for r in rows if r.pe is not None)
+
+                def _fval(r, key, col=None):
+                    if col is not None and getattr(r, col) is not None:
+                        return getattr(r, col)
+                    return (r.fundamentals or {}).get(key)
+
+                def _frow(r):
+                    pe = _fval(r, "pe", "pe")
+                    mc = _fval(r, "market_cap", "market_cap")
+                    return [r.symbol, r.composite_score, sect.get(r.symbol, ""),
+                            round(pe, 1) if pe is not None else None,
+                            round(mc / 1e7) if mc else None,
+                            _fval(r, "change_pct"), _fval(r, "dividend_yield"),
+                            _fval(r, "pb")]
+
+                full = [_frow(r) for r in rows]
+                pe_cov = sum(1 for x in full if x[3] is not None)
                 context_parts.append(
                     "ALL_SCORES for " + str(latest[0]) + " - EVERY published script as "
-                    "[symbol, score_out_of_100, sector, pe]. You DO have the COMPLETE list "
-                    "here; use it to answer about any specific script, any sector group, counts "
-                    "above/below a threshold, sector score averages AND P/E questions including "
-                    f"sector P/E averages. P/E is present for {pe_cov} of {len(rows)} scripts "
-                    "(null only where the data source had none). When averaging P/E for a sector, "
-                    "use EVERY non-null P/E for that sector from this list, state how many names "
-                    "you averaged, and never claim P/E is unavailable for a name whose P/E is "
-                    "shown here: "
+                    "[symbol, score, sector, pe, market_cap_cr, day_change_pct, "
+                    "dividend_yield_pct, price_to_book]. You DO have the COMPLETE list here; use "
+                    "it to answer about any specific script or any subset. A value is null only "
+                    f"where the data source had none (P/E present for {pe_cov} of {len(rows)}). "
+                    "ACCURACY RULES: if you list names, the count you state MUST equal the number "
+                    "of names listed; compute sums/averages exactly (never give an approximate "
+                    "'~' average when exact values are present); and never claim a value is "
+                    "unavailable for a name whose value is shown here: "
                     + json.dumps(full, separators=(",", ":")))
+
+                # Precomputed, EXACT per-sector aggregates so the model never has
+                # to sum long lists itself (its arithmetic on 25+ rows is unreliable).
+                groups = defaultdict(list)
+                for r in rows:
+                    groups[sect.get(r.symbol) or "Other"].append(r)
+
+                def _stat(rs, key, col=None):
+                    vals = [v for v in (_fval(r, key, col) for r in rs) if v is not None]
+                    if not vals:
+                        return None
+                    return {"n": len(vals), "avg": round(sum(vals) / len(vals), 2),
+                            "min": round(min(vals), 2), "max": round(max(vals), 2)}
+
+                sector_stats = {}
+                for sname, rs in groups.items():
+                    scores = [r.composite_score for r in rs]
+                    sector_stats[sname] = {
+                        "count": len(rs),
+                        "score": {"avg": round(sum(scores) / len(scores), 1),
+                                  "min": min(scores), "max": max(scores)},
+                        "pe": _stat(rs, "pe", "pe"),
+                        "market_cap_cr": _stat(rs, "market_cap", "market_cap"),
+                        "dividend_yield_pct": _stat(rs, "dividend_yield"),
+                        "price_to_book": _stat(rs, "pb"),
+                        "day_change_pct": _stat(rs, "change_pct"),
+                    }
+                context_parts.append(
+                    "SECTOR_STATS (PRECOMPUTED, EXACT - per platform sector tag): for each "
+                    "sector, 'count' = number of scripts, and each metric gives n (how many had "
+                    "the value), avg, min, max. market_cap_cr is in Rs crore. For 'average "
+                    "<metric> for <sector>' questions, REPORT THESE NUMBERS DIRECTLY and do NOT "
+                    "recompute from the list. Grouping follows the platform's sector tags; if the "
+                    "user asks for a narrower group (e.g. 'PSU banks') that isn't its own sector, "
+                    "compute from ALL_SCORES but follow the ACCURACY RULES above. "
+                    + json.dumps(sector_stats, separators=(",", ":")))
 
                 # We DO keep daily history — provide recent per-day top-10 so the
                 # assistant can answer "consistently in top N over the last K days".

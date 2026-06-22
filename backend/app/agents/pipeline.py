@@ -10,7 +10,7 @@ from datetime import date
 
 from app.core.compliance import audit_log
 from app.data.aggregator import get_market_data
-from app.data.base import Quote
+from app.data.base import Quote, quote_fundamentals
 from app.data.rss_news import collect_news
 from app.db.database import Instrument, SessionLocal, StockScore
 from app.llm.router import get_llm_router
@@ -283,6 +283,7 @@ async def publishing_agent(ctx: AgentContext):
                 pe=q.pe if q else None,
                 market_cap=q.market_cap if q else None,
                 last_price=q.last_price if q else None,
+                fundamentals=quote_fundamentals(q),
             ))
         db.commit()
     finally:

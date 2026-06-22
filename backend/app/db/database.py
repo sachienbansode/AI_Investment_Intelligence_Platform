@@ -154,6 +154,7 @@ class StockScore(Base):
     pe = Column(Float, nullable=True)              # trailing P/E captured at scoring time
     market_cap = Column(Float, nullable=True)      # market capitalisation (absolute, e.g. INR)
     last_price = Column(Float, nullable=True)      # LTP captured at scoring time
+    fundamentals = Column(JSON, nullable=True)     # extended metrics: eps, pb, dividend yield, beta, roe, 52w, volume
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -215,6 +216,7 @@ _MIGRATIONS = [
     ("stock_scores", "pe", "FLOAT"),
     ("stock_scores", "market_cap", "FLOAT"),
     ("stock_scores", "last_price", "FLOAT"),
+    ("stock_scores", "fundamentals", "JSON"),
     ("users", "role_id", "INTEGER"),
 ]
 
@@ -292,6 +294,7 @@ def init_db():
             ("stock_scores", "pe", "DOUBLE PRECISION"),
             ("stock_scores", "market_cap", "DOUBLE PRECISION"),
             ("stock_scores", "last_price", "DOUBLE PRECISION"),
+            ("stock_scores", "fundamentals", "JSONB"),
             ("users", "role_id", "INTEGER"),
         ]
         with engine.connect() as conn:

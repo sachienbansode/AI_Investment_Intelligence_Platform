@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
+from app.data.base import quote_fundamentals
 from app.db.database import SessionLocal, StockScore
 from app.llm.router import get_llm_router
 from app.services import scoring
@@ -90,7 +91,8 @@ async def rescore_symbol(symbol: str) -> dict | None:
         db.add(StockScore(symbol=symbol, score_date=today, composite_score=composite,
                           pillar_scores=pillars, explanation=explanation,
                           quality_status=quality,
-                          pe=q.pe, market_cap=q.market_cap, last_price=q.last_price))
+                          pe=q.pe, market_cap=q.market_cap, last_price=q.last_price,
+                          fundamentals=quote_fundamentals(q)))
         db.commit()
     finally:
         db.close()

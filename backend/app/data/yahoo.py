@@ -82,51 +82,86 @@ class YahooProvider(MarketDataProvider):
         if last is None:
             return None
         chg = q.get("regularMarketChangePercent")
-        pe = q.get("trailingPE")
-        if pe is None:
-            # Secondary source: Yahoo quoteSummary often carries trailingPE even
-            # when the v7 quote field is blank — keeps P/E coverage near-complete.
-            pe = await self._pe_via_summary(client, ysym)
+        dy = q.get("trailingAnnualDividendYield")
+        fund = {
+            "pe": q.get("trailingPE"),
+            "eps": q.get("epsTrailingTwelveMonths"),
+            "pb": q.get("priceToBook"),
+            "dividend_yield": round(dy * 100, 2) if isinstance(dy, (int, float)) else None,
+            "beta": None, "roe": None,
+        }
+        # Fill any gaps (and add beta / ROE, which the v7 quote lacks) from the
+        # richer quoteSummary modules — keeps fundamentals near-complete.
+        if any(fund[k] is None for k in ("pe", "eps", "pb", "dividend_yield")):
+            extra = await self._summary_fundamentals(client, ysym)
+            for k, v in extra.items():
+                if fund.get(k) is None and v is not None:
+                    fund[k] = v
         return Quote(
             symbol=symbol.upper(),
             last_price=last,
             change_pct=round(chg, 2) if chg is not None else None,
             prev_close=q.get("regularMarketPreviousClose"),
+            open=q.get("regularMarketOpen"),
             high=q.get("regularMarketDayHigh"),
             low=q.get("regularMarketDayLow"),
             week52_high=q.get("fiftyTwoWeekHigh"),
             week52_low=q.get("fiftyTwoWeekLow"),
             volume=q.get("regularMarketVolume"),
-            pe=pe,
+            pe=fund["pe"],
+            eps=fund["eps"],
+            pb=fund["pb"],
+            dividend_yield=fund["dividend_yield"],
+            beta=fund["beta"],
+            roe=fund["roe"],
             market_cap=q.get("marketCap"),
             source="yahoo",
         )
 
-    async def _pe_via_summary(self, client, ysym):
-        """Fallback trailing P/E from Yahoo quoteSummary (summaryDetail /
-        defaultKeyStatistics). Returns a float or None; never raises."""
+    async def _summary_fundamentals(self, client, ysym):
+        """Richer fundamentals from Yahoo quoteSummary (summaryDetail,
+        defaultKeyStatistics, financialData). Returns a dict; never raises."""
+        out = {}
         try:
             r = await client.get(
                 f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ysym}",
-                params={"modules": "summaryDetail,defaultKeyStatistics", "crumb": _crumb},
+                params={"modules": "summaryDetail,defaultKeyStatistics,financialData",
+                        "crumb": _crumb},
                 headers={**_HEADERS, "Cookie": _cookie_hdr})
             if r.status_code in (401, 403):
                 _reset_auth()
-                return None
+                return out
             r.raise_for_status()
             res = (r.json().get("quoteSummary", {}).get("result") or [])
             if not res:
-                return None
+                return out
             node = res[0]
-            for mod in ("summaryDetail", "defaultKeyStatistics"):
-                tp = (node.get(mod) or {}).get("trailingPE")
-                if isinstance(tp, dict):
-                    tp = tp.get("raw")
-                if isinstance(tp, (int, float)):
-                    return float(tp)
+            sd = node.get("summaryDetail") or {}
+            ks = node.get("defaultKeyStatistics") or {}
+            fd = node.get("financialData") or {}
+
+            def raw(d, k):
+                v = d.get(k)
+                if isinstance(v, dict):
+                    v = v.get("raw")
+                return v if isinstance(v, (int, float)) else None
+
+            out["pe"] = raw(sd, "trailingPE") or raw(ks, "trailingPE")
+            out["eps"] = raw(ks, "trailingEps")
+            out["pb"] = raw(ks, "priceToBook") or raw(sd, "priceToBook")
+            dyv = raw(sd, "dividendYield")
+            if dyv is None:
+                tay = raw(sd, "trailingAnnualDividendYield")
+                dyv = tay * 100 if tay is not None else None
+            else:
+                dyv = dyv if dyv > 1 else dyv * 100   # Yahoo varies fraction/percent
+            out["dividend_yield"] = round(dyv, 2) if dyv is not None else None
+            out["beta"] = raw(sd, "beta") or raw(ks, "beta")
+            roe = raw(fd, "returnOnEquity")
+            out["roe"] = round(roe * 100, 2) if roe is not None else None
         except Exception as e:
-            log.warning("Yahoo P/E fallback failed for %s: %s", ysym, e)
-        return None
+            log.warning("Yahoo fundamentals fallback failed for %s: %s", ysym, e)
+        return out
 
     async def _quote_chart(self, client, symbol):
         """No-auth fallback: price + 52-week range (no P/E or market cap)."""
