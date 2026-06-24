@@ -199,16 +199,30 @@ async def index_constituents(user: User = Depends(get_current_user)):
     from app.db.database import NIFTY50_SEED
     db = SessionLocal()
     try:
-        sectors = {}
-        for inst in db.query(Instrument).filter_by(is_active=True).all():
-            if inst.sector:
-                sectors.setdefault(inst.sector, []).append(inst.symbol)
+        insts = db.query(Instrument).filter_by(is_active=True).all()
     finally:
         db.close()
-    return {
-        "Nifty 50": [sym for sym, _name, _sec in NIFTY50_SEED],
-        "sectors": sectors,
-    }
+    sectors = {}
+    n50, n500, allnse = [], [], []
+    for inst in insts:
+        tags = inst.indices or []
+        allnse.append(inst.symbol)
+        if "NIFTY50" in tags:
+            n50.append(inst.symbol)
+        if "NIFTY500" in tags:
+            n500.append(inst.symbol)
+        if inst.sector:
+            sectors.setdefault(inst.sector, []).append(inst.symbol)
+    # Fallbacks so the filters work before a tagged re-import:
+    if not n50:
+        n50 = [sym for sym, _n, _s in NIFTY50_SEED]
+    if not n500:
+        n500 = allnse                       # current table is the Nifty 500 universe
+    out = {"Nifty 50": n50, "Nifty 500": n500}
+    if len(allnse) > len(n500):
+        out["All NSE"] = allnse             # only show when broader than Nifty 500
+    out["sectors"] = sectors
+    return out
 
 
 # ── Instruments (read; admin manages via /admin) ─────────────────

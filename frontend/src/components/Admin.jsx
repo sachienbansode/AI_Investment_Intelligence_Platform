@@ -246,15 +246,18 @@ function Instruments() {
     } catch (ex) { setErr(ex.message) }
   }
 
-  async function importN500() {
+  async function doImport(fn, label) {
     setImporting(true); setErr(''); setMsg('')
     try {
-      const r = await api.importNifty500()
-      setMsg(`NIFTY500 import: ${r.added} added, ${r.updated} updated — ${r.total_instruments} total. ${r.note}`)
+      const r = await fn()
+      setMsg(`${label}: ${r.added} added, ${r.updated} updated — ${r.total_instruments} total. ${r.note}`)
       load()
     } catch (ex) { setErr(ex.message) }
     setImporting(false)
   }
+  const importN50 = () => doImport(api.importNifty50, 'NIFTY 50 import')
+  const importN500 = () => doImport(api.importNifty500, 'NIFTY 500 import')
+  const importNseAll = () => doImport(api.importNseAll, 'Full NSE import')
   async function toggle(id, field) {
     try { await api.toggleInstrument(id, field); load() } catch (ex) { setErr(ex.message) }
   }
@@ -281,9 +284,15 @@ function Instruments() {
       {err && <p className="note">{err}</p>}
       {msg && <p className="hint">{msg}</p>}
       <div className="toolbar">
+        <button onClick={importN50} disabled={importing}
+                title="Import the NIFTY 50 constituents (tagged NIFTY50, scored daily)">
+          {importing ? 'Importing…' : 'Import NIFTY 50'}</button>
         <button onClick={importN500} disabled={importing}
-                title="Download NSE's official NIFTY500 constituent list and add/update all 500 scripts with name and sector">
-          {importing ? 'Importing…' : 'Import NIFTY500 from NSE'}</button>
+                title="Import the NIFTY 500 constituents (tagged NIFTY500, scored daily)">
+          {importing ? 'Importing…' : 'Import NIFTY 500'}</button>
+        <button className="ghost" onClick={importNseAll} disabled={importing}
+                title="Import the FULL NSE equity master (tagged NSE). Added outside daily scoring (scored on-demand) to control cost.">
+          {importing ? 'Importing…' : 'Import all NSE'}</button>
         <input placeholder="Filter…" value={filter}
                onChange={e => { setFilter(e.target.value); setPage(0) }} />
         <span className="hint">{rows.length} scripts · {inUniverse} in scoring universe</span>

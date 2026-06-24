@@ -137,7 +137,9 @@ export const api = {
     http('/admin/instruments', { method: 'POST', body: JSON.stringify({ symbol, name, sector }) }),
   toggleInstrument: (id, field) =>
     http(`/admin/instruments/${id}/toggle/${field}`, { method: 'PATCH' }),
+  importNifty50: () => http('/admin/instruments/import-nifty50', { method: 'POST' }),
   importNifty500: () => http('/admin/instruments/import-nifty500', { method: 'POST' }),
+  importNseAll: () => http('/admin/instruments/import-nse-all', { method: 'POST' }),
   settings: () => http('/admin/settings'),
   integrations: () => http('/admin/integrations'),
   pipelineRuns: (p = {}) => http('/admin/pipeline-runs?' + new URLSearchParams(p)),

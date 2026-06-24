@@ -327,54 +327,82 @@ def toggle_instrument(inst_id: int, field: str, admin: User = Depends(require_ad
     return result
 
 
-@router.post("/instruments/import-nifty500")
-async def import_nifty500(include_in_scoring: bool = True,
-                          admin: User = Depends(require_admin)):
-    """Import/refresh the NIFTY500 universe from NSE's official constituent CSV.
-    Existing symbols are updated (name/sector); new ones are added."""
+async def _import_nse_csv(url: str, tag: str, include_in_scoring: bool):
+    """Download an NSE official CSV and upsert instruments, tagging index
+    membership. Handles the index-constituent CSVs (Symbol/Company Name/Industry)
+    and the full equity master EQUITY_L.csv (SYMBOL/NAME OF COMPANY)."""
     import csv
     import io
 
     import httpx
 
-    url = "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv"
     headers = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                               "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
                "Referer": "https://www.nseindia.com/"}
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=45, follow_redirects=True) as client:
             r = await client.get(url, headers=headers)
             r.raise_for_status()
     except Exception as e:
-        raise HTTPException(502, f"Could not download NIFTY500 list from NSE: {e}")
+        raise HTTPException(502, f"Could not download list from NSE ({tag}): {e}")
 
     reader = csv.DictReader(io.StringIO(r.text))
     added = updated = 0
     db = SessionLocal()
     try:
         for row in reader:
-            symbol = (row.get("Symbol") or "").strip().upper()
+            symbol = (row.get("Symbol") or row.get("SYMBOL") or "").strip().upper()
             if not symbol:
                 continue
-            name = (row.get("Company Name") or "").strip()
+            series = (row.get(" SERIES") or row.get("SERIES") or "EQ").strip()
+            if series and series not in ("EQ", "BE", ""):
+                continue
+            name = (row.get("Company Name") or row.get("NAME OF COMPANY") or "").strip()
             sector = (row.get("Industry") or "").strip()
             inst = db.query(Instrument).filter_by(symbol=symbol).first()
             if inst:
                 inst.name = name or inst.name
                 inst.sector = sector or inst.sector
+                tags = set(inst.indices or [])
+                tags.add(tag)
+                inst.indices = sorted(tags)
                 updated += 1
             else:
                 db.add(Instrument(symbol=symbol, name=name, sector=sector,
-                                  in_scoring_universe=include_in_scoring))
+                                  in_scoring_universe=include_in_scoring, indices=[tag]))
                 added += 1
         db.commit()
         total = db.query(Instrument).count()
     finally:
         db.close()
-    audit_log("nifty500_import", added=added, updated=updated, by=admin.email)
-    return {"added": added, "updated": updated, "total_instruments": total,
+    audit_log("instruments_import", index=tag, added=added, updated=updated)
+    return {"added": added, "updated": updated, "total_instruments": total, "index": tag,
             "note": "New scripts are " + ("included in" if include_in_scoring else "excluded from")
-                    + " daily scoring. Adjust per script in Admin → Instruments."}
+                    + " daily scoring. Adjust per script in Admin -> Instruments."}
+
+
+@router.post("/instruments/import-nifty50")
+async def import_nifty50(admin: User = Depends(require_admin)):
+    """Import/refresh the NIFTY 50 constituents (tagged NIFTY50, scored daily)."""
+    return await _import_nse_csv(
+        "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv", "NIFTY50", True)
+
+
+@router.post("/instruments/import-nifty500")
+async def import_nifty500(include_in_scoring: bool = True,
+                          admin: User = Depends(require_admin)):
+    """Import/refresh the NIFTY 500 universe (tagged NIFTY500, scored daily)."""
+    return await _import_nse_csv(
+        "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv",
+        "NIFTY500", include_in_scoring)
+
+
+@router.post("/instruments/import-nse-all")
+async def import_nse_all(admin: User = Depends(require_admin)):
+    """Import the FULL NSE equity master (EQUITY_L.csv, tagged NSE). Added OUTSIDE
+    the daily scoring universe (scored on-demand) to control cost."""
+    return await _import_nse_csv(
+        "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv", "NSE", False)
 
 
 # ── Pipeline run audit ───────────────────────────────────────────

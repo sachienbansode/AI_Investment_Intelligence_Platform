@@ -67,6 +67,7 @@ class Instrument(Base):
     sector = Column(String, default="")
     is_active = Column(Boolean, default=True)          # visible in app
     in_scoring_universe = Column(Boolean, default=True)  # scored daily
+    indices = Column(JSON, nullable=True)              # membership tags: ["NIFTY50","NIFTY500","NSE"]
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -230,6 +231,7 @@ _MIGRATIONS = [
     ("stock_scores", "market_cap", "FLOAT"),
     ("stock_scores", "last_price", "FLOAT"),
     ("stock_scores", "fundamentals", "JSON"),
+    ("instruments", "indices", "JSON"),
     ("users", "role_id", "INTEGER"),
 ]
 
@@ -308,6 +310,7 @@ def init_db():
             ("stock_scores", "market_cap", "DOUBLE PRECISION"),
             ("stock_scores", "last_price", "DOUBLE PRECISION"),
             ("stock_scores", "fundamentals", "JSONB"),
+            ("instruments", "indices", "JSONB"),
             ("users", "role_id", "INTEGER"),
         ]
         with engine.connect() as conn:

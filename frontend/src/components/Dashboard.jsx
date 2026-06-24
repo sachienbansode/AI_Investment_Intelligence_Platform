@@ -24,7 +24,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
   const [watch, setWatch] = useState([])
   const [trend, setTrend] = useState(null)
   const [range, setRange] = useState(7)
-  const [idx, setIdx] = useState('Nifty 500 (all)')
+  const [idx, setIdx] = useState('Nifty 500')
   const [consts, setConsts] = useState({})
 
   useEffect(() => {
@@ -36,20 +36,20 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
   useEffect(() => {
     const all = scores?.scores || []
     let syms = ''
-    if (idx !== 'Nifty 500 (all)') {
+    if (idx !== 'All NSE') {
       const inIdx = s => idx.startsWith('Sector: ') ? s.sector === idx.slice(8)
         : (Array.isArray(consts[idx]) ? consts[idx].includes(s.symbol) : true)
       const list = all.filter(inIdx).map(s => s.symbol)
-      if (list.length) syms = list.join(',')
+      if (list.length && list.length <= 600) syms = list.join(',')
     }
     api.trends(range, syms).then(setTrend).catch(() => {})
   }, [range, idx, scores, consts])
 
   const list = scores?.scores || []
   const allSectors = [...new Set(list.map(s => s.sector).filter(Boolean))].sort()
-  const idxOptions = ['Nifty 500 (all)', ...Object.keys(consts).filter(k => Array.isArray(consts[k])),
+  const idxOptions = [...Object.keys(consts).filter(k => Array.isArray(consts[k])),
                       ...allSectors.map(s => 'Sector: ' + s)]
-  const inIndex = s => idx === 'Nifty 500 (all)' ? true
+  const inIndex = s => idx === 'All NSE' ? true
     : idx.startsWith('Sector: ') ? s.sector === idx.slice(8)
     : (Array.isArray(consts[idx]) ? consts[idx].includes(s.symbol) : true)
   const flist = list.filter(inIndex)
@@ -74,7 +74,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
                 title="Filter the dashboard by index or sector">
           {idxOptions.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        {idx !== 'Nifty 500 (all)' && <span className="hint">{flist.length} scripts</span>}
+        <span className="hint">{flist.length} scripts</span>
       </div>
       <div className="kpi-row">
         <div className="kpi" title="Number of scripts scored by the AI pipeline on the latest scoring date">
