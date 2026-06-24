@@ -2,6 +2,7 @@
 falls back to NSE public data. Single entry point for all agents/services."""
 import logging
 
+from app.config import get_settings
 from app.data.base import Quote
 from app.data.brokers import KiteProvider, SmartAPIProvider, UpstoxProvider
 from app.data.nse import NSEProvider
@@ -12,9 +13,18 @@ log = logging.getLogger(__name__)
 
 class MarketDataAggregator:
     def __init__(self):
+        self._allow_fallback = get_settings().unlicensed_fallbacks_enabled
         self._nse = NSEProvider()
+        self._yahoo = YahooProvider()
         brokers = [KiteProvider(), SmartAPIProvider(), UpstoxProvider()]
-        self._providers = [p for p in brokers if p.available()] + [self._nse, YahooProvider()]
+        providers = [p for p in brokers if p.available()]
+        if self._allow_fallback:
+            providers += [self._nse, self._yahoo]
+        else:
+            log.warning("Unlicensed market-data fallbacks (NSE public + Yahoo) are "
+                        "DISABLED; serving only licensed broker feeds. Configure a "
+                        "broker (Kite/SmartAPI/Upstox) or enable a licensed feed.")
+        self._providers = providers
         log.info("Market data providers active: %s", [p.name for p in self._providers])
 
     @property
@@ -38,7 +48,9 @@ class MarketDataAggregator:
         import asyncio
 
         from app.services.app_settings import get_setting
-        yahoo = self._providers[-1]  # YahooProvider is always last
+        if not self._allow_fallback:
+            return []   # unlicensed index sources disabled; wire a licensed feed
+        yahoo = self._yahoo
         tasks = [self._nse.get_indices(),
                  yahoo.get_index("^BSESN", "SENSEX (BSE)"),
                  yahoo.get_index("BSE-BANK.BO", "BANKEX (BSE)")]

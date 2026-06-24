@@ -36,6 +36,16 @@ class Settings(BaseSettings):
     # OpenAI embedding model for the broker-research RAG store. A deterministic
     # local fallback is used automatically when no OpenAI key is configured.
     embedding_model: str = "text-embedding-3-small"
+    # Market-data fallbacks (NSE public endpoints + Yahoo) are development/demo
+    # only and are NOT exchange-licensed. Leave unset (None) to auto-DISABLE them
+    # in production; set ALLOW_UNLICENSED_MARKET_DATA=true/false to force it.
+    allow_unlicensed_market_data: bool | None = None
+
+    @property
+    def unlicensed_fallbacks_enabled(self) -> bool:
+        if self.allow_unlicensed_market_data is not None:
+            return self.allow_unlicensed_market_data
+        return self.environment.lower() not in ("production", "prod")
 
     @property
     def provider_order(self) -> list[str]:
