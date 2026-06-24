@@ -108,6 +108,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
               user_id: int | None = None) -> AskAIResponse:
     md = get_market_data()
     sources: list[dict] = []
+    deterministic = None   # exact code-computed answer, used as offline fallback
     context_parts: list[str] = []
     score_label = get_setting("score_label") or "NIYTRI Score"
     platform_label = get_setting("platform_label") or "NIYTRI AI"
@@ -272,6 +273,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         "exact figures and counts, do NOT recompute, round differently or "
                         "contradict them): " + det)
                     sources.append({"type": "computed"})
+                    deterministic = det
 
                 context_parts.append(
                     "SECTOR_STATS (PRECOMPUTED, EXACT - per platform sector tag): for each "
@@ -386,8 +388,30 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     llm = get_llm_router()
     _t0 = time.time()
-    resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
-                              max_tokens=int(get_setting("assistant_max_tokens")))
+    try:
+        resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
+                                  max_tokens=int(get_setting("assistant_max_tokens")))
+        answer_text, provider = resp.text, resp.provider
+    except Exception as e:
+        # Every LLM provider failed (e.g. account usage-limit / quota errors). Stay
+        # useful: if the question maps to an exact code-computed figure, return that;
+        # otherwise return a clean, non-technical message instead of a 502 dump.
+        log.error("All LLM providers failed for ask_ai: %s", e)
+        provider = "unavailable"
+        if deterministic:
+            answer_text = (
+                deterministic
+                + "\n\n_The AI phrasing engine is temporarily unavailable, so this is the "
+                "exact figure computed directly from platform data._\n\nBasis: " + platform_label)
+            provider = "computed-offline"
+            confidence = max(confidence, 0.8)
+        else:
+            answer_text = (
+                "The AI engine is temporarily unavailable - the configured model providers "
+                "returned usage-limit or quota errors. Please try again shortly. An admin can "
+                "review the API limits and keys in Admin -> Integrations.")
+            confidence = 0.3
+            sources = []
     latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
@@ -395,8 +419,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         db.add(ChatMessage(user_id=user_id, session_id=session_id, role="user",
                            content=question, meta={}))
         db.add(ChatMessage(user_id=user_id, session_id=session_id, role="assistant",
-                           content=resp.text,
-                           meta={"provider": resp.provider, "confidence": confidence,
+                           content=answer_text,
+                           meta={"provider": provider, "confidence": confidence,
                                  "latency_ms": latency_ms, "n_sources": len(sources)}))
         # Learn the user's interests (symbols they ask about) for personalised
         # suggestions — upsert count + recency per symbol.
@@ -425,11 +449,11 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 db.commit()
     finally:
         db.close()
-    audit_log("ask_ai", session=session_id, user_id=user_id, provider=resp.provider,
+    audit_log("ask_ai", session=session_id, user_id=user_id, provider=provider,
               n_sources=len(sources), confidence=confidence)
 
-    return AskAIResponse(answer=resp.text, sources=sources, confidence=round(confidence, 2),
-                         provider=resp.provider, disclaimer=AI_DISCLAIMER)
+    return AskAIResponse(answer=answer_text, sources=sources, confidence=round(confidence, 2),
+                         provider=provider, disclaimer=AI_DISCLAIMER)
 
 
 def _pct_in_range(last, lo, hi):
