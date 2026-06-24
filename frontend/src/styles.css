@@ -776,3 +776,22 @@ button { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
 
 /* panel headings: small colored marker */
 .panel-head h3 { padding-left: 10px; border-left: 3px solid var(--accent); }
+
+
+/* ───────── Colorful polish (subtle, professional) ───────── */
+input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,247,.15); }
+.kpi { transition: transform .12s ease, box-shadow .15s ease; }
+.kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
+.panel { transition: border-color .15s ease; }
+.watch-chip { border-left: 3px solid var(--accent2); }
+.news-item { transition: border-color .15s ease; }
+.news-item:hover { border-color: var(--accent); }
+.score, .score.sm { box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+.bottom-nav button.active { position: relative; }
+.bottom-nav button.active::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 26px; height: 3px; border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.brand-name { background: linear-gradient(90deg, var(--text), var(--accent));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }

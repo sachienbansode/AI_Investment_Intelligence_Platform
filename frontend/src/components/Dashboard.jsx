@@ -7,6 +7,15 @@ function scoreColor(v) {
   return 'var(--red)'
 }
 
+// Smooth red -> orange -> green scale so clustered scores still show clear
+// gradation on the heatmap and trend bars (the 3 bands above are kept for the
+// semantic score badges elsewhere).
+function heatColor(v) {
+  const t = Math.max(0, Math.min(1, (v - 35) / 35))
+  const hue = Math.round(8 + t * 122)
+  return `hsl(${hue}, 60%, 42%)`
+}
+
 export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' }) {
   const [scores, setScores] = useState(null)
   const [news, setNews] = useState([])
@@ -86,7 +95,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             {sectorStats.map(s => (
               <div key={s.sector} className="sector-tile row-click"
                    title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
-                   style={{ background: scoreColor(s.avg) }} onClick={() => go('Stock Scores')}>
+                   style={{ background: heatColor(s.avg) }} onClick={() => go('Stock Scores')}>
                 <span className="sector-name">{s.sector}</span>
                 <span className="sector-avg">{s.avg.toFixed(0)}</span>
                 <span className="sector-count">{s.count} script{s.count > 1 ? 's' : ''}</span>
@@ -117,7 +126,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
                 <span className="trend-val">{d.avg_score}</span>
                 <div className="trend-bar"
                      style={{ height: `${Math.max(4, d.avg_score / maxAvg * 100)}%`,
-                              background: scoreColor(d.avg_score) }} />
+                              background: heatColor(d.avg_score) }} />
                 <span className="trend-label">{d.date.slice(8)}/{d.date.slice(5, 7)}</span>
                 <span className="trend-mm">{d.min_score ?? '—'}–{d.max_score ?? '—'}</span>
               </div>
