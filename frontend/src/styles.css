@@ -795,3 +795,39 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 }
 .brand-name { background: linear-gradient(90deg, var(--text), var(--accent));
   -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ───────── Advanced score-trend chart ───────── */
+.trend2-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px; margin: 4px 0 10px; }
+.t2card { background: var(--panel2); border: 1px solid var(--border); border-radius: 9px;
+  padding: 7px 11px; display: flex; flex-direction: column; gap: 1px; }
+.t2lab { font-size: .64rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); font-weight: 700; }
+.t2val { font-size: 1.06rem; font-weight: 750; color: var(--text); }
+.t2val small { font-size: .62rem; color: var(--faint); font-weight: 600; }
+.t2val.up { color: var(--green); } .t2val.down { color: var(--red); }
+.trend2-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .72rem;
+  color: var(--muted); margin: 0 2px 6px; align-items: center; }
+.trend2-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.trend2-legend .lg-line { width: 16px; height: 3px; border-radius: 2px; background: var(--accent); display: inline-block; }
+.trend2-legend .lg-band { width: 16px; height: 10px; border-radius: 3px; background: var(--accent); opacity: .18; display: inline-block; }
+.trend2-legend .lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.trend2-wrap { position: relative; }
+.trend2-svg { width: 100%; height: 230px; display: block; }
+.trend2-comp { width: 100%; height: 58px; display: block; }
+.t2axis { font-size: 9px; fill: var(--faint); }
+.t2ref { font-size: 9px; font-weight: 600; }
+.t2pt { font-size: 10px; font-weight: 700; fill: var(--text); }
+.t2mm { font-size: 8.5px; fill: var(--muted); }
+.t2date { font-size: 9.5px; fill: var(--faint); }
+.t2cnt { font-size: 9px; fill: var(--muted); font-weight: 600; }
+.trend2-tip { position: absolute; top: 4px; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 9px 11px; box-shadow: 0 10px 30px rgba(0,0,0,.32); font-size: .76rem;
+  min-width: 150px; pointer-events: none; z-index: 5; }
+.trend2-tip .t2tip-d { font-weight: 700; margin-bottom: 5px; color: var(--text); }
+.t2tip-row { display: flex; justify-content: space-between; gap: 14px; padding: 1px 0; color: var(--muted); }
+.t2tip-row b { color: var(--text); } .t2tip-row b.up { color: var(--green); } .t2tip-row b.down { color: var(--red); }
+.t2tip-bands { display: flex; gap: 8px; margin-top: 5px; padding-top: 5px;
+  border-top: 1px solid var(--border); font-size: .68rem; font-weight: 600; }
+@media (max-width: 860px) { .trend2-svg { height: 200px; } .trend2-tip { min-width: 132px; } }

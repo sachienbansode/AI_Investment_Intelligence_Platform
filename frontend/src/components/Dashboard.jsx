@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import TrendChart from './TrendChart.jsx'
 
 function scoreColor(v) {
   if (v >= 65) return 'var(--green)'
@@ -47,7 +48,6 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
   const avg = flist.length ? (flist.reduce((a, s) => a + s.composite_score, 0) / flist.length).toFixed(1) : '—'
   const top = [...flist].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
   const approved = flist.filter(s => s.quality_status === 'approved').length
-  const maxAvg = Math.max(60, ...(trend?.daily || []).map(d => d.avg_score))
   const gainers = (trend?.gainers || []).filter(m => fsyms.has(m.symbol))
   const losers = (trend?.losers || []).filter(m => fsyms.has(m.symbol))
   const sectorStats = Object.entries(flist.reduce((m, s) => {
@@ -105,35 +105,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
         </div>
       )}
 
-      <div className="panel">
-        <div className="panel-head">
-          <h3 title="Average AI score per scoring run day. Bar height = average score; hover for date, average and coverage.">Score trend</h3>
-          <div>
-            {[7, 30].map(d => (
-              <button key={d} className={`sm ${range === d ? '' : 'ghost'}`}
-                      style={{ marginLeft: 6 }} onClick={() => setRange(d)}>{d} days</button>
-            ))}
-          </div>
-        </div>
-        {(!trend || trend.daily.length === 0) &&
-          <p className="hint">No scoring history in this window yet — trends build up as
-            the daily pipeline runs.</p>}
-        {trend && trend.daily.length > 0 && (
-          <div className="trend-chart">
-            {trend.daily.map(d => (
-              <div key={d.date} className="trend-col"
-                   title={`${d.date} · avg ${d.avg_score} · min ${d.min_score ?? '—'} · max ${d.max_score ?? '—'} · ${d.count} scripts`}>
-                <span className="trend-val">{d.avg_score}</span>
-                <div className="trend-bar"
-                     style={{ height: `${Math.max(4, d.avg_score / maxAvg * 100)}%`,
-                              background: heatColor(d.avg_score) }} />
-                <span className="trend-label">{d.date.slice(8)}/{d.date.slice(5, 7)}</span>
-                <span className="trend-mm">{d.min_score ?? '—'}–{d.max_score ?? '—'}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <TrendChart trend={trend} range={range} setRange={setRange} scoreLabel={scoreLabel} />
 
       {trend && (gainers.length > 0 || losers.length > 0) && (
         <div className="grid2">

@@ -303,22 +303,28 @@ async def all_scores():
 async def score_trends(days: int = 30):
     """Daily average score + coverage for the last N days, plus the biggest
     score gainers/losers between the earliest and latest run in the window."""
-    from sqlalchemy import func
+    from sqlalchemy import case, func
     days = max(2, min(days, 90))
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     db = SessionLocal()
     try:
+        strong = func.sum(case((StockScore.composite_score >= 65, 1), else_=0))
+        neutral = func.sum(case(((StockScore.composite_score >= 50)
+                                 & (StockScore.composite_score < 65), 1), else_=0))
+        weak = func.sum(case((StockScore.composite_score < 50, 1), else_=0))
         daily_rows = (db.query(StockScore.score_date,
                                func.avg(StockScore.composite_score),
                                func.count(StockScore.id),
                                func.min(StockScore.composite_score),
-                               func.max(StockScore.composite_score))
+                               func.max(StockScore.composite_score),
+                               strong, neutral, weak)
                       .filter(StockScore.score_date >= cutoff)
                       .group_by(StockScore.score_date)
                       .order_by(StockScore.score_date).all())
         daily = [{"date": d, "avg_score": round(float(a), 1), "count": n,
-                  "min_score": round(float(mn), 1), "max_score": round(float(mx), 1)}
-                 for d, a, n, mn, mx in daily_rows]
+                  "min_score": round(float(mn), 1), "max_score": round(float(mx), 1),
+                  "strong": int(st or 0), "neutral": int(ne or 0), "weak": int(wk or 0)}
+                 for d, a, n, mn, mx, st, ne, wk in daily_rows]
 
         gainers, losers = [], []
         if len(daily) >= 2:
