@@ -69,10 +69,14 @@ export default function Agents() {
   }
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
+  const [forceFull, setForceFull] = useState(false)
   async function runScoring() {
     setBusy('score'); setMsg('')
-    try { await api.runScoring(); setMsg('Scoring pipeline started - watch the agents below.'); load() }
-    catch (e) { setMsg(e.message) }
+    try {
+      const r = await api.runScoring(forceFull)
+      setMsg(`Scoring started - ${r.mode || 'running'}. Watch the agents below.`)
+      load()
+    } catch (e) { setMsg(e.message) }
     setBusy('')
   }
   async function refreshNews() {
@@ -112,6 +116,9 @@ export default function Agents() {
             {busy === 'score' ? 'Starting…' : 'Run scoring pipeline'}</button>
           <button className="ghost" onClick={refreshNews} disabled={!!busy}>
             {busy === 'news' ? 'Refreshing…' : 'Refresh news'}</button>
+          <label className="hint" title="Re-score every script in scope, even ones already scored today (higher cost). Off = only missing/failed scripts are re-run.">
+            <input type="checkbox" checked={forceFull} onChange={e => setForceFull(e.target.checked)} /> Force full re-score
+          </label>
           {msg && <span className="hint">{msg}</span>}
         </div>
         <p className="hint" style={{ marginTop: 8 }}>Run the full agentic scoring pipeline on

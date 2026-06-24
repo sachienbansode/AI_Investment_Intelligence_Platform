@@ -34,6 +34,20 @@ def scoring_universe() -> list[str]:
     finally:
         db.close()
 
+
+def pending_universe() -> list[str]:
+    """Scope symbols that have NO score row for today yet (missing/failed) -
+    used for incremental re-runs so we only spend on what still needs scoring."""
+    from datetime import date as _date
+    today = _date.today().isoformat()
+    db = SessionLocal()
+    try:
+        done = {row[0] for row in db.query(StockScore.symbol)
+                .filter(StockScore.score_date == today).distinct().all()}
+    finally:
+        db.close()
+    return [s for s in scoring_universe() if s not in done]
+
 log = logging.getLogger(__name__)
 
 
@@ -381,12 +395,16 @@ def live_snapshot() -> dict | None:
     return out
 
 
-async def run_daily_pipeline(symbols: list[str] | None = None) -> AgentContext:
+async def run_daily_pipeline(symbols: list[str] | None = None,
+                             incremental: bool = False) -> AgentContext:
     if PIPELINE_STATE["current"]:
         log.warning("Pipeline already running; skipping duplicate trigger")
         return AgentContext(symbols=[])
     if not symbols:
-        symbols = scoring_universe()
+        symbols = pending_universe() if incremental else scoring_universe()
+    if not symbols:
+        log.info("Scoring run: nothing to do (incremental=%s) - all scored today.", incremental)
+        return AgentContext(symbols=[])
     ctx = AgentContext(symbols=[s.upper() for s in symbols])
     run = {
         "run_id": str(_uuid.uuid4())[:8],

@@ -40,6 +40,8 @@ DEFAULTS: dict = {
     "prompt_caching_enabled": True,
     # Which index scopes the daily AI agents score (union): NIFTY50 / NIFTY500 / NSE.
     "scoring_indices": ["NIFTY500"],
+    # On-demand runs only (re)score scripts missing/failed for today (save cost).
+    "incremental_rescore_enabled": True,
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
@@ -114,7 +116,8 @@ def _validate(key: str, value) -> None:
     elif key == "daily_scoring_hour":
         if not (isinstance(value, int) and 0 <= value <= 23):
             raise ValueError("daily_scoring_hour must be 0-23")
-    elif key in ("strict_maker_checker", "ai_checker_enabled", "prompt_caching_enabled"):
+    elif key in ("strict_maker_checker", "ai_checker_enabled", "prompt_caching_enabled",
+                 "incremental_rescore_enabled"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
     elif key == "brand_logo":

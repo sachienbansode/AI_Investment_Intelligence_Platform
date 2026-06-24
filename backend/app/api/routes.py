@@ -727,11 +727,14 @@ async def market_indices():
 
 
 @router.post("/admin/run-scoring", dependencies=[Depends(require_admin)])
-async def trigger_scoring(background: BackgroundTasks):
+async def trigger_scoring(background: BackgroundTasks, full: bool = False):
     if PIPELINE_STATE["current"]:
         raise HTTPException(409, "Pipeline already running")
-    background.add_task(run_daily_pipeline)
-    return {"status": "scoring pipeline started"}
+    from app.services.app_settings import get_setting
+    incremental = (not full) and bool(get_setting("incremental_rescore_enabled"))
+    background.add_task(run_daily_pipeline, None, incremental)
+    return {"status": "scoring pipeline started",
+            "mode": "incremental (only missing/failed today)" if incremental else "full re-score"}
 
 
 @router.get("/branding")

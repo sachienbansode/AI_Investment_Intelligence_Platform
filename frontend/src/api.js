@@ -49,7 +49,7 @@ export const api = {
   trends: (days = 30, symbols = '') => http(`/scores/trends?days=${days}` + (symbols ? `&symbols=${encodeURIComponent(symbols)}` : '')),
   scoreHistory: (symbol, days = 30) => http(`/scores/${symbol}/history?days=${days}`),
   indexConstituents: () => http('/indices/constituents'),
-  runScoring: () => http('/admin/run-scoring', { method: 'POST' }),
+  runScoring: (full = false) => http('/admin/run-scoring' + (full ? '?full=true' : ''), { method: 'POST' }),
   refreshNewsNow: () => http('/admin/refresh-news', { method: 'POST' }),
   news: (refresh = false, limit = 20) => http(`/news?refresh=${refresh}&limit=${limit}`),
   indices: () => http('/market/indices'),
