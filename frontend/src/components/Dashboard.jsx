@@ -18,7 +18,7 @@ function heatColor(v) {
   return `hsl(${hue}, 60%, 42%)`
 }
 
-export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' }) {
+export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIYTRI Score' }) {
   const [scores, setScores] = useState(null)
   const [news, setNews] = useState([])
   const [watch, setWatch] = useState([])
@@ -173,7 +173,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             {sectorStats.map(s => (
               <div key={s.sector} className="sector-chip2 row-click"
                    title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
-                   style={{ borderColor: heatColor(s.avg) }} onClick={() => go('Stock Scores')}>
+                   style={{ borderColor: heatColor(s.avg) }} onClick={() => (openSector ? openSector(s.sector) : go('Stock Scores'))}>
                 <span className="sc-dot" style={{ background: heatColor(s.avg) }} />
                 <span className="sc-name">{s.sector}</span>
                 <span className="sc-avg" style={{ color: heatColor(s.avg) }}>{s.avg.toFixed(0)}</span>

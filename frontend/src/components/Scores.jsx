@@ -25,7 +25,7 @@ function color(v) {
   return 'var(--red)'
 }
 
-export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = 'NIYTRI Score', platformLabel = 'NIYTRI AI' }) {
+export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, clearSectorSeed, scoreLabel = 'NIYTRI Score', platformLabel = 'NIYTRI AI' }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)
@@ -50,6 +50,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
   useEffect(() => {
     if (seed) { setQ(seed); setOpen(seed); clearSeed && clearSeed() }
   }, [seed]) // eslint-disable-line
+  useEffect(() => {
+    if (sectorSeed) { setSector(sectorSeed); setQ(''); setOpen(null); setPage(0); clearSectorSeed && clearSectorSeed() }
+  }, [sectorSeed]) // eslint-disable-line
   function setSort(key) {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     else { setSortKey(key); setSortDir(key === 'symbol' ? 'asc' : 'desc') }

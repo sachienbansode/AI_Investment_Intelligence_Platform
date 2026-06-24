@@ -40,6 +40,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [chatSeed, setChatSeed] = useState(null)
   const [scoreSeed, setScoreSeed] = useState(null)
+  const [sectorSeed, setSectorSeed] = useState(null)
   const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score', platform_label: 'NIYTRI AI' })
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('theme') ||
@@ -57,6 +58,7 @@ export default function App() {
   function selectTab(name) { setTab(name); setNavOpen(false) }
   function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
   function openScore(symbol) { setScoreSeed(symbol); setTab('Stock Scores'); setNavOpen(false) }
+  function openSector(sec) { setSectorSeed(sec); setTab('Stock Scores'); setNavOpen(false) }
 
   useEffect(() => { api.branding().then(d => setBrand(d || { logo: '' })).catch(() => {}) }, [])
   useEffect(() => {
@@ -171,9 +173,9 @@ export default function App() {
 
         <main>
           <h2 className="page-title">{tab}</h2>
-          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} scoreLabel={brand.score_label} />}
+          {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} openSector={openSector} scoreLabel={brand.score_label} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} sectorSeed={sectorSeed} clearSectorSeed={() => setSectorSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}
           {tab === 'Compare' && can('Compare') && <Compare scoreLabel={brand.score_label} />}
           {tab === 'Market News' && can('Market News') && <News />}
           {tab === 'Watchlist' && can('Watchlist') && <Watchlist scoreLabel={brand.score_label} />}
