@@ -700,3 +700,79 @@ textarea:focus { border-color: var(--accent); }
 .about-cat { margin: 20px 2px 10px; font-size: .8rem; text-transform: uppercase;
   letter-spacing: .09em; font-weight: 700; color: var(--muted);
   border-left: 3px solid var(--accent); padding-left: 9px; }
+
+
+/* ───────── Colorful theme layer (vibrant but professional) ───────── */
+:root {
+  --c-blue: #4f8ef7; --c-purple: #7c5cfc; --c-teal: #16b8a6;
+  --c-green: #22a06b; --c-amber: #e0a13a; --c-pink: #e0609a;
+}
+:root[data-theme="light"] {
+  --c-blue: #2f6fe0; --c-purple: #6d4ff0; --c-teal: #0e9e8e;
+  --c-green: #15825a; --c-amber: #c07f12; --c-pink: #cf4d86;
+}
+
+/* solid (non-ghost) buttons get a subtle gradient; class selectors like .ghost,
+   .icon-btn, .link-btn, .fb-btn, .chip, .danger keep their own background */
+button { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+
+/* gradient headings */
+.page-title {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  width: fit-content;
+}
+
+/* colorful KPI cards: cycling top accent + gradient value */
+.kpi { border-top: 3px solid var(--c-blue); }
+.kpi:nth-child(4n+2) { border-top-color: var(--c-purple); }
+.kpi:nth-child(4n+3) { border-top-color: var(--c-teal); }
+.kpi:nth-child(4n+4) { border-top-color: var(--c-amber); }
+.kpi-value {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* multi-hue feature icons (cycle per card, restarts each category) */
+.feature-grid .feature-card:nth-child(6n+1) .feature-icon {
+  color: var(--c-blue); background: linear-gradient(135deg, rgba(79,142,247,.24), rgba(79,142,247,.08)); border-color: rgba(79,142,247,.45); }
+.feature-grid .feature-card:nth-child(6n+2) .feature-icon {
+  color: var(--c-purple); background: linear-gradient(135deg, rgba(124,92,252,.24), rgba(124,92,252,.08)); border-color: rgba(124,92,252,.45); }
+.feature-grid .feature-card:nth-child(6n+3) .feature-icon {
+  color: var(--c-teal); background: linear-gradient(135deg, rgba(22,184,166,.24), rgba(22,184,166,.08)); border-color: rgba(22,184,166,.45); }
+.feature-grid .feature-card:nth-child(6n+4) .feature-icon {
+  color: var(--c-amber); background: linear-gradient(135deg, rgba(224,161,58,.24), rgba(224,161,58,.08)); border-color: rgba(224,161,58,.45); }
+.feature-grid .feature-card:nth-child(6n+5) .feature-icon {
+  color: var(--c-pink); background: linear-gradient(135deg, rgba(224,96,154,.24), rgba(224,96,154,.08)); border-color: rgba(224,96,154,.45); }
+.feature-grid .feature-card:nth-child(6n+6) .feature-icon {
+  color: var(--c-green); background: linear-gradient(135deg, rgba(34,160,107,.24), rgba(34,160,107,.08)); border-color: rgba(34,160,107,.45); }
+.feature-card:hover { border-color: var(--accent); box-shadow: 0 6px 22px rgba(79,142,247,.12); }
+
+/* About category headings: gradient accent text */
+.about-cat {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* nav active gets a richer gradient wash */
+.sidenav nav button.active {
+  background: linear-gradient(90deg, rgba(79,142,247,.20), rgba(124,92,252,.12));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* livelier chips */
+.chip:hover {
+  background: linear-gradient(135deg, rgba(79,142,247,.16), rgba(124,92,252,.12));
+  border-color: var(--accent); color: var(--text);
+}
+.chat-empty .chip:nth-child(5n+1) { border-color: rgba(79,142,247,.45); }
+.chat-empty .chip:nth-child(5n+2) { border-color: rgba(124,92,252,.45); }
+.chat-empty .chip:nth-child(5n+3) { border-color: rgba(22,184,166,.45); }
+.chat-empty .chip:nth-child(5n+4) { border-color: rgba(224,161,58,.45); }
+.chat-empty .chip:nth-child(5n+5) { border-color: rgba(224,96,154,.45); }
+
+/* assistant bubble: subtle accent edge for warmth */
+.msg.assistant .bubble { border-left: 3px solid rgba(124,92,252,.45); }
+
+/* panel headings: small colored marker */
+.panel-head h3 { padding-left: 10px; border-left: 3px solid var(--accent); }
