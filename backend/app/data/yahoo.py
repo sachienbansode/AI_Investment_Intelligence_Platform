@@ -203,6 +203,63 @@ class YahooProvider(MarketDataProvider):
             log.warning("Yahoo quote failed for %s: %s", symbol, e)
             return None
 
+    async def get_quotes_batch(self, symbols, into=None):
+        """Fetch many quotes per request (Yahoo v7 accepts comma-separated
+        symbols) - ~50 per call instead of one each, so 1800+ scripts become
+        ~37 requests and Yahoo stops rate-limiting. Writes into `into` as each
+        chunk lands (for live progress)."""
+        out = into if into is not None else {}
+        try:
+            async with httpx.AsyncClient(timeout=20, headers=_HEADERS) as client:
+                if not await _ensure_auth(client):
+                    return out
+                sem = asyncio.Semaphore(4)
+
+                async def _chunk(chunk):
+                    ysyms = ",".join(f"{s.upper()}.NS" for s in chunk)
+                    async with sem:
+                        try:
+                            r = await client.get(
+                                "https://query1.finance.yahoo.com/v7/finance/quote",
+                                params={"symbols": ysyms, "crumb": _crumb},
+                                headers={**_HEADERS, "Cookie": _cookie_hdr})
+                            if r.status_code in (401, 403):
+                                _reset_auth()
+                                return
+                            r.raise_for_status()
+                            for q in r.json().get("quoteResponse", {}).get("result", []):
+                                sym = (q.get("symbol") or "").upper()
+                                if sym.endswith(".NS"):
+                                    sym = sym[:-3]
+                                last = q.get("regularMarketPrice")
+                                if not sym or last is None:
+                                    continue
+                                chg = q.get("regularMarketChangePercent")
+                                dy = q.get("trailingAnnualDividendYield")
+                                out[sym] = Quote(
+                                    symbol=sym, last_price=last,
+                                    change_pct=round(chg, 2) if chg is not None else None,
+                                    prev_close=q.get("regularMarketPreviousClose"),
+                                    open=q.get("regularMarketOpen"),
+                                    high=q.get("regularMarketDayHigh"),
+                                    low=q.get("regularMarketDayLow"),
+                                    week52_high=q.get("fiftyTwoWeekHigh"),
+                                    week52_low=q.get("fiftyTwoWeekLow"),
+                                    volume=q.get("regularMarketVolume"),
+                                    pe=q.get("trailingPE"),
+                                    eps=q.get("epsTrailingTwelveMonths"),
+                                    pb=q.get("priceToBook"),
+                                    dividend_yield=round(dy * 100, 2) if isinstance(dy, (int, float)) else None,
+                                    market_cap=q.get("marketCap"), source="yahoo")
+                        except Exception as e:
+                            log.warning("Yahoo batch chunk failed: %s", e)
+
+                chunks = [symbols[i:i + 50] for i in range(0, len(symbols), 50)]
+                await asyncio.gather(*(_chunk(c) for c in chunks))
+        except Exception as e:
+            log.warning("Yahoo batch quotes failed: %s", e)
+        return out
+
     async def get_index(self, ysymbol, label):
         """Index snapshot via Yahoo (used for BSE indices, e.g. ^BSESN = SENSEX)."""
         try:

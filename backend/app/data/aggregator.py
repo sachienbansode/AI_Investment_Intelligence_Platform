@@ -54,6 +54,34 @@ class MarketDataAggregator:
                 return q
         return None
 
+    async def get_quotes(self, symbols, into=None):
+        """Fetch many symbols efficiently: use any provider that supports batch
+        (Yahoo), then fall back to per-symbol for whatever is still missing
+        (broker/NSE or Yahoo gaps). `into` is filled live for progress."""
+        import asyncio
+        out = into if into is not None else {}
+        symbols = [s.upper() for s in symbols]
+        for p in self._providers:
+            remaining = [s for s in symbols if s not in out]
+            if not remaining:
+                break
+            if hasattr(p, "get_quotes_batch"):
+                try:
+                    await p.get_quotes_batch(remaining, into=out)
+                except Exception as e:
+                    log.warning("Batch quotes via %s failed: %s", p.name, e)
+        remaining = [s for s in symbols if s not in out]
+        if remaining:
+            sem = asyncio.Semaphore(8)
+
+            async def _one(s):
+                async with sem:
+                    q = await self.get_quote(s)
+                    if q and q.last_price is not None:
+                        out[s] = q
+            await asyncio.gather(*(_one(s) for s in remaining))
+        return out
+
     # Global indices shown when admin enables global markets (labelled "(GL)")
     _GLOBAL = [("^GSPC", "S&P 500 (GL)"), ("^IXIC", "NASDAQ (GL)"),
                ("^DJI", "DOW JONES (GL)"), ("^FTSE", "FTSE 100 (GL)"),

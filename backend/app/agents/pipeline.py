@@ -68,15 +68,9 @@ class AgentContext:
 # ── 1. Market Data Agent ─────────────────────────────────────────
 async def market_data_agent(ctx: AgentContext):
     md = get_market_data()
-    sem = asyncio.Semaphore(8)  # 8 concurrent fetches
-
-    async def fetch(sym: str):
-        async with sem:
-            q = await md.get_quote(sym)
-            if q:
-                ctx.quotes[sym] = q
-
-    await asyncio.gather(*(fetch(s) for s in ctx.symbols))
+    # Batched fetch (Yahoo multi-symbol) avoids rate-limiting at large scope;
+    # ctx.quotes fills live so the dashboard progress bar advances per chunk.
+    await md.get_quotes(ctx.symbols, into=ctx.quotes)
     audit_log("agent_market_data", fetched=list(ctx.quotes))
 
 
