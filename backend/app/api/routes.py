@@ -317,12 +317,13 @@ async def score_history(symbol: str, days: int = 30):
 
 
 @router.get("/scores/trends")
-async def score_trends(days: int = 30):
+async def score_trends(days: int = 30, symbols: str = ""):
     """Daily average score + coverage for the last N days, plus the biggest
     score gainers/losers between the earliest and latest run in the window."""
     from sqlalchemy import case, func
     days = max(2, min(days, 90))
     cutoff = (date.today() - timedelta(days=days)).isoformat()
+    syms = [x.strip().upper() for x in symbols.split(",") if x.strip()] if symbols else None
     db = SessionLocal()
     try:
         strong = func.sum(case((StockScore.composite_score >= 65, 1), else_=0))
@@ -335,8 +336,10 @@ async def score_trends(days: int = 30):
                                func.min(StockScore.composite_score),
                                func.max(StockScore.composite_score),
                                strong, neutral, weak)
-                      .filter(StockScore.score_date >= cutoff)
-                      .group_by(StockScore.score_date)
+                      .filter(StockScore.score_date >= cutoff))
+        if syms:
+            daily_rows = daily_rows.filter(StockScore.symbol.in_(syms))
+        daily_rows = (daily_rows.group_by(StockScore.score_date)
                       .order_by(StockScore.score_date).all())
         daily = [{"date": d, "avg_score": round(float(a), 1), "count": n,
                   "min_score": round(float(mn), 1), "max_score": round(float(mx), 1),
@@ -346,10 +349,13 @@ async def score_trends(days: int = 30):
         gainers, losers = [], []
         if len(daily) >= 2:
             first_d, last_d = daily[0]["date"], daily[-1]["date"]
-            old = {r.symbol: r.composite_score for r in
-                   db.query(StockScore).filter_by(score_date=first_d).all()}
-            cur = {r.symbol: r.composite_score for r in
-                   db.query(StockScore).filter_by(score_date=last_d).all()}
+            oq = db.query(StockScore).filter_by(score_date=first_d)
+            cq = db.query(StockScore).filter_by(score_date=last_d)
+            if syms:
+                oq = oq.filter(StockScore.symbol.in_(syms))
+                cq = cq.filter(StockScore.symbol.in_(syms))
+            old = {r.symbol: r.composite_score for r in oq.all()}
+            cur = {r.symbol: r.composite_score for r in cq.all()}
             moves = sorted(
                 ({"symbol": s, "from": old[s], "to": cur[s],
                   "delta": round(cur[s] - old[s], 1)}

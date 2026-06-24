@@ -46,7 +46,7 @@ export const api = {
   clearChats: () => http('/chat/sessions', { method: 'DELETE' }),
   scores: () => http('/scores'),
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
-  trends: (days = 30) => http(`/scores/trends?days=${days}`),
+  trends: (days = 30, symbols = '') => http(`/scores/trends?days=${days}` + (symbols ? `&symbols=${encodeURIComponent(symbols)}` : '')),
   scoreHistory: (symbol, days = 30) => http(`/scores/${symbol}/history?days=${days}`),
   indexConstituents: () => http('/indices/constituents'),
   runScoring: () => http('/admin/run-scoring', { method: 'POST' }),
@@ -60,8 +60,10 @@ export const api = {
     const res = await fetch(BASE + '/portfolio/template.csv', { headers: { Authorization: `Bearer ${_token}` } })
     if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Download failed (${res.status})`) }
     const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob); a.download = 'portfolio_template.csv'; a.click(); URL.revokeObjectURL(a.href)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'portfolio_template.csv'
+    document.body.appendChild(a); a.click()
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove() }, 1500)
   },
   savePortfolio: (holdings) =>
     http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
@@ -76,8 +78,10 @@ export const api = {
     })
     if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Export failed (${res.status})`) }
     const blob = await res.blob()
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob); link.download = 'portfolio_analysis.pdf'; link.click(); URL.revokeObjectURL(link.href)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a'); link.href = url; link.download = 'portfolio_analysis.pdf'
+    document.body.appendChild(link); link.click()
+    setTimeout(() => { URL.revokeObjectURL(url); link.remove() }, 1500)
   },
   portfolioUpload: async (file) => {
     const fd = new FormData(); fd.append('file', file)

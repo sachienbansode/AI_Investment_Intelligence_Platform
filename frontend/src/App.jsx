@@ -40,7 +40,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [chatSeed, setChatSeed] = useState(null)
   const [scoreSeed, setScoreSeed] = useState(null)
-  const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score' })
+  const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score', platform_label: 'NIYTRI AI' })
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('theme') ||
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
@@ -173,7 +173,7 @@ export default function App() {
           <h2 className="page-title">{tab}</h2>
           {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} scoreLabel={brand.score_label} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
-          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} scoreLabel={brand.score_label} />}
+          {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}
           {tab === 'Compare' && can('Compare') && <Compare scoreLabel={brand.score_label} />}
           {tab === 'Market News' && can('Market News') && <News />}
           {tab === 'Watchlist' && can('Watchlist') && <Watchlist scoreLabel={brand.score_label} />}

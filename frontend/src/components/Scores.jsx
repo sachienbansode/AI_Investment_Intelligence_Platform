@@ -25,7 +25,7 @@ function color(v) {
   return 'var(--red)'
 }
 
-export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = 'NITRI Score' }) {
+export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = 'NIYTRI Score', platformLabel = 'NIYTRI AI' }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)
@@ -214,9 +214,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
                            dangerouslySetInnerHTML={{ __html: mdToHtml(s.explanation) }} />
                       {askAI && (
                         <button className="ghost sm" style={{ marginTop: 8 }}
-                                title="Open the AI Assistant pre-loaded with this script's score context"
-                                onClick={e => { e.stopPropagation(); askAI(`Tell me about the AI score for ${s.symbol} — what's driving it and what changed recently?`) }}>
-                          💬 Ask AI about this score</button>
+                                title={`Open ${platformLabel} pre-loaded with this script's score context`}
+                                onClick={e => { e.stopPropagation(); askAI(`Tell me about the ${scoreLabel} for ${s.symbol} — what's driving it and what changed recently?`) }}>
+                          💬 Ask {platformLabel} about this score</button>
                       )}
                     </div>
                   </td>

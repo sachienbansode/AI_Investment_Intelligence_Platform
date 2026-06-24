@@ -34,8 +34,16 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
     api.indexConstituents().then(setConsts).catch(() => {})
   }, [])
   useEffect(() => {
-    api.trends(range).then(setTrend).catch(() => {})
-  }, [range])
+    const all = scores?.scores || []
+    let syms = ''
+    if (idx !== 'Nifty 500 (all)') {
+      const inIdx = s => idx.startsWith('Sector: ') ? s.sector === idx.slice(8)
+        : (Array.isArray(consts[idx]) ? consts[idx].includes(s.symbol) : true)
+      const list = all.filter(inIdx).map(s => s.symbol)
+      if (list.length) syms = list.join(',')
+    }
+    api.trends(range, syms).then(setTrend).catch(() => {})
+  }, [range, idx, scores, consts])
 
   const list = scores?.scores || []
   const allSectors = [...new Set(list.map(s => s.sector).filter(Boolean))].sort()
@@ -87,6 +95,8 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
           <span className="kpi-sub">scripts followed</span></div>
       </div>
 
+      <TrendChart trend={trend} range={range} setRange={setRange} scoreLabel={scoreLabel} />
+
       {sectorStats.length > 0 && (
         <div className="panel">
           <div className="panel-head">
@@ -108,7 +118,6 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
         </div>
       )}
 
-      <TrendChart trend={trend} range={range} setRange={setRange} scoreLabel={scoreLabel} />
 
       {trend && (gainers.length > 0 || losers.length > 0) && (
         <div className="grid2">
