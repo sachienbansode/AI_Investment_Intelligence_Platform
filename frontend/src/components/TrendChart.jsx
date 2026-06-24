@@ -11,7 +11,7 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
 
   const Header = (
     <div className="panel-head">
-      <h3 title="Daily average score with the min–max range, score-band composition and day-over-day change.">Score trend</h3>
+      <h3 title="Daily average score with the min–max range, score-band composition and day-over-day change.">Score Trend</h3>
       <div>
         {[7, 30].map(d => (
           <button key={d} className={`sm ${range === d ? '' : 'ghost'}`}

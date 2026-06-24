@@ -97,32 +97,10 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
 
       <TrendChart trend={trend} range={range} setRange={setRange} scoreLabel={scoreLabel} />
 
-      {sectorStats.length > 0 && (
-        <div className="panel">
-          <div className="panel-head">
-            <h3 title="Average AI score per sector across all scored scripts. Greener = stronger average. Click a tile to open Stock Scores.">Sector strength</h3>
-            <button className="ghost sm" onClick={() => go('Stock Scores')}>View all →</button>
-          </div>
-          <div className="sector-bars">
-            {sectorStats.map(s => (
-              <div key={s.sector} className="sbar-row row-click"
-                   title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
-                   onClick={() => go('Stock Scores')}>
-                <span className="sbar-name">{s.sector}</span>
-                <div className="sbar-track"><div className="sbar-fill" style={{ width: `${s.avg}%`, background: heatColor(s.avg) }} /></div>
-                <span className="sbar-val" style={{ color: heatColor(s.avg) }}>{s.avg.toFixed(1)}</span>
-                <span className="sbar-cnt">{s.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-
       {trend && (gainers.length > 0 || losers.length > 0) && (
         <div className="grid2">
           <div className="panel">
-            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %. Informational analytics, not recommendations.`}>▲ Top score gainers ({range}d)</h4>
+            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %. Informational analytics, not recommendations.`}>▲ Top Score Gainers ({range}d)</h4>
             {gainers.length === 0 && <p className="hint">No gainers in window.</p>}
             {gainers.map(m => (
               <div key={m.symbol} className="move-row row-click"
@@ -135,7 +113,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             ))}
           </div>
           <div className="panel">
-            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %.`}>▼ Top score decliners ({range}d)</h4>
+            <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %.`}>▼ Top Score Decliners ({range}d)</h4>
             {losers.length === 0 && <p className="hint">No decliners in window.</p>}
             {losers.map(m => (
               <div key={m.symbol} className="move-row row-click"
@@ -170,7 +148,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
 
         <div className="panel">
           <div className="panel-head">
-            <h3>Latest market news</h3>
+            <h3>Latest Market News</h3>
             <button className="ghost sm" onClick={() => go('Market News')}>View all →</button>
           </div>
           {news.length === 0 && <p className="hint">Loading news…</p>}
@@ -185,10 +163,30 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
         </div>
       </div>
 
+      {sectorStats.length > 0 && (
+        <div className="panel">
+          <div className="panel-head">
+            <h3 title="Average score per sector. Greener = stronger. Click a chip to open Stock Scores.">Sector Strength</h3>
+            <button className="ghost sm" onClick={() => go('Stock Scores')}>View all →</button>
+          </div>
+          <div className="sector-chips">
+            {sectorStats.map(s => (
+              <div key={s.sector} className="sector-chip2 row-click"
+                   title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
+                   style={{ borderColor: heatColor(s.avg) }} onClick={() => go('Stock Scores')}>
+                <span className="sc-dot" style={{ background: heatColor(s.avg) }} />
+                <span className="sc-name">{s.sector}</span>
+                <span className="sc-avg" style={{ color: heatColor(s.avg) }}>{s.avg.toFixed(0)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {watch.length > 0 && (
         <div className="panel">
           <div className="panel-head">
-            <h3>Your watchlist</h3>
+            <h3>Your Watchlist</h3>
             <button className="ghost sm" onClick={() => go('Watchlist')}>Manage →</button>
           </div>
           <div className="watch-strip">
