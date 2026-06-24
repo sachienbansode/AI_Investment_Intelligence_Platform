@@ -101,7 +101,7 @@ export default function App() {
   function logout() { setToken(null); setUser(null); setTab('Dashboard') }
 
   return (
-    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}`}>
+    <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}${tab === 'AI Assistant' ? ' chat-active' : ''}`}>
       <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
       <aside className="sidenav">
         <div className="brand">

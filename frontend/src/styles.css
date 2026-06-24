@@ -876,3 +876,17 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .sector-chip2 .sc-name { color: var(--text); max-width: 150px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .sector-chip2 .sc-avg { font-weight: 750; font-variant-numeric: tabular-nums; }
+
+/* ───────── Full-screen Assistant (chat fills the viewport, web + mobile) ───────── */
+.shell.chat-active main { display: flex; flex-direction: column; min-height: 0; }
+.shell.chat-active footer { display: none; }
+.shell.chat-active .chat-layout { flex: 1 1 auto; height: auto; min-height: 0; }
+.shell.chat-active .page-title { margin-bottom: 10px; }
+@media (max-width: 860px) {
+  .shell.chat-active .page-title { display: none; }
+  .shell.chat-active main { padding: 8px 10px calc(72px + env(safe-area-inset-bottom)); }
+}
+/* mobile "Recent chats" trigger — clearly visible */
+.hist-btn { background: var(--panel2); border: 1px solid var(--accent); color: var(--accent);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.hist-btn:hover:not(:disabled) { background: var(--panel2); filter: brightness(1.05); }

@@ -149,8 +149,8 @@ export default function Assistant({ seed, clearSeed }) {
     <div className="chat-layout">
       <aside className="chat-sidebar">
         <button className="new-chat-btn" onClick={startNew}>+ New chat</button>
-        <button className="ghost sm mobile-only" title="Recent chats"
-                onClick={() => { loadSessions(); setHistOpen(true) }}>History</button>
+        <button className="sm mobile-only hist-btn" title="Recent chats"
+                onClick={() => { loadSessions(); setHistOpen(true) }}>{String.fromCharCode(0x2630)} Recent chats{sessions.length ? ` (${sessions.length})` : ''}</button>
         <div className="session-head">
           <span className="session-list-title">Recent chats</span>
           {sessions.length > 0 && (
