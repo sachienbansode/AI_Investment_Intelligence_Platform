@@ -330,12 +330,14 @@ function Settings() {
   const [msg, setMsg] = useState('')
   const [weights, setWeights] = useState(null)
   const [llm, setLlm] = useState(null)
+  const [scope, setScope] = useState([])
   const load = () => api.settings().then(d => {
     setData(d); setWeights({ ...d.settings.scoring_weights })
     setLlm({ order: [...(d.settings.llm_provider_order || [])],
              strategy: d.settings.llm_strategy || 'failover',
              models: { ...(d.settings.llm_models || {}) },
              enabled: { ...(d.settings.llm_enabled || {}) } })
+    setScope([...(d.settings.scoring_indices || ['NIFTY500'])])
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
@@ -485,6 +487,28 @@ function Settings() {
         </div>
         <p className="hint">Indices appear in a <strong>GLOBAL</strong> ticker row immediately;
           global news joins the feed on the next scheduled refresh (or after Refresh News in Agents).</p>
+      </div>
+
+      <div className="panel">
+        <h4 title="Which index scopes the daily AI agents score. The agents score the union of the enabled scopes.">
+          Scoring scope (agents) <span className="info-i">i</span></h4>
+        <div className="toolbar">
+          {[['NIFTY50', 'NIFTY 50'], ['NIFTY500', 'NIFTY 500'], ['NSE', 'All NSE']].map(([k, lab]) => (
+            <label key={k} title={k === 'NSE' ? 'Scores every NSE equity \u2014 high LLM/data cost and a long run' : ''}>
+              <input type="checkbox" checked={(scope || []).includes(k)}
+                     onChange={e => {
+                       const cur = new Set(scope || [])
+                       e.target.checked ? cur.add(k) : cur.delete(k)
+                       setScope([...cur])
+                     }} />
+              {' '}{lab}
+            </label>
+          ))}
+          <button disabled={!(scope && scope.length)} onClick={() => save('scoring_indices', scope)}>Save scope</button>
+        </div>
+        <p className="hint">The daily agents score the <strong>union</strong> of the enabled scopes (matched by each
+          script's index membership). <strong>All NSE</strong> scores every NSE equity &mdash; high LLM/data cost and a
+          long run. Make sure the matching list is imported in Admin &rarr; Instruments first.</p>
       </div>
 
       <div className="panel">

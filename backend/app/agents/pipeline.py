@@ -19,12 +19,18 @@ from app.services.app_settings import get_setting
 
 
 def scoring_universe() -> list[str]:
-    """Symbols flagged for daily scoring in the instruments master (DB)."""
+    """Symbols the daily agents score: active instruments whose index-membership
+    tags intersect the admin-enabled scopes (scoring_indices: NIFTY50/NIFTY500/NSE).
+    Falls back to the per-script in_scoring_universe flag when nothing is tagged
+    yet (pre-import), so scoring keeps working."""
+    enabled = set(get_setting("scoring_indices") or ["NIFTY500"])
     db = SessionLocal()
     try:
-        rows = (db.query(Instrument)
-                .filter_by(is_active=True, in_scoring_universe=True).all())
-        return [r.symbol for r in rows]
+        actives = db.query(Instrument).filter_by(is_active=True).all()
+        universe = [r.symbol for r in actives if set(r.indices or []) & enabled]
+        if not universe:
+            universe = [r.symbol for r in actives if r.in_scoring_universe]
+        return universe
     finally:
         db.close()
 

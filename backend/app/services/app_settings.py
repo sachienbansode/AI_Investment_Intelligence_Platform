@@ -38,6 +38,8 @@ DEFAULTS: dict = {
     # Prompt caching: cache the Anthropic system prompt (cache_control: ephemeral)
     # so repeated calls reuse it - lower latency + input-token cost. Admin toggle.
     "prompt_caching_enabled": True,
+    # Which index scopes the daily AI agents score (union): NIFTY50 / NIFTY500 / NSE.
+    "scoring_indices": ["NIFTY500"],
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
@@ -140,6 +142,11 @@ def _validate(key: str, value) -> None:
     elif key == "global_markets_enabled":
         if not isinstance(value, bool):
             raise ValueError("global_markets_enabled must be true or false")
+    elif key == "scoring_indices":
+        valid = {"NIFTY50", "NIFTY500", "NSE"}
+        if not (isinstance(value, list) and value and all(v in valid for v in value)):
+            raise ValueError("scoring_indices must be a non-empty list from "
+                             "NIFTY50, NIFTY500, NSE")
     elif key in ("score_label", "platform_label"):
         if not (isinstance(value, str) and 1 <= len(value.strip()) <= 40):
             raise ValueError(f"{key} must be 1-40 characters")
