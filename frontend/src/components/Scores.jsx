@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { fmtIST } from '../fmt.js'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
+import Sparkline from './Sparkline.jsx'
 
 const PILLARS = ['fundamental', 'technical', 'valuation', 'momentum', 'earnings',
                  'news_sentiment', 'institutional', 'risk']
@@ -36,8 +37,16 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 20
 
+  const [hist, setHist] = useState({})
   const load = () => api.scores().then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (open && hist[open] === undefined) {
+      api.scoreHistory(open, 30)
+        .then(d => setHist(h => ({ ...h, [open]: d.history || [] })))
+        .catch(() => setHist(h => ({ ...h, [open]: [] })))
+    }
+  }, [open]) // eslint-disable-line
   useEffect(() => {
     if (seed) { setQ(seed); setOpen(seed); clearSeed && clearSeed() }
   }, [seed]) // eslint-disable-line
@@ -173,6 +182,17 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, scoreLabel = '
                       <p className="explain" style={{ marginTop: 0 }}>
                         <strong>P/E:</strong> {s.pe != null ? Number(s.pe).toFixed(1) : '—'}{'  ·  '}<strong>Market cap:</strong> {s.market_cap != null ? '₹' + Math.round(s.market_cap / 1e7).toLocaleString('en-IN') + ' Cr' : '—'}
                       </p>
+                      {hist[s.symbol] && hist[s.symbol].length >= 2 && (() => {
+                        const vals = hist[s.symbol].map(h => h.score)
+                        const lo = Math.min(...vals), hv = Math.max(...vals), now = vals[vals.length - 1]
+                        return (
+                          <div className="score-hist">
+                            <span className="hint">Score history · {hist[s.symbol].length}d</span>
+                            <Sparkline values={vals} width={210} height={44} color="var(--accent)" />
+                            <span className="hint">min <b>{lo}</b> · max <b>{hv}</b> · now <b>{now}</b></span>
+                          </div>
+                        )
+                      })()}
                       {s.delta != null && (
                         <p className="explain" style={{ marginTop: 0 }}>
                           <strong className={s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'hint'}>

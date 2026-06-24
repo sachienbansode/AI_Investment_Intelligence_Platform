@@ -299,6 +299,23 @@ async def all_scores():
         db.close()
 
 
+@router.get("/scores/{symbol}/history")
+async def score_history(symbol: str, days: int = 30):
+    """Daily composite score for one script over the last N days (sparkline)."""
+    days = max(2, min(days, 120))
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    db = SessionLocal()
+    try:
+        rows = (db.query(StockScore.score_date, StockScore.composite_score)
+                .filter(StockScore.symbol == symbol.upper(),
+                        StockScore.score_date >= cutoff)
+                .order_by(StockScore.score_date).all())
+        return {"symbol": symbol.upper(),
+                "history": [{"date": d, "score": sc} for d, sc in rows]}
+    finally:
+        db.close()
+
+
 @router.get("/scores/trends")
 async def score_trends(days: int = 30):
     """Daily average score + coverage for the last N days, plus the biggest

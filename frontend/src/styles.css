@@ -831,3 +831,37 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .t2tip-bands { display: flex; gap: 8px; margin-top: 5px; padding-top: 5px;
   border-top: 1px solid var(--border); font-size: .68rem; font-weight: 600; }
 @media (max-width: 860px) { .trend2-svg { height: 200px; } .trend2-tip { min-width: 132px; } }
+
+/* ───────── Sparklines, sector bars, mover bars ───────── */
+.spark { vertical-align: middle; }
+
+/* Sector strength as ranked horizontal bars */
+.sector-bars { display: flex; flex-direction: column; gap: 2px; }
+.sbar-row { display: grid; grid-template-columns: 132px 1fr 46px 38px; gap: 10px;
+  align-items: center; padding: 6px 4px; border-top: 1px solid var(--border); border-radius: 6px; }
+.sbar-row:first-child { border-top: none; }
+.sbar-row:hover { background: var(--panel2); }
+.sbar-name { font-size: .82rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbar-track { height: 14px; background: var(--track); border-radius: 7px; overflow: hidden; }
+.sbar-fill { height: 100%; border-radius: 7px; transition: width .3s ease; }
+.sbar-val { font-size: .85rem; font-weight: 750; text-align: right; }
+.sbar-cnt { font-size: .72rem; color: var(--faint); text-align: right; }
+
+/* Gainers / decliners with sparkline + magnitude bar */
+.move-row { display: grid; grid-template-columns: 72px 62px 1fr 132px; gap: 10px;
+  align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
+.move-row:first-of-type { border-top: none; }
+.move-row strong { font-size: .9rem; }
+.move-track { height: 8px; background: var(--track); border-radius: 5px; overflow: hidden; }
+.move-fill { height: 100%; border-radius: 5px; transition: width .3s ease; }
+.move-row .up, .move-row .down { font-size: .8rem; font-weight: 600; text-align: right; }
+
+/* per-stock score history sparkline (Stock Scores expanded row) */
+.score-hist { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 6px 0 12px; padding: 8px 10px; background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 10px; }
+.score-hist b { color: var(--text); }
+@media (max-width: 860px) {
+  .sbar-row { grid-template-columns: 92px 1fr 40px 30px; gap: 7px; }
+  .move-row { grid-template-columns: 60px 52px 1fr 110px; gap: 7px; }
+}

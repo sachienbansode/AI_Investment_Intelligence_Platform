@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import TrendChart from './TrendChart.jsx'
+import Sparkline from './Sparkline.jsx'
 
 function scoreColor(v) {
   if (v >= 65) return 'var(--green)'
@@ -50,6 +51,7 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
   const approved = flist.filter(s => s.quality_status === 'approved').length
   const gainers = (trend?.gainers || []).filter(m => fsyms.has(m.symbol))
   const losers = (trend?.losers || []).filter(m => fsyms.has(m.symbol))
+  const maxDelta = Math.max(1, ...[...gainers, ...losers].map(m => Math.abs(m.delta)))
   const sectorStats = Object.entries(flist.reduce((m, s) => {
     const k = s.sector || 'Other'; (m[k] = m[k] || []).push(s.composite_score); return m
   }, {})).map(([sector, arr]) => ({
@@ -91,14 +93,15 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             <h3 title="Average AI score per sector across all scored scripts. Greener = stronger average. Click a tile to open Stock Scores.">Sector strength</h3>
             <button className="ghost sm" onClick={() => go('Stock Scores')}>View all →</button>
           </div>
-          <div className="sector-heatmap">
+          <div className="sector-bars">
             {sectorStats.map(s => (
-              <div key={s.sector} className="sector-tile row-click"
+              <div key={s.sector} className="sbar-row row-click"
                    title={`${s.sector}: average ${s.avg.toFixed(1)}/100 across ${s.count} script(s)`}
-                   style={{ background: heatColor(s.avg) }} onClick={() => go('Stock Scores')}>
-                <span className="sector-name">{s.sector}</span>
-                <span className="sector-avg">{s.avg.toFixed(0)}</span>
-                <span className="sector-count">{s.count} script{s.count > 1 ? 's' : ''}</span>
+                   onClick={() => go('Stock Scores')}>
+                <span className="sbar-name">{s.sector}</span>
+                <div className="sbar-track"><div className="sbar-fill" style={{ width: `${s.avg}%`, background: heatColor(s.avg) }} /></div>
+                <span className="sbar-val" style={{ color: heatColor(s.avg) }}>{s.avg.toFixed(1)}</span>
+                <span className="sbar-cnt">{s.count}</span>
               </div>
             ))}
           </div>
@@ -113,10 +116,11 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %. Informational analytics, not recommendations.`}>▲ Top score gainers ({range}d)</h4>
             {gainers.length === 0 && <p className="hint">No gainers in window.</p>}
             {gainers.map(m => (
-              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
-                   title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
+              <div key={m.symbol} className="move-row row-click"
+                   title={`${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
-                <span className="hint">{m.from} → {m.to}</span>
+                <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--green)" />
+                <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--green)' }} /></div>
                 <span className="up">▲ {m.delta} ({m.from ? '+' + (m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}
@@ -125,10 +129,11 @@ export default function Dashboard({ go, openScore, scoreLabel = 'NITRI Score' })
             <h4 title={`Change = AI-score movement over the selected ${range}-day window, shown as points and %.`}>▼ Top score decliners ({range}d)</h4>
             {losers.length === 0 && <p className="hint">No decliners in window.</p>}
             {losers.map(m => (
-              <div key={m.symbol} className="rank-row row-click" style={{ gridTemplateColumns: '96px 1fr 150px' }}
-                   title="Open in Stock Scores" onClick={() => openScore && openScore(m.symbol)}>
+              <div key={m.symbol} className="move-row row-click"
+                   title={`${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
-                <span className="hint">{m.from} → {m.to}</span>
+                <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--red)" />
+                <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--red)' }} /></div>
                 <span className="down">▼ {Math.abs(m.delta)} ({m.from ? '−' + Math.abs(m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}

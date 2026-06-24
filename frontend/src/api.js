@@ -47,6 +47,7 @@ export const api = {
   scores: () => http('/scores'),
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
   trends: (days = 30) => http(`/scores/trends?days=${days}`),
+  scoreHistory: (symbol, days = 30) => http(`/scores/${symbol}/history?days=${days}`),
   indexConstituents: () => http('/indices/constituents'),
   runScoring: () => http('/admin/run-scoring', { method: 'POST' }),
   refreshNewsNow: () => http('/admin/refresh-news', { method: 'POST' }),
