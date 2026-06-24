@@ -13,18 +13,34 @@ log = logging.getLogger(__name__)
 
 class MarketDataAggregator:
     def __init__(self):
-        self._allow_fallback = get_settings().unlicensed_fallbacks_enabled
+        s = get_settings()
         self._nse = NSEProvider()
         self._yahoo = YahooProvider()
-        brokers = [KiteProvider(), SmartAPIProvider(), UpstoxProvider()]
-        providers = [p for p in brokers if p.available()]
-        if self._allow_fallback:
-            providers += [self._nse, self._yahoo]
+        brokers = [p for p in (KiteProvider(), SmartAPIProvider(), UpstoxProvider())
+                   if p.available()]
+        explicit = s.allow_unlicensed_market_data   # None | True | False
+        prod = s.environment.lower() in ("production", "prod")
+        if explicit is True:
+            use_fb = True
+        elif explicit is False:
+            use_fb = False
         else:
-            log.warning("Unlicensed market-data fallbacks (NSE public + Yahoo) are "
-                        "DISABLED; serving only licensed broker feeds. Configure a "
-                        "broker (Kite/SmartAPI/Upstox) or enable a licensed feed.")
+            # Auto: on in dev; in production, drop the unlicensed feeds ONLY when a
+            # licensed broker feed exists - never leave the app with zero data.
+            use_fb = (not prod) or (not brokers)
+        self._allow_fallback = use_fb
+        providers = list(brokers)
+        if use_fb:
+            providers += [self._nse, self._yahoo]
         self._providers = providers
+        if not providers:
+            log.error("No market-data provider available: unlicensed fallbacks explicitly "
+                      "disabled and no broker configured. Quotes will be empty. Set "
+                      "ALLOW_UNLICENSED_MARKET_DATA=true or configure a broker.")
+        elif use_fb and prod and not brokers:
+            log.warning("Using UNLICENSED fallbacks (NSE/Yahoo) in production because no "
+                        "licensed broker feed is configured. Configure a broker, or set "
+                        "ALLOW_UNLICENSED_MARKET_DATA=false to disable.")
         log.info("Market data providers active: %s", [p.name for p in self._providers])
 
     @property
