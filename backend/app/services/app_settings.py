@@ -42,6 +42,10 @@ DEFAULTS: dict = {
     "scoring_indices": ["NIFTY500"],
     # On-demand runs only (re)score scripts missing/failed for today (save cost).
     "incremental_rescore_enabled": True,
+    # When OFF (default), the daily run writes deterministic pillar rationales (no
+    # LLM) and skips the AI Checker - far cheaper/faster. ON uses an LLM to write
+    # every script's rationale + independent review (high token cost at scale).
+    "bulk_explanations_llm": False,
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
@@ -117,7 +121,7 @@ def _validate(key: str, value) -> None:
         if not (isinstance(value, int) and 0 <= value <= 23):
             raise ValueError("daily_scoring_hour must be 0-23")
     elif key in ("strict_maker_checker", "ai_checker_enabled", "prompt_caching_enabled",
-                 "incremental_rescore_enabled"):
+                 "incremental_rescore_enabled", "bulk_explanations_llm"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
     elif key == "brand_logo":

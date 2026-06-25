@@ -258,14 +258,15 @@ async def stock_score(symbol: str):
 
 
 @router.get("/scores")
-async def all_scores():
+async def all_scores(score_date: str = ""):
     from app.services.rescore import pillar_drivers
     db = SessionLocal()
     try:
         today = date.today().isoformat()
-        latest_row = (db.query(StockScore.score_date)
-                      .order_by(StockScore.score_date.desc()).first())
-        latest_date = latest_row[0] if latest_row else today
+        all_dates = [d[0] for d in (db.query(StockScore.score_date).distinct()
+                     .order_by(StockScore.score_date.desc()).limit(60).all())]
+        latest_date = (score_date if score_date in all_dates
+                       else (all_dates[0] if all_dates else today))
         # all rows for the latest run (no truncation, works for 500+ scripts)
         rows = (db.query(StockScore).filter_by(score_date=latest_date)
                 .order_by(StockScore.composite_score.desc()).all())
@@ -308,7 +309,8 @@ async def all_scores():
                 "drivers": (pillar_drivers(r.pillar_scores or {}, p.pillar_scores or {})
                             if p else []),
             })
-        return {"score_date": latest_date, "scores": out, "disclaimer": AI_DISCLAIMER}
+        return {"score_date": latest_date, "dates": all_dates, "scores": out,
+                "disclaimer": AI_DISCLAIMER}
     finally:
         db.close()
 

@@ -160,6 +160,15 @@ def _pillar_rationale(comp: float, pillars: dict) -> str:
 
 # ── 6. Explainability Agent ──────────────────────────────────────
 async def explainability_agent(ctx: AgentContext):
+    # COST CONTROL: for the bulk daily run, write the deterministic, template-based
+    # pillar rationale (no LLM) by default. It is factual and inherently compliant,
+    # so it also removes the need for the per-script AI Checker. An LLM-written
+    # rationale is still produced on-demand when a user refreshes a single script.
+    if not bool(get_setting("bulk_explanations_llm")):
+        for sym in ctx.composites:
+            ctx.explanations[sym] = _pillar_rationale(ctx.composites[sym], ctx.pillar_scores[sym])
+        audit_log("agent_explainability", mode="deterministic", count=len(ctx.explanations))
+        return
     llm = get_llm_router()
     sem = asyncio.Semaphore(5)  # 5 concurrent LLM calls
 
@@ -202,6 +211,11 @@ async def ai_checker_agent(ctx: AgentContext):
     adversarial prompt. Verdicts feed the Quality Agent's decision."""
     if not get_setting("ai_checker_enabled"):
         audit_log("agent_ai_checker", skipped="disabled")
+        return
+    if not bool(get_setting("bulk_explanations_llm")):
+        # Deterministic rationales are template-generated and compliant by
+        # construction - no independent LLM review needed (saves a per-script call).
+        audit_log("agent_ai_checker", skipped="deterministic rationales")
         return
     llm = get_llm_router()
     sem = asyncio.Semaphore(5)

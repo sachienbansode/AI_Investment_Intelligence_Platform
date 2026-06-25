@@ -31,6 +31,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
   const [open, setOpen] = useState(null)
   const [q, setQ] = useState('')
   const [sector, setSector] = useState('')
+  const [index, setIndex] = useState('All')
+  const [selDate, setSelDate] = useState('')
+  const [consts, setConsts] = useState({})
   const [sortKey, setSortKey] = useState('score')
   const [sortDir, setSortDir] = useState('desc')
   const [refreshing, setRefreshing] = useState(null)
@@ -38,8 +41,10 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
   const PAGE_SIZE = 20
 
   const [hist, setHist] = useState({})
-  const load = () => api.scores().then(setData).catch(e => setErr(e.message))
+  const load = (d) => api.scores(d !== undefined ? d : selDate).then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
+  useEffect(() => { api.indexConstituents().then(setConsts).catch(() => {}) }, [])
+  useEffect(() => { load(selDate) }, [selDate]) // eslint-disable-line
   useEffect(() => {
     if (open && hist[open] === undefined) {
       api.scoreHistory(open, 30)
@@ -87,10 +92,13 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
   const sectors = useMemo(() =>
     [...new Set((data?.scores || []).map(s => s.sector).filter(Boolean))].sort(), [data])
 
+  const idxOptions = ['All', ...Object.keys(consts).filter(k => Array.isArray(consts[k]))]
   const filtered = useMemo(() => {
     let r = data?.scores || []
     if (q) r = r.filter(s => s.symbol.toLowerCase().includes(q.toLowerCase()))
     if (sector) r = r.filter(s => s.sector === sector)
+    if (index !== 'All' && index !== 'All NSE' && Array.isArray(consts[index]))
+      r = r.filter(s => consts[index].includes(s.symbol))
     const dir = sortDir === 'desc' ? -1 : 1
     const val = x => sortKey === 'symbol' ? x.symbol
       : sortKey === 'change' ? (x.delta ?? -Infinity) : x.composite_score
@@ -98,9 +106,9 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
       const va = val(a), vb = val(b)
       return typeof va === 'string' ? dir * va.localeCompare(vb) : dir * (va - vb)
     })
-  }, [data, q, sector, sortKey, sortDir])
+  }, [data, q, sector, index, sortKey, sortDir, consts])
 
-  useEffect(() => { setPage(0) }, [q, sector, sortKey, sortDir])
+  useEffect(() => { setPage(0) }, [q, sector, index, sortKey, sortDir])
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const rows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
@@ -131,12 +139,24 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
       <div className="toolbar">
         <button className="ghost" onClick={load} title="Reload the table">Refresh</button>
         <input placeholder="Search script…" value={q} onChange={e => setQ(e.target.value)} />
+        <select value={index} onChange={e => setIndex(e.target.value)}
+                title="Filter by index / scope (Nifty 50, Nifty 500, All NSE)">
+          {idxOptions.map(o => <option key={o} value={o}>{o === 'All' ? 'All scopes' : o}</option>)}
+        </select>
         <select value={sector} onChange={e => setSector(e.target.value)}
                 title="Filter by sector from the instruments master">
           <option value="">All sectors</option>
           {sectors.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        {data?.score_date && <span className="hint">as of {data.score_date}</span>}
+        <label className="hint" title="View scores as of a previous scoring day">As&nbsp;of&nbsp;
+          <select value={selDate || (data?.score_date || '')}
+                  onChange={e => setSelDate(e.target.value)}>
+            {(data?.dates || (data?.score_date ? [data.score_date] : [])).map(d =>
+              <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
+        {selDate && data?.dates && selDate !== data.dates[0] &&
+          <span className="tag pending" title="You are viewing a past scoring day, not the latest">past day</span>}
       </div>
 
       {err && <p className="note">{err}</p>}

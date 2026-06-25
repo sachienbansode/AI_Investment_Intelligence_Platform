@@ -473,6 +473,16 @@ function Settings() {
         </div>
         <p className="hint">Strict mode holds new scores as <em>pending</em> until approved
           in Admin → Score review. The AI checker adds one LLM call per script per run.</p>
+        <div className="toolbar">
+          <label title="ON: an LLM writes every script's rationale on the daily run AND a second LLM reviews each (high token cost at scale - e.g. ~2x calls per script). OFF (recommended): fast deterministic pillar rationales, AI checker skipped. An LLM rationale is still generated on-demand when a user refreshes a single script.">
+            <input type="checkbox" defaultChecked={!!s.bulk_explanations_llm}
+                   onChange={e => save('bulk_explanations_llm', e.target.checked)} />
+            {' '}Use LLM to write daily score rationales (high token cost)
+          </label>
+        </div>
+        <p className="hint">Leave OFF for cheap, fast daily runs: deterministic rationales are
+          written without the LLM and the AI checker is skipped. Per-script LLM rationales are
+          still produced on-demand via Refresh on Stock Scores.</p>
       </div>
 
       <div className="panel">
@@ -800,9 +810,12 @@ function Review() {
               <td><span className={`tag ${r.quality_status === 'approved' ? 'positive' : r.quality_status === 'rejected' ? 'negative' : 'pending'}`}>{r.quality_status}</span></td>
               <td title={r.ai_review ? `${r.ai_review.reason || ''}${r.ai_review.checker_provider ? ' — ' + r.ai_review.checker_provider + (r.ai_review.independent ? ' (independent)' : ' (same model)') : ''}` : 'AI checker was off for this run'}>
                 {r.ai_review
-                  ? <span className={`tag ${r.ai_review.verdict === 'flag' ? 'negative' : 'positive'}`}>
-                      {r.ai_review.verdict === 'flag' ? '⚑ flag' : '✓ pass'}</span>
-                  : <span className="hint">—</span>}
+                  ? <><span className={`tag ${r.ai_review.verdict === 'flag' ? 'negative' : 'positive'}`}>
+                        {r.ai_review.verdict === 'flag' ? '⚑ flag' : r.ai_review.verdict === 'error' ? '! error' : '✓ pass'}</span>
+                      {r.ai_review.reason ? <span className="hint" style={{ marginLeft: 6 }}>{r.ai_review.reason}</span> : null}</>
+                  : (r.quality_status === 'rejected'
+                      ? <span className="down">failed validation (score/explanation checks)</span>
+                      : <span className="hint">—</span>)}
               </td>
               <td className="hint">{r.reviewed_by}</td>
               <td className="hint">{r.reviewed_at ? fmtIST(r.reviewed_at) : '—'}</td>

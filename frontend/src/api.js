@@ -44,7 +44,7 @@ export const api = {
   registerDevice: (token, platform = '') => http('/devices/register', { method: 'POST', body: JSON.stringify({ token, platform }) }),
   deleteSession: (sessionId) => http(`/chat/history/${sessionId}`, { method: 'DELETE' }),
   clearChats: () => http('/chat/sessions', { method: 'DELETE' }),
-  scores: () => http('/scores'),
+  scores: (score_date = '') => http('/scores' + (score_date ? `?score_date=${score_date}` : '')),
   refreshScore: (symbol) => http(`/score/${symbol}/refresh`, { method: 'POST' }),
   trends: (days = 30, symbols = '') => http(`/scores/trends?days=${days}` + (symbols ? `&symbols=${encodeURIComponent(symbols)}` : '')),
   scoreHistory: (symbol, days = 30) => http(`/scores/${symbol}/history?days=${days}`),

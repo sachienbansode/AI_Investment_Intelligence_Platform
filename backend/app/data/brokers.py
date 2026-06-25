@@ -49,6 +49,31 @@ class KiteProvider(MarketDataProvider):
             log.warning("Kite quote failed for %s: %s", symbol, e)
             return None
 
+    async def get_quotes_batch(self, symbols, into=None):
+        """Kite quote() accepts up to ~500 instruments per call. Chunked here so
+        the full NSE universe is fetched in a handful of licensed requests."""
+        out = into if into is not None else {}
+        keys = [f"NSE:{s.upper()}" for s in symbols]
+        for i in range(0, len(keys), 500):
+            chunk = keys[i:i + 500]
+            try:
+                data = await asyncio.to_thread(self._kite.quote, chunk)
+            except Exception as e:
+                log.warning("Kite batch chunk failed: %s", e)
+                continue
+            for key, q in (data or {}).items():
+                sym = key.split(":", 1)[-1].upper()
+                ohlc = q.get("ohlc", {}) or {}
+                prev, last = ohlc.get("close"), q.get("last_price")
+                if last is None:
+                    continue
+                out[sym] = Quote(
+                    symbol=sym, last_price=last,
+                    change_pct=round((last - prev) / prev * 100, 2) if last and prev else None,
+                    open=ohlc.get("open"), high=ohlc.get("high"), low=ohlc.get("low"),
+                    prev_close=prev, volume=q.get("volume"), source="kite")
+        return out
+
 
 class UpstoxProvider(MarketDataProvider):
     """Upstox API v2 (https://upstox.com/developer). REST quotes."""
@@ -128,3 +153,39 @@ class SmartAPIProvider(MarketDataProvider):
         except Exception as e:
             log.warning("SmartAPI quote failed for %s: %s", symbol, e)
             return None
+
+    async def get_quotes_batch(self, symbols, into=None):
+        """SmartAPI quote (FULL mode) accepts up to ~50 tokens per request.
+        NOTE: Angel One keys quotes by numeric instrument TOKEN, not trading
+        symbol; once credentials are configured we load the instrument master
+        and map symbol->token. Chunked at 50."""
+        out = into if into is not None else {}
+        url = ("https://apiconnect.angelone.in/rest/secure/angelbroking/"
+               "market/v1/quote/")
+        headers = {"Authorization": f"Bearer {self._token}", "X-PrivateKey": self._key,
+                   "Content-Type": "application/json", "X-UserType": "USER",
+                   "X-SourceID": "WEB"}
+        async with httpx.AsyncClient(timeout=15) as client:
+            for i in range(0, len(symbols), 50):
+                chunk = [s.upper() for s in symbols[i:i + 50]]
+                try:
+                    r = await client.post(url, headers=headers,
+                                          json={"mode": "FULL", "exchangeTokens": {"NSE": chunk}})
+                    r.raise_for_status()
+                    for d in r.json().get("data", {}).get("fetched", []):
+                        sym = (d.get("tradingSymbol") or "").upper()
+                        if sym.endswith("-EQ"):
+                            sym = sym[:-3]
+                        last = d.get("ltp")
+                        if not sym or last is None:
+                            continue
+                        out[sym] = Quote(
+                            symbol=sym, last_price=last, change_pct=d.get("percentChange"),
+                            open=d.get("open"), high=d.get("high"), low=d.get("low"),
+                            prev_close=d.get("close"), volume=d.get("tradeVolume"),
+                            week52_high=d.get("52WeekHigh"), week52_low=d.get("52WeekLow"),
+                            source="smartapi")
+                except Exception as e:
+                    log.warning("SmartAPI batch chunk failed: %s", e)
+                    continue
+        return out

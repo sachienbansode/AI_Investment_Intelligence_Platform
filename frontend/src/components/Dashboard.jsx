@@ -47,7 +47,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
 
   const list = scores?.scores || []
   const allSectors = [...new Set(list.map(s => s.sector).filter(Boolean))].sort()
-  const idxOptions = [...Object.keys(consts).filter(k => Array.isArray(consts[k])),
+  const idxOptions = ['All NSE', ...Object.keys(consts).filter(k => Array.isArray(consts[k]) && k !== 'All NSE'),
                       ...allSectors.map(s => 'Sector: ' + s)]
   const inIndex = s => idx === 'All NSE' ? true
     : idx.startsWith('Sector: ') ? s.sector === idx.slice(8)
