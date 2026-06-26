@@ -406,6 +406,79 @@ async def import_nse_all(admin: User = Depends(require_admin)):
         "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv", "NSE", False)
 
 
+# ── Sector backfill (results persisted to instruments.sector in the DB) ──────
+@router.get("/instruments/sectors-status")
+def sectors_status(admin: User = Depends(require_admin)):
+    """How many active scripts have / lack a sector."""
+    db = SessionLocal()
+    try:
+        active = db.query(Instrument).filter_by(is_active=True).all()
+    finally:
+        db.close()
+    blank = sum(1 for r in active if not (r.sector or "").strip())
+    return {"active": len(active), "with_sector": len(active) - blank, "blank": blank}
+
+
+@router.post("/instruments/backfill-sectors")
+async def backfill_sectors(source: str = "nse", limit: int = 150,
+                           overwrite: bool = False,
+                           admin: User = Depends(require_admin)):
+    """Fill blank instrument sectors and store them in the DB.
+    source='nse'   → NSE broad-universe classification CSVs (Total Market /
+                     Microcap / Smallcap / Midcap / NIFTY500), covers the long tail.
+    source='yahoo' → Yahoo assetProfile per script (capped by `limit`)."""
+    from app.services import sector_map as sm
+    src = (source or "nse").lower()
+    if src == "yahoo":
+        from app.data.aggregator import get_market_data
+        blanks = [r["symbol"] for r in sm.blank_sector_symbols()][:max(1, min(limit, 500))]
+        if not blanks:
+            return {"source": "yahoo", "matched": 0, "updated": 0, "blank_after": 0,
+                    "note": "No blank sectors to fill."}
+        mapping = await get_market_data().get_sectors(blanks)
+        res = sm.apply_sector_map(mapping, overwrite=overwrite)
+        res.update(source="yahoo", attempted=len(blanks))
+    else:
+        mapping = await sm.fetch_nse_sector_map()
+        if not mapping:
+            raise HTTPException(502, "Could not download any NSE classification list "
+                                     "(network blocked or all URLs failed).")
+        res = sm.apply_sector_map(mapping, overwrite=overwrite)
+        res.update(source="nse")
+    audit_log("instruments_sector_backfill", by=admin.email, **{k: res[k] for k in
+              ("source", "matched", "updated", "blank_after") if k in res})
+    res["note"] = ("Sectors stored in the DB. Click again to fill more"
+                   if res.get("blank_after") else "All sectors filled.")
+    return res
+
+
+@router.post("/instruments/sector-map-upload")
+async def sector_map_upload(file: UploadFile = File(...), overwrite: bool = Form(False),
+                            admin: User = Depends(require_admin)):
+    """Upload a one-time mapping CSV (symbol/ISIN + sector/industry); fills blank
+    instrument sectors and stores them in the DB."""
+    from app.services import sector_map as sm
+    if not (file.filename or "").lower().endswith((".csv", ".txt")):
+        raise HTTPException(400, "Please upload a .csv mapping file.")
+    raw = await file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Mapping file too large (max 5 MB).")
+    try:
+        text = raw.decode("utf-8-sig", errors="ignore")
+        mapping = sm.parse_sector_csv(text)
+    except Exception as e:
+        raise HTTPException(422, f"Could not parse mapping CSV: {e}")
+    if not mapping:
+        raise HTTPException(422, "No symbol→sector rows found. Expected columns like "
+                                 "'Symbol' and 'Industry'/'Sector'.")
+    res = sm.apply_sector_map(mapping, overwrite=bool(overwrite))
+    res["source"] = "upload"
+    audit_log("instruments_sector_map_upload", by=admin.email,
+              rows=res.get("map_size"), matched=res.get("matched"),
+              updated=res.get("updated"), filename=file.filename)
+    return res
+
+
 # ── Pipeline run audit ───────────────────────────────────────────
 @router.get("/pipeline-runs")
 def pipeline_runs(search: str = "", status: str = "", limit: int = 20, offset: int = 0):

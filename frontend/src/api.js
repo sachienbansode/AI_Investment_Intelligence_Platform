@@ -191,6 +191,16 @@ export const api = {
   importNifty50: () => http('/admin/instruments/import-nifty50', { method: 'POST' }),
   importNifty500: () => http('/admin/instruments/import-nifty500', { method: 'POST' }),
   importNseAll: () => http('/admin/instruments/import-nse-all', { method: 'POST' }),
+  sectorsStatus: () => http('/admin/instruments/sectors-status'),
+  backfillSectors: (source = 'nse', limit = 150) =>
+    http('/admin/instruments/backfill-sectors?' + new URLSearchParams({ source, limit }), { method: 'POST' }),
+  sectorMapUpload: async (file) => {
+    const fd = new FormData(); fd.append('file', file)
+    const headers = {}; if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(BASE + '/admin/instruments/sector-map-upload', { method: 'POST', headers, body: fd })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Upload failed (${res.status})`) }
+    return res.json()
+  },
   settings: () => http('/admin/settings'),
   integrations: () => http('/admin/integrations'),
   pipelineRuns: (p = {}) => http('/admin/pipeline-runs?' + new URLSearchParams(p)),

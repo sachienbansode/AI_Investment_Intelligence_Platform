@@ -50,7 +50,27 @@ const MODEL_OPTIONS = {
 function LlmBilling() {
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
-  useEffect(() => { api.llmUsage().then(setD).catch(e => setErr(e.message)) }, [])
+  const [edit, setEdit] = useState(null)   // editable copy of llm_pricing (DB-backed)
+  const [saving, setSaving] = useState(false)
+  const reload = () => api.llmUsage().then(x => {
+    setD(x); setEdit(JSON.parse(JSON.stringify(x.pricing || {})))
+  }).catch(e => setErr(e.message))
+  useEffect(() => { reload() }, [])
+  async function savePricing() {
+    const out = { usd_inr: Number(edit.usd_inr) }
+    Object.keys(edit).filter(k => k !== 'usd_inr').forEach(k => {
+      out[k] = { input_usd_per_mtok: Number(edit[k].input_usd_per_mtok),
+                 output_usd_per_mtok: Number(edit[k].output_usd_per_mtok) }
+    })
+    const bad = [out.usd_inr, ...Object.keys(out).filter(k => k !== 'usd_inr')
+      .flatMap(k => [out[k].input_usd_per_mtok, out[k].output_usd_per_mtok])]
+      .some(n => Number.isNaN(n))
+    if (bad) { toast('Enter valid numbers for every rate', { type: 'error' }); return }
+    setSaving(true)
+    try { await api.updateSetting('llm_pricing', out); toast('Rates saved to DB'); await reload() }
+    catch (e) { toast(e.message, { type: 'error' }) }
+    setSaving(false)
+  }
   if (err) return <p className="note">{err}</p>
   if (!d) return <p className="hint">Loading…</p>
   return (
@@ -104,19 +124,36 @@ function LlmBilling() {
       </div>
 
       <div className="panel">
-        <h4 title="USD per 1 million tokens; editable via Settings (llm_pricing). USD→INR rate applied to all.">Rates in use</h4>
-        <table className="data-table">
-          <thead><tr><th>Provider</th><th>Input $/1M tok</th><th>Output $/1M tok</th></tr></thead>
-          <tbody>
-            {Object.entries(d.pricing).filter(([k]) => k !== 'usd_inr').map(([k, v]) => (
-              <tr key={k}><td><strong>{k}</strong></td>
-                <td>${v.input_usd_per_mtok}</td><td>${v.output_usd_per_mtok}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="hint">USD→INR rate: ₹{d.pricing.usd_inr}. Edit rates via Admin → Settings
-          isn't exposed as a form yet — update key <code>llm_pricing</code> through
-          PUT /api/v1/admin/settings, or ask me to add a rate editor.</p>
+        <div className="panel-head">
+          <h4 style={{ margin: 0 }} title="USD per 1 million tokens. Saved to the database (app_settings.llm_pricing) and applied to every INR cost estimate.">Rates in use (editable)</h4>
+          <button className="ghost sm" onClick={savePricing} disabled={saving || !edit}>
+            {saving ? 'Saving…' : 'Save rates'}</button>
+        </div>
+        {edit && (
+          <table className="data-table">
+            <thead><tr><th>Provider</th><th>Input $/1M tok</th><th>Output $/1M tok</th></tr></thead>
+            <tbody>
+              {Object.keys(edit).filter(k => k !== 'usd_inr').map(k => (
+                <tr key={k}><td><strong>{k}</strong></td>
+                  <td><input type="number" step="0.01" min="0" style={{ width: 90 }}
+                    value={edit[k].input_usd_per_mtok}
+                    onChange={e => setEdit({ ...edit, [k]: { ...edit[k], input_usd_per_mtok: e.target.value } })} /></td>
+                  <td><input type="number" step="0.01" min="0" style={{ width: 90 }}
+                    value={edit[k].output_usd_per_mtok}
+                    onChange={e => setEdit({ ...edit, [k]: { ...edit[k], output_usd_per_mtok: e.target.value } })} /></td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {edit && (
+          <p className="hint" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label>USD → INR rate&nbsp;
+              <input type="number" step="0.01" min="0" style={{ width: 90 }}
+                value={edit.usd_inr}
+                onChange={e => setEdit({ ...edit, usd_inr: e.target.value })} /></label>
+            <span>Stored in the DB and applied to all INR cost estimates. Verify against provider invoices.</span>
+          </p>
+        )}
       </div>
     </div>
   )
@@ -260,7 +297,12 @@ function Instruments() {
   const [form, setForm] = useState({ symbol: '', name: '', sector: '' })
   const [filter, setFilter] = useState('')
   const [page, setPage] = useState(0)
-  const load = () => api.adminInstruments().then(setRows).catch(e => setErr(e.message))
+  const [sectorStat, setSectorStat] = useState(null)
+  const [secBusy, setSecBusy] = useState('')
+  const load = () => {
+    api.adminInstruments().then(setRows).catch(e => setErr(e.message))
+    api.sectorsStatus().then(setSectorStat).catch(() => {})
+  }
   useEffect(() => { load() }, [])
 
   async function add(e) {
@@ -285,6 +327,28 @@ function Instruments() {
   const importNseAll = () => doImport(api.importNseAll, 'Full NSE import')
   async function toggle(id, field) {
     try { await api.toggleInstrument(id, field); load() } catch (ex) { setErr(ex.message) }
+  }
+
+  async function backfillSectors(source) {
+    setSecBusy(source); setErr(''); setMsg('')
+    try {
+      const r = await api.backfillSectors(source)
+      setMsg(`Sector backfill (${r.source}): matched ${r.matched ?? 0}, filled ${r.updated ?? 0}`
+        + (r.blank_after != null ? `, ${r.blank_after} still blank` : '') + `. ${r.note || ''}`)
+      load()
+    } catch (ex) { setErr(ex.message) }
+    setSecBusy('')
+  }
+  async function uploadSectorMap(e) {
+    const file = e.target.files && e.target.files[0]; e.target.value = ''
+    if (!file) return
+    setSecBusy('upload'); setErr(''); setMsg('')
+    try {
+      const r = await api.sectorMapUpload(file)
+      setMsg(`Mapping applied: matched ${r.matched}, filled ${r.updated} (from ${r.map_size} rows). Saved to DB.`)
+      load()
+    } catch (ex) { setErr(ex.message) }
+    setSecBusy('')
   }
 
   const visible = rows.filter(r => !filter ||
@@ -321,6 +385,25 @@ function Instruments() {
         <input placeholder="Filter…" value={filter}
                onChange={e => { setFilter(e.target.value); setPage(0) }} />
         <span className="hint">{rows.length} scripts · {inUniverse} in scoring universe</span>
+      </div>
+      <div className="panel">
+        <div className="panel-head">
+          <h4 style={{ margin: 0 }}>Sectors</h4>
+          {sectorStat && <span className="hint">{sectorStat.with_sector}/{sectorStat.active} have a sector · {sectorStat.blank} blank</span>}
+        </div>
+        <div className="toolbar">
+          <button onClick={() => backfillSectors('nse')} disabled={!!secBusy}
+                  title="Fill blank sectors from NSE broad-universe classification lists (Total Market / Microcap / Smallcap / Midcap / NIFTY 500). Saved to the DB.">
+            {secBusy === 'nse' ? 'Filling…' : 'Backfill from NSE classification'}</button>
+          <button className="ghost" onClick={() => backfillSectors('yahoo')} disabled={!!secBusy}
+                  title="Fill blank sectors from Yahoo company profiles, per script (capped per click). Saved to the DB.">
+            {secBusy === 'yahoo' ? 'Filling…' : 'Backfill from Yahoo (150)'}</button>
+          <label className="hint" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {secBusy === 'upload' ? 'Uploading…' : 'Upload mapping CSV:'}
+            <input type="file" accept=".csv,.txt" onChange={uploadSectorMap} disabled={!!secBusy} />
+          </label>
+        </div>
+        <p className="hint">Sectors are stored in the database (instruments table). NSE classification covers the small/mid/micro-cap long tail; Yahoo is a per-script fallback; or upload a CSV mapping symbol → sector.</p>
       </div>
       <table className="data-table">
         <thead><tr>
