@@ -91,6 +91,15 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
     setRefreshing(null)
   }
 
+  async function addWatch(e, symbol) {
+    e.stopPropagation()
+    try { await api.watchAdd(symbol); toast(`${symbol} added to your watchlist`) }
+    catch (ex) {
+      toast(/already/i.test(ex.message) ? `${symbol} is already in your watchlist` : ex.message,
+            { type: /already/i.test(ex.message) ? 'success' : 'error' })
+    }
+  }
+
   const sectors = useMemo(() =>
     [...new Set((data?.scores || []).map(s => s.sector).filter(Boolean))].sort(), [data])
 
@@ -252,12 +261,18 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
                       ))}
                       <div className="explain md"
                            dangerouslySetInnerHTML={{ __html: mdToHtml(s.explanation) }} />
-                      {askAI && (
-                        <button className="ghost sm" style={{ marginTop: 8 }}
-                                title={`Open ${platformLabel} pre-loaded with this script's score context`}
-                                onClick={e => { e.stopPropagation(); askAI(`Tell me about the ${scoreLabel} for ${s.symbol} — what's driving it and what changed recently?`) }}>
-                          💬 Ask {platformLabel} about this score</button>
-                      )}
+                      <div className="toolbar" style={{ marginTop: 8 }}>
+                        {askAI && (
+                          <button className="ghost sm"
+                                  title={`Open ${platformLabel} pre-loaded with this script's score context`}
+                                  onClick={e => { e.stopPropagation(); askAI(`Tell me about the ${scoreLabel} for ${s.symbol} — what's driving it and what changed recently?`) }}>
+                            💬 Ask {platformLabel} about this score</button>
+                        )}
+                        <button className="ghost sm"
+                                title="Add this script to your watchlist"
+                                onClick={e => addWatch(e, s.symbol)}>
+                          ★ Add to watchlist</button>
+                      </div>
                     </div>
                   </td>
                 </tr>
