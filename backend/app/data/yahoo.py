@@ -90,13 +90,17 @@ class YahooProvider(MarketDataProvider):
             "dividend_yield": round(dy * 100, 2) if isinstance(dy, (int, float)) else None,
             "beta": None, "roe": None,
         }
-        # Fill any gaps (and add beta / ROE, which the v7 quote lacks) from the
-        # richer quoteSummary modules — keeps fundamentals near-complete.
-        if any(fund[k] is None for k in ("pe", "eps", "pb", "dividend_yield")):
+        mcap = q.get("marketCap")
+        # Fill any gaps (and add beta / ROE / market cap, which the v7 quote may
+        # lack) from the richer quoteSummary modules — keeps fundamentals
+        # near-complete for small-caps.
+        if mcap is None or any(fund[k] is None for k in ("pe", "eps", "pb", "dividend_yield")):
             extra = await self._summary_fundamentals(client, ysym)
             for k, v in extra.items():
                 if fund.get(k) is None and v is not None:
                     fund[k] = v
+            if mcap is None and extra.get("market_cap") is not None:
+                mcap = extra["market_cap"]
         return Quote(
             symbol=symbol.upper(),
             last_price=last,
@@ -114,7 +118,7 @@ class YahooProvider(MarketDataProvider):
             dividend_yield=fund["dividend_yield"],
             beta=fund["beta"],
             roe=fund["roe"],
-            market_cap=q.get("marketCap"),
+            market_cap=mcap,
             source="yahoo",
         )
 
@@ -159,6 +163,7 @@ class YahooProvider(MarketDataProvider):
             out["beta"] = raw(sd, "beta") or raw(ks, "beta")
             roe = raw(fd, "returnOnEquity")
             out["roe"] = round(roe * 100, 2) if roe is not None else None
+            out["market_cap"] = raw(sd, "marketCap")
         except Exception as e:
             log.warning("Yahoo fundamentals fallback failed for %s: %s", ysym, e)
         return out
