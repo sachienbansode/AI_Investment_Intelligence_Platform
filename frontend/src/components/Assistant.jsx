@@ -27,6 +27,18 @@ const GENERAL_Q = [
 ]
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]] } return a }
+
+// Words that look like tickers but aren't, so we don't build stock follow-ups for them.
+const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'USD', 'INR', 'CEO',
+  'IPO', 'GDP', 'ETF', 'NAV', 'EPS', 'ROE', 'PB', 'FII', 'DII', 'SIP', 'NPA', 'AGM', 'ATH',
+  'EBITDA', 'YOY', 'QOQ', 'NIYTRI', 'NITRI', 'AND', 'THE', 'FOR'])
+function extractSymbol(text) {
+  if (!text) return null
+  const m = (String(text).toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])
+    .filter(w => !NOT_TICKERS.has(w))
+  return m[0] || null
+}
 
 export default function Assistant({ seed, clearSeed }) {
   const [sessions, setSessions] = useState([])
@@ -62,13 +74,23 @@ export default function Assistant({ seed, clearSeed }) {
     } catch {}
   }
 
-  // 3 follow-ups after each reply: 2 data-oriented + 1 general-knowledge.
-  function buildFollowups() {
-    const dataPool = (suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q))
-    const pool = [...dataPool]
-    const picks = []
-    while (picks.length < 2 && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
-    return [...picks, pick(GENERAL_Q)]
+  // Up to 5 follow-ups related to the previous question. When it was about a
+  // specific stock, dig deeper into THAT stock; otherwise mix data + learn-more.
+  function buildFollowups(question, answer) {
+    const sym = extractSymbol(question) || extractSymbol(answer)
+    if (sym) {
+      const ctx = shuffle([
+        `What's driving ${sym}'s score?`,
+        `How does ${sym} compare to its sector?`,
+        `Latest news on ${sym}`,
+        `Is ${sym} cheap or expensive on valuation?`,
+        `What changed in ${sym}'s score recently?`,
+      ]).slice(0, 4)
+      return [...ctx, pick(GENERAL_Q)]
+    }
+    const dataPool = shuffle((suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q)))
+    const out = [...dataPool.slice(0, 3), pick(GENERAL_Q), pick(GENERAL_Q)]
+    return out.filter((v, i, a) => a.indexOf(v) === i).slice(0, 5)
   }
 
   async function openSession(id) {
@@ -116,7 +138,7 @@ export default function Assistant({ seed, clearSeed }) {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider,
       }])
-      setFollowups(buildFollowups())
+      setFollowups(buildFollowups(q, r.answer))
       loadSessions()
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', text: 'Error: ' + e.message }])
