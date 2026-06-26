@@ -32,6 +32,12 @@ class MarketDataAggregator:
         providers = list(brokers)
         if use_fb:
             providers += [self._nse, self._yahoo]
+        from app.services.app_settings import get_setting
+        try:
+            src_enabled = get_setting("market_sources_enabled") or {}
+        except Exception:
+            src_enabled = {}
+        providers = [p for p in providers if src_enabled.get(p.name, True)]
         self._providers = providers
         if not providers:
             log.error("No market-data provider available: unlicensed fallbacks explicitly "

@@ -46,6 +46,9 @@ DEFAULTS: dict = {
     # LLM) and skips the AI Checker - far cheaper/faster. ON uses an LLM to write
     # every script's rationale + independent review (high token cost at scale).
     "bulk_explanations_llm": False,
+    # Per-source on/off for market data (kite/smartapi/upstox/nse/yahoo).
+    "market_sources_enabled": {"kite": True, "smartapi": True, "upstox": True,
+                               "nse": True, "yahoo": True},
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
@@ -108,6 +111,12 @@ def set_setting(key: str, value) -> None:
     finally:
         db.close()
     _cache_at = 0.0  # invalidate cache
+    if key == "market_sources_enabled":
+        try:
+            import app.data.aggregator as _agg_mod
+            _agg_mod._agg = None   # rebuild provider chain on next use
+        except Exception:
+            pass
 
 
 def _validate(key: str, value) -> None:
@@ -149,6 +158,12 @@ def _validate(key: str, value) -> None:
     elif key == "global_markets_enabled":
         if not isinstance(value, bool):
             raise ValueError("global_markets_enabled must be true or false")
+    elif key == "market_sources_enabled":
+        valid = {"kite", "smartapi", "upstox", "nse", "yahoo"}
+        if not (isinstance(value, dict) and set(value) <= valid
+                and all(isinstance(v, bool) for v in value.values())):
+            raise ValueError("market_sources_enabled must map kite/smartapi/upstox/"
+                             "nse/yahoo -> true/false")
     elif key == "scoring_indices":
         valid = {"NIFTY50", "NIFTY500", "NSE"}
         if not (isinstance(value, list) and value and all(v in valid for v in value)):

@@ -569,7 +569,10 @@ def integrations():
     server (.env)."""
     from app.config import get_settings
     from app.data.rss_news import FEEDS
+    from app.services.app_settings import get_setting
     s = get_settings()
+    llm_en = get_setting("llm_enabled") or {}
+    src_en = get_setting("market_sources_enabled") or {}
 
     def mask(key: str) -> str:
         if not key:
@@ -579,36 +582,36 @@ def integrations():
         return "•" * 12
 
     llm_providers = [
-        {"name": "Anthropic Claude", "model": s.anthropic_model,
+        {"name": "Anthropic Claude", "key": "anthropic", "model": s.anthropic_model,
          "configured": bool(s.anthropic_api_key), "api_key_masked": mask(s.anthropic_api_key),
-         "endpoint": "https://api.anthropic.com"},
-        {"name": "OpenAI GPT", "model": s.openai_model,
+         "enabled": llm_en.get("anthropic", True), "endpoint": "https://api.anthropic.com"},
+        {"name": "OpenAI GPT", "key": "openai", "model": s.openai_model,
          "configured": bool(s.openai_api_key), "api_key_masked": mask(s.openai_api_key),
-         "endpoint": "https://api.openai.com"},
-        {"name": "Google Gemini", "model": s.gemini_model,
+         "enabled": llm_en.get("openai", True), "endpoint": "https://api.openai.com"},
+        {"name": "Google Gemini", "key": "gemini", "model": s.gemini_model,
          "configured": bool(s.google_api_key), "api_key_masked": mask(s.google_api_key),
-         "endpoint": "https://generativelanguage.googleapis.com"},
+         "enabled": llm_en.get("gemini", True), "endpoint": "https://generativelanguage.googleapis.com"},
     ]
     market_data = [
-        {"name": "NSE India", "type": "public — no key required", "configured": True,
-         "api_key_masked": "",
+        {"name": "NSE India", "key": "nse", "type": "public — no key required", "configured": True,
+         "api_key_masked": "", "enabled": src_en.get("nse", True),
          "endpoints": ["https://www.nseindia.com/api/allIndices",
                        "https://www.nseindia.com/api/quote-equity?symbol={SYMBOL}",
                        "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv"]},
-        {"name": "Yahoo Finance (fallback)", "type": "public — no key required",
-         "configured": True, "api_key_masked": "",
+        {"name": "Yahoo Finance (fallback)", "key": "yahoo", "type": "public — no key required",
+         "configured": True, "api_key_masked": "", "enabled": src_en.get("yahoo", True),
          "endpoints": ["https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}.NS"]},
-        {"name": "Zerodha Kite Connect", "type": "licensed broker feed",
+        {"name": "Zerodha Kite Connect", "key": "kite", "type": "licensed broker feed",
          "configured": bool(s.kite_api_key and s.kite_access_token),
-         "api_key_masked": mask(s.kite_api_key),
+         "api_key_masked": mask(s.kite_api_key), "enabled": src_en.get("kite", True),
          "endpoints": ["https://api.kite.trade"]},
-        {"name": "Angel One SmartAPI", "type": "licensed broker feed",
+        {"name": "Angel One SmartAPI", "key": "smartapi", "type": "licensed broker feed",
          "configured": bool(s.smartapi_key and s.smartapi_access_token),
-         "api_key_masked": mask(s.smartapi_key),
+         "api_key_masked": mask(s.smartapi_key), "enabled": src_en.get("smartapi", True),
          "endpoints": ["https://apiconnect.angelone.in"]},
-        {"name": "Upstox", "type": "licensed broker feed",
+        {"name": "Upstox", "key": "upstox", "type": "licensed broker feed",
          "configured": bool(s.upstox_access_token),
-         "api_key_masked": mask(s.upstox_access_token),
+         "api_key_masked": mask(s.upstox_access_token), "enabled": src_en.get("upstox", True),
          "endpoints": ["https://api.upstox.com/v2"]},
     ]
     news_feeds = [{"name": n, "url": u} for n, u in FEEDS.items()]

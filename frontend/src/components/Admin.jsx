@@ -135,6 +135,20 @@ function Integrations() {
     setTesting(false)
   }
 
+  async function setEnabled(kind, key, val) {
+    try {
+      if (kind === 'llm') {
+        const map = {}; data.llm_providers.forEach(p => { map[p.key] = p.key === key ? val : (p.enabled !== false) })
+        await api.updateSetting('llm_enabled', map)
+      } else {
+        const map = {}; data.market_data.forEach(m => { map[m.key] = m.key === key ? val : (m.enabled !== false) })
+        await api.updateSetting('market_sources_enabled', map)
+      }
+      toast(val ? 'Enabled' : 'Disabled')
+      setData(await api.integrations())
+    } catch (e) { setErr(e.message); toast(e.message, { type: 'error' }) }
+  }
+
   if (err) return <p className="note">{err}</p>
   if (!data) return <p className="hint">Loading…</p>
   return (
@@ -170,6 +184,7 @@ function Integrations() {
             <th title="API endpoint (public knowledge, no secret)">Endpoint</th>
             <th title="Your firm's API key — masked; the full key never leaves the server">API key</th>
             <th title="Whether a key is present in backend/.env">Status</th>
+            <th title="Enable or disable this provider in the AI router">Enabled</th>
           </tr></thead>
           <tbody>
             {data.llm_providers.map(p => (
@@ -180,6 +195,9 @@ function Integrations() {
                 <td><code>{p.api_key_masked || '—'}</code></td>
                 <td><span className={`tag ${p.configured ? 'positive' : 'pending'}`}>
                   {p.configured ? 'configured' : 'not configured'}</span></td>
+                <td><input type="checkbox" checked={p.enabled !== false}
+                           onChange={e => setEnabled('llm', p.key, e.target.checked)}
+                           title="Enable/disable this provider in the AI router" /></td>
               </tr>
             ))}
           </tbody>
@@ -195,6 +213,7 @@ function Integrations() {
             <th title="Full endpoint URLs — public endpoints carry no secrets">Endpoints</th>
             <th title="Your API key, masked">API key</th>
             <th>Status</th>
+            <th title="Enable or disable this market-data source">Enabled</th>
           </tr></thead>
           <tbody>
             {data.market_data.map(m => (
@@ -206,6 +225,9 @@ function Integrations() {
                 <td><code>{m.api_key_masked || '—'}</code></td>
                 <td><span className={`tag ${m.configured ? 'positive' : 'pending'}`}>
                   {m.configured ? 'active' : 'not configured'}</span></td>
+                <td><input type="checkbox" checked={m.enabled !== false}
+                           onChange={e => setEnabled('market', m.key, e.target.checked)}
+                           title="Enable/disable this source in the data aggregator" /></td>
               </tr>
             ))}
           </tbody>
