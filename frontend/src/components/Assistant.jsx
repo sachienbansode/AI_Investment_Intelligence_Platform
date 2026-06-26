@@ -33,12 +33,6 @@ function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i-
 const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'USD', 'INR', 'CEO',
   'IPO', 'GDP', 'ETF', 'NAV', 'EPS', 'ROE', 'PB', 'FII', 'DII', 'SIP', 'NPA', 'AGM', 'ATH',
   'EBITDA', 'YOY', 'QOQ', 'NIYTRI', 'NITRI', 'AND', 'THE', 'FOR'])
-function extractSymbol(text) {
-  if (!text) return null
-  const m = (String(text).toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])
-    .filter(w => !NOT_TICKERS.has(w))
-  return m[0] || null
-}
 
 export default function Assistant({ seed, clearSeed }) {
   const [sessions, setSessions] = useState([])
@@ -49,6 +43,7 @@ export default function Assistant({ seed, clearSeed }) {
   const [busy, setBusy] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [followups, setFollowups] = useState([])
+  const [symSet, setSymSet] = useState(new Set())
   const [histOpen, setHistOpen] = useState(false)
   const [rated, setRated] = useState({})
   const bottom = useRef(null)
@@ -57,6 +52,7 @@ export default function Assistant({ seed, clearSeed }) {
   useEffect(() => {
     loadSessions()
     api.chatSuggestions().then(d => setSuggestions(d.suggestions || [])).catch(() => {})
+    api.instruments().then(d => setSymSet(new Set((d.instruments || []).map(i => i.symbol.toUpperCase())))).catch(() => {})
   }, [])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy, followups])
   useEffect(() => {
@@ -74,10 +70,27 @@ export default function Assistant({ seed, clearSeed }) {
     } catch {}
   }
 
-  // Up to 5 follow-ups related to the previous question. When it was about a
-  // specific stock, dig deeper into THAT stock; otherwise mix data + learn-more.
-  function buildFollowups(question, answer) {
-    const sym = extractSymbol(question) || extractSymbol(answer)
+  // Only treat a token as a stock when it's a REAL instrument symbol.
+  function validSymbol(text) {
+    if (!text) return null
+    const cands = (String(text).toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])
+      .filter(w => !NOT_TICKERS.has(w))
+    for (const w of cands) if (symSet.has(w)) return w
+    return null
+  }
+  function symbolFromSources(sources) {
+    if (!Array.isArray(sources)) return null
+    for (const s of sources) {
+      const sym = s && s.symbol ? String(s.symbol).toUpperCase() : ''
+      if (sym && (symSet.size === 0 || symSet.has(sym))) return sym
+    }
+    return null
+  }
+
+  // Up to 5 follow-ups related to the previous answer. Stock-specific only when a
+  // real symbol was involved; otherwise topic-aware (news/market) or general.
+  function buildFollowups(question, answer, sources) {
+    const sym = symbolFromSources(sources) || validSymbol(question) || validSymbol(answer)
     if (sym) {
       const ctx = shuffle([
         `What's driving ${sym}'s score?`,
@@ -88,8 +101,18 @@ export default function Assistant({ seed, clearSeed }) {
       ]).slice(0, 4)
       return [...ctx, pick(GENERAL_Q)]
     }
+    const ql = (String(question) + ' ' + String(answer)).toLowerCase()
+    if (/\b(news|market|today|sector|sectors|nifty|sensex|index|indices|gainer|loser|sentiment)\b/.test(ql)) {
+      return shuffle([
+        'Which sectors are strongest today?',
+        'Top 5 stocks by AI score',
+        'What are today’s biggest decliners by score?',
+        'How is overall market sentiment in the news?',
+        pick(GENERAL_Q),
+      ]).slice(0, 5)
+    }
     const dataPool = shuffle((suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q)))
-    const out = [...dataPool.slice(0, 3), pick(GENERAL_Q), pick(GENERAL_Q)]
+    const out = [...dataPool.slice(0, 3), pick(GENERAL_Q)]
     return out.filter((v, i, a) => a.indexOf(v) === i).slice(0, 5)
   }
 
@@ -138,7 +161,7 @@ export default function Assistant({ seed, clearSeed }) {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider,
       }])
-      setFollowups(buildFollowups(q, r.answer))
+      setFollowups(buildFollowups(q, r.answer, r.sources))
       loadSessions()
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', text: 'Error: ' + e.message }])
@@ -215,23 +238,19 @@ export default function Assistant({ seed, clearSeed }) {
                 {m.role === 'assistant'
                   ? <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
                   : <p>{m.text}</p>}
-                {m.role === 'assistant' && m.confidence != null && (
+                {m.role === 'assistant' && m.sources?.length > 0 && (
                   <div className="meta">
-                    <span title="How much grounded context (quotes, scores, news) backed this answer">
-                      Confidence {(m.confidence * 100).toFixed(0)}%</span>
-                    {m.sources?.length > 0 && (
-                      <details>
-                        <summary>Sources ({m.sources.length})</summary>
-                        <ul>
-                          {m.sources.map((s, j) => (
-                            <li key={j}>
-                              {s.type}{s.symbol ? `: ${s.symbol}` : ''}
-                              {s.link ? <> — <a href={s.link} target="_blank" rel="noreferrer">{s.title || s.link}</a></> : s.title ? ` — ${s.title}` : ''}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                    <details>
+                      <summary>Sources ({m.sources.length})</summary>
+                      <ul>
+                        {m.sources.map((s, j) => (
+                          <li key={j}>
+                            {s.type}{s.symbol ? `: ${s.symbol}` : ''}
+                            {s.link ? <> — <a href={s.link} target="_blank" rel="noreferrer">{s.title || s.link}</a></> : s.title ? ` — ${s.title}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   </div>
                 )}
                 {m.role === 'assistant' && !m.text.startsWith('Error:') && (

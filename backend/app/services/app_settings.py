@@ -25,7 +25,7 @@ DEFAULTS: dict = {
     "news_refresh_minutes": 30,       # scheduler interval (restart to apply)
     "max_news_items": 15,             # items per news refresh
     "assistant_history_messages": 6,  # prior messages given to the LLM
-    "assistant_max_tokens": 500,
+    "assistant_max_tokens": 350,
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
@@ -49,6 +49,10 @@ DEFAULTS: dict = {
     # Per-source on/off for market data (kite/smartapi/upstox/nse/yahoo).
     "market_sources_enabled": {"kite": True, "smartapi": True, "upstox": True,
                                "nse": True, "yahoo": True},
+    # NSE-symbol -> Yahoo-ticker overrides for scripts whose Yahoo ticker isn't
+    # "<SYMBOL>.NS" (renames / BSE-only). Value may include a suffix (e.g.
+    # "ABC.BO"); without one ".NS" is assumed. Empty by default.
+    "yahoo_symbol_aliases": {},
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
@@ -189,6 +193,10 @@ def _validate(key: str, value) -> None:
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")
+    elif key == "yahoo_symbol_aliases":
+        if not (isinstance(value, dict)
+                and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())):
+            raise ValueError("yahoo_symbol_aliases must be a dict of symbol->yahoo_ticker strings")
     elif key == "llm_pricing":
         if not (isinstance(value, dict) and "usd_inr" in value):
             raise ValueError("llm_pricing must be a dict including usd_inr")

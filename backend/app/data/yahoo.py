@@ -10,6 +10,7 @@ Two fetch paths:
 """
 import asyncio
 import logging
+import time as _time
 
 import httpx
 
@@ -55,17 +56,56 @@ def _reset_auth():
     _crumb = _cookie_hdr = None
 
 
+# Admin-editable NSE-symbol -> Yahoo-ticker overrides (DB-backed, cached 60s).
+# Use when a script's Yahoo ticker differs from "<SYMBOL>.NS" (renames, BSE-only).
+_alias_cache = {"at": 0.0, "map": {}}
+
+
+def _aliases() -> dict:
+    now = _time.time()
+    if now - _alias_cache["at"] > 60:
+        try:
+            from app.services.app_settings import get_setting
+            m = get_setting("yahoo_symbol_aliases") or {}
+            _alias_cache["map"] = {str(k).upper(): str(v).strip()
+                                   for k, v in m.items() if str(v).strip()}
+        except Exception:
+            pass
+        _alias_cache["at"] = now
+    return _alias_cache["map"]
+
+
+def _ysym(symbol: str, suffix: str = ".NS") -> str:
+    """Resolve the primary Yahoo ticker for an NSE symbol (honours aliases)."""
+    sym = symbol.upper()
+    alias = _aliases().get(sym)
+    if alias:
+        return alias if "." in alias else alias + suffix
+    return sym + suffix
+
+
+def _candidates(symbol: str) -> list:
+    """Yahoo tickers to try, in order: alias/.NS, then BSE .BO as a fallback so
+    NIFTY names Yahoo doesn't serve on .NS still resolve."""
+    sym = symbol.upper()
+    alias = _aliases().get(sym)
+    if alias and "." in alias:
+        return [alias]
+    base = alias or sym
+    return [base + ".NS", base + ".BO"]
+
+
 class YahooProvider(MarketDataProvider):
     name = "yahoo"
 
     def available(self):
         return True
 
-    async def _quote_v7(self, client, symbol):
+    async def _quote_v7(self, client, symbol, ysym=None):
         """Full quote incl. trailing P/E and market cap (needs crumb+cookie)."""
         if not await _ensure_auth(client):
             return None
-        ysym = f"{symbol.upper()}.NS"
+        ysym = ysym or _ysym(symbol)
         r = await client.get(
             "https://query1.finance.yahoo.com/v7/finance/quote",
             params={"symbols": ysym, "crumb": _crumb},
@@ -196,7 +236,7 @@ class YahooProvider(MarketDataProvider):
             async with httpx.AsyncClient(timeout=12, headers=_HEADERS) as client:
                 if not await _ensure_auth(client):
                     return None
-                return await self._asset_profile_sector(client, f"{symbol.upper()}.NS")
+                return await self._asset_profile_sector(client, _ysym(symbol))
         except Exception as e:
             log.warning("Yahoo get_sector failed for %s: %s", symbol, e)
             return None
@@ -214,7 +254,7 @@ class YahooProvider(MarketDataProvider):
 
                 async def _one(s):
                     async with sem:
-                        sec = await self._asset_profile_sector(client, f"{s.upper()}.NS")
+                        sec = await self._asset_profile_sector(client, _ysym(s))
                         if sec:
                             out[s.upper()] = sec
 
@@ -223,9 +263,9 @@ class YahooProvider(MarketDataProvider):
             log.warning("Yahoo get_sectors_batch failed: %s", e)
         return out
 
-    async def _quote_chart(self, client, symbol):
+    async def _quote_chart(self, client, symbol, ysym=None):
         """No-auth fallback: price + 52-week range (no P/E or market cap)."""
-        ysym = f"{symbol.upper()}.NS"
+        ysym = ysym or _ysym(symbol)
         r = await client.get(
             f"https://query1.finance.yahoo.com/v8/finance/chart/{ysym}",
             params={"range": "1d", "interval": "1d"})
@@ -252,13 +292,22 @@ class YahooProvider(MarketDataProvider):
     async def get_quote(self, symbol):
         try:
             async with httpx.AsyncClient(timeout=12, headers=_HEADERS) as client:
-                try:
-                    q = await self._quote_v7(client, symbol)
-                    if q and q.last_price is not None:
-                        return q
-                except Exception as e:
-                    log.warning("Yahoo v7 quote failed for %s (falling back): %s", symbol, e)
-                return await self._quote_chart(client, symbol)
+                # Try each candidate ticker (alias / .NS, then BSE .BO) so NIFTY
+                # names Yahoo doesn't serve on .NS still resolve.
+                for ysym in _candidates(symbol):
+                    try:
+                        q = await self._quote_v7(client, symbol, ysym)
+                        if q and q.last_price is not None:
+                            return q
+                    except Exception as e:
+                        log.warning("Yahoo v7 quote failed for %s (%s): %s", symbol, ysym, e)
+                    try:
+                        q = await self._quote_chart(client, symbol, ysym)
+                        if q and q.last_price is not None:
+                            return q
+                    except Exception as e:
+                        log.warning("Yahoo chart quote failed for %s (%s): %s", symbol, ysym, e)
+                return None
         except Exception as e:
             log.warning("Yahoo quote failed for %s: %s", symbol, e)
             return None
