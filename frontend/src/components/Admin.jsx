@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { confirmDialog, alertDialog, toast } from '../dialog.jsx'
 import Pager from './Pager.jsx'
-import { fmtIST } from '../fmt.js'
+import { fmtIST, fmtDate } from '../fmt.js'
 import { mdToHtml } from '../md.js'
 
 function rColor(v) { return v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)' }
@@ -898,7 +898,7 @@ function Review() {
                style={{ cursor: 'pointer', borderColor: fDate === s.score_date ? 'var(--accent)' : undefined }}
                title="Click to filter this run date"
                onClick={() => { setFDate(fDate === s.score_date ? '' : s.score_date); setPage(0) }}>
-            <strong>{s.score_date}</strong>
+            <strong>{fmtDate(s.score_date)}</strong>
             <span className="up">✓ {s.approved}</span>
             <span className="down">✗ {s.rejected}</span>
             {s.pending > 0 && <span className="hint">⏳ {s.pending}</span>}
@@ -943,7 +943,7 @@ function Review() {
             <tr className="row-click" onClick={() => setOpen(open === r.id ? null : r.id)}
                 title="Click to view the rationale and pillar breakdown">
               <td><strong>{r.symbol}</strong></td>
-              <td>{r.score_date}</td>
+              <td>{fmtDate(r.score_date)}</td>
               <td>{r.composite_score}</td>
               <td><span className={`tag ${r.quality_status === 'approved' ? 'positive' : r.quality_status === 'rejected' ? 'negative' : 'pending'}`}>{r.quality_status}</span></td>
               <td title={r.ai_review ? `${r.ai_review.reason || ''}${r.ai_review.checker_provider ? ' — ' + r.ai_review.checker_provider + (r.ai_review.independent ? ' (independent)' : ' (same model)') : ''}` : 'AI checker was off for this run'}>
@@ -967,7 +967,7 @@ function Review() {
                 <td colSpan={8}>
                   <div className="card-body">
                     <p className="explain" style={{ marginTop: 0 }}>
-                      <strong>{r.symbol}</strong> &middot; score <strong>{r.composite_score}/100</strong> &middot; {r.score_date}
+                      <strong>{r.symbol}</strong> &middot; score <strong>{r.composite_score}/100</strong> &middot; {fmtDate(r.score_date)}
                       {' '}&middot; status <strong>{r.quality_status}</strong></p>
                     {r.ai_review?.reason && (
                       <p className="note">AI checker <strong>{r.ai_review.verdict}</strong>: {r.ai_review.reason}

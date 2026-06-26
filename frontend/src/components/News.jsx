@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fmtIST } from '../fmt.js'
+import { fmtIST, fmtDate } from '../fmt.js'
 import { api } from '../api.js'
 import Pager from './Pager.jsx'
 
@@ -68,7 +68,7 @@ export default function News() {
         <article key={i} className="news-item">
           <h3><a href={n.link} target="_blank" rel="noreferrer">{n.title}</a></h3>
           <div className="meta">
-            {n.source} {n.published && `· ${n.published}`}
+            {n.source} {n.published && `· ${fmtDate(n.published)}`}
             {n.sentiment && <span className={`tag ${n.sentiment}`}>{n.sentiment}</span>}
           </div>
           {n.summary_short && <p>{n.summary_short}</p>}

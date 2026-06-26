@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { fmtDate } from '../fmt.js'
 import TrendChart from './TrendChart.jsx'
 import Sparkline from './Sparkline.jsx'
 
@@ -88,7 +89,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
         <div className="kpi" title="Number of scripts scored by the AI pipeline on the latest scoring date">
           <span className="kpi-label">Scripts scored</span>
           <span className="kpi-value">{flist.length || '—'}</span>
-          <span className="kpi-sub">{scores?.score_date || ''}</span></div>
+          <span className="kpi-sub">{scores?.score_date ? fmtDate(scores.score_date) : ''}</span></div>
         <div className="kpi" title="Mean AI composite score (0–100) across all scored scripts. The score is a proprietary weighted blend of 8 factors: fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk.">
           <span className="kpi-label">Average {scoreLabel}</span>
           <span className="kpi-value">{avg}</span>

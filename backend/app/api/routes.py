@@ -635,13 +635,27 @@ async def _watchlist_rows(symbols: list[str]) -> list[dict]:
     try:
         out = []
         for sym, q in zip(symbols, quotes):
-            row = (db.query(StockScore).filter_by(symbol=sym.upper())
-                   .order_by(StockScore.score_date.desc()).first())
+            su = sym.upper()
+            inst = db.query(Instrument).filter_by(symbol=su).first()
+            scores = (db.query(StockScore).filter_by(symbol=su)
+                      .order_by(StockScore.score_date.desc()).limit(2).all())
+            row = scores[0] if scores else None
+            prev = scores[1] if len(scores) > 1 else None
+            delta = (round(row.composite_score - prev.composite_score, 1)
+                     if row and prev and row.composite_score is not None
+                     and prev.composite_score is not None else None)
             out.append({
-                "symbol": sym.upper(),
+                "symbol": su,
+                "name": (inst.name if inst else "") or "",
+                "sector": (inst.sector if inst else "") or "",
                 "last_price": q.last_price if q else None,
                 "change_pct": q.change_pct if q else None,
                 "ai_score": row.composite_score if row else None,
+                "score_delta": delta,
+                "prev_score": prev.composite_score if prev else None,
+                "pe": (row.pe if row else None),
+                "market_cap": (row.market_cap if row else None),
+                "quality_status": row.quality_status if row else None,
                 "score_date": row.score_date if row else None,
             })
         return out
