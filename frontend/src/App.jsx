@@ -3,7 +3,7 @@ import Dashboard from './components/Dashboard.jsx'
 import Assistant from './components/Assistant.jsx'
 import AiIcon from './components/AiIcon.jsx'
 import Compare from './components/Compare.jsx'
-import { DialogHost, ToastHost } from './dialog.jsx'
+import { DialogHost, ToastHost, toast } from './dialog.jsx'
 import { registerPush } from './native.js'
 import { startTableLabels } from './tablelabels.js'
 import Scores from './components/Scores.jsx'
@@ -90,6 +90,28 @@ export default function App() {
     registerPush(t => api.registerDevice(t, 'native').catch(() => {}))  // native only; no-op on web
     const t = setInterval(loadIndices, 45000)   // live NSE/BSE ticker refresh
     return () => clearInterval(t)
+  }, [user])
+
+  // Auto sign-out after 1 hour of inactivity (the token itself lives in
+  // sessionStorage, so closing the tab/browser also ends the session).
+  useEffect(() => {
+    if (!user) return
+    const IDLE_MS = 60 * 60 * 1000
+    let last = Date.now()
+    const bump = () => { last = Date.now() }
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
+    events.forEach(e => window.addEventListener(e, bump, { passive: true }))
+    const expire = () => {
+      setToken(null); setUser(null); setTab('Dashboard')
+      try { toast('Signed out after 1 hour of inactivity. Please log in again.') } catch {}
+    }
+    const iv = setInterval(() => { if (Date.now() - last >= IDLE_MS) expire() }, 30000)
+    const onVis = () => { if (document.visibilityState === 'visible' && Date.now() - last >= IDLE_MS) expire() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      events.forEach(e => window.removeEventListener(e, bump))
+      clearInterval(iv); document.removeEventListener('visibilitychange', onVis)
+    }
   }, [user])
 
   if (!authChecked) return null

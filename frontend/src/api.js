@@ -2,13 +2,13 @@
 // (Capacitor) build sets VITE_API_BASE to the absolute API URL at build time.
 const BASE = (import.meta.env && import.meta.env.VITE_API_BASE) || '/api/v1'
 
-let _token = localStorage.getItem('token') || null
+let _token = sessionStorage.getItem('token') || null
 let _onUnauthorized = null
 
 export function setToken(t) {
   _token = t
-  if (t) localStorage.setItem('token', t)
-  else localStorage.removeItem('token')
+  if (t) sessionStorage.setItem('token', t)
+  else sessionStorage.removeItem('token')
 }
 export function getToken() { return _token }
 export function onUnauthorized(fn) { _onUnauthorized = fn }
