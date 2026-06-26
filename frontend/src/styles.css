@@ -890,3 +890,16 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .hist-btn { background: var(--panel2); border: 1px solid var(--accent); color: var(--accent);
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .hist-btn:hover:not(:disabled) { background: var(--panel2); filter: brightness(1.05); }
+
+/* Per-script score-history mini chart (Stock Scores expanded row) */
+.score-hist { display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  margin: 6px 0 12px; padding: 10px 12px; background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 10px; }
+.score-hist-head { display: flex; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.score-hist-head b { color: var(--text); }
+.mini-trend { width: 100%; max-width: 560px; height: auto; display: block; }
+.mt-axis { font-size: 9px; fill: var(--faint); }
+.mt-score { font-size: 11px; font-weight: 700; fill: var(--text); }
+.mt-date { font-size: 9px; fill: var(--faint); }
+@media (max-width: 860px) { .mini-trend { max-width: 100%; } }

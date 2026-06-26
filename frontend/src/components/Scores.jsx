@@ -3,6 +3,8 @@ import { fmtIST } from '../fmt.js'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 import Sparkline from './Sparkline.jsx'
+import MiniTrend from './MiniTrend.jsx'
+import { toast } from '../dialog.jsx'
 
 const PILLARS = ['fundamental', 'technical', 'valuation', 'momentum', 'earnings',
                  'news_sentiment', 'institutional', 'risk']
@@ -148,13 +150,24 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
           <option value="">All sectors</option>
           {sectors.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <label className="hint" title="View scores as of a previous scoring day">As&nbsp;of&nbsp;
-          <select value={selDate || (data?.score_date || '')}
-                  onChange={e => setSelDate(e.target.value)}>
-            {(data?.dates || (data?.score_date ? [data.score_date] : [])).map(d =>
-              <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
+        {data?.dates?.length > 0 && (() => {
+          const ds = data.dates
+          const cur = selDate || data.score_date || ds[0]
+          const pickDate = v => {
+            if (!v) return
+            if (ds.includes(v)) { setSelDate(v); return }
+            const le = ds.filter(d => d <= v)
+            const chosen = le.length ? le[0] : ds[ds.length - 1]
+            setSelDate(chosen)
+            toast(`No scores on ${v} — showing ${chosen}`)
+          }
+          return (
+            <label className="hint" title="Pick a scoring day. Dates outside the scored range are disabled; a day with no run snaps to the nearest available day.">As&nbsp;of&nbsp;
+              <input type="date" value={cur} min={ds[ds.length - 1]} max={ds[0]}
+                     onChange={e => pickDate(e.target.value)} />
+            </label>
+          )
+        })()}
         {selDate && data?.dates && selDate !== data.dates[0] &&
           <span className="tag pending" title="You are viewing a past scoring day, not the latest">past day</span>}
       </div>
@@ -210,9 +223,11 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
                         const lo = Math.min(...vals), hv = Math.max(...vals), now = vals[vals.length - 1]
                         return (
                           <div className="score-hist">
-                            <span className="hint">Score history · {hist[s.symbol].length}d</span>
-                            <Sparkline values={vals} width={210} height={44} color="var(--accent)" />
-                            <span className="hint">min <b>{lo}</b> · max <b>{hv}</b> · now <b>{now}</b></span>
+                            <div className="score-hist-head">
+                              <span>Score history · {hist[s.symbol].length} runs</span>
+                              <span>min <b>{lo}</b> · max <b>{hv}</b> · now <b>{now}</b></span>
+                            </div>
+                            <MiniTrend data={hist[s.symbol]} color="var(--accent)" />
                           </div>
                         )
                       })()}
