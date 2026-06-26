@@ -3,22 +3,73 @@
 const BASE = (import.meta.env && import.meta.env.VITE_API_BASE) || '/api/v1'
 
 let _token = sessionStorage.getItem('token') || null
+let _refresh = sessionStorage.getItem('refresh') || null
 let _onUnauthorized = null
+let _refreshing = null   // in-flight refresh promise, so concurrent 401s share one
 
 export function setToken(t) {
   _token = t
   if (t) sessionStorage.setItem('token', t)
   else sessionStorage.removeItem('token')
 }
+export function setRefresh(t) {
+  _refresh = t
+  if (t) sessionStorage.setItem('refresh', t)
+  else sessionStorage.removeItem('refresh')
+}
+// Store both tokens from a login/refresh response.
+export function setSession(d) {
+  if (!d) { setToken(null); setRefresh(null); return }
+  setToken(d.access_token || null)
+  if (d.refresh_token != null) setRefresh(d.refresh_token || null)
+}
+export function clearSession() { setToken(null); setRefresh(null) }
 export function getToken() { return _token }
+export function getRefresh() { return _refresh }
 export function onUnauthorized(fn) { _onUnauthorized = fn }
 
-async function http(path, opts = {}) {
+// Exchange the refresh token for a fresh access+refresh pair. Returns true on
+// success. A 401 here means the session is dead server-side (idle past the
+// window, over the absolute cap, or token revoked) -> caller must log out.
+export async function refreshSession() {
+  if (!_refresh) return false
+  if (_refreshing) return _refreshing
+  _refreshing = (async () => {
+    try {
+      const res = await fetch(BASE + '/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: _refresh }),
+      })
+      if (!res.ok) { clearSession(); return false }
+      const d = await res.json()
+      setSession(d)
+      return true
+    } catch {
+      return false   // network blip: keep tokens, let caller retry later
+    } finally {
+      _refreshing = null
+    }
+  })()
+  return _refreshing
+}
+
+async function _do(path, opts) {
   const headers = { 'Content-Type': 'application/json' }
   if (_token) headers['Authorization'] = `Bearer ${_token}`
-  const res = await fetch(BASE + path, { headers, ...opts })
-  if (res.status === 401 && !path.startsWith('/auth/login')) {
-    setToken(null)
+  return fetch(BASE + path, { headers, ...opts })
+}
+
+async function http(path, opts = {}) {
+  const isAuthCall = path.startsWith('/auth/login') || path.startsWith('/auth/refresh')
+  let res = await _do(path, opts)
+  // Access token likely expired -> try one silent refresh, then retry once.
+  if (res.status === 401 && !isAuthCall && _refresh) {
+    const ok = await refreshSession()
+    if (ok) res = await _do(path, opts)
+  }
+  if (res.status === 401 && !isAuthCall) {
+    clearSession()
     if (_onUnauthorized) _onUnauthorized()
     throw new Error('Session expired — please log in again')
   }

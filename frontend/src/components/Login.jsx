@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, setToken } from '../api.js'
+import { api, setSession } from '../api.js'
 
 export default function Login({ onLogin, brand }) {
   const [email, setEmail] = useState('')
@@ -12,7 +12,7 @@ export default function Login({ onLogin, brand }) {
     setBusy(true); setErr('')
     try {
       const r = await api.login(email, password)
-      setToken(r.access_token)
+      setSession(r)
       onLogin(r.user)
     } catch (ex) { setErr(ex.message) }
     setBusy(false)

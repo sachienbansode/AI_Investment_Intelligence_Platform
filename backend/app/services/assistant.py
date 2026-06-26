@@ -63,9 +63,14 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
 - Use the conversation history to resolve follow-ups naturally.
 - Reply in the user's requested language.
 - SOURCE TAG: finish every answer with ONE short final line stating the basis, using the exact wording given in the CONTEXT TERMINOLOGY (platform brand for core data, "general knowledge" for your own knowledge, or both).
-- FORMAT: short and conclusive. Lead with the direct answer in one sentence.
-  Then at most 3-5 markdown bullets ('- '). Bold key numbers/symbols with **.
-  No long paragraphs. No headings unless asked for a detailed report."""
+- FORMAT: open with the BOTTOM LINE as a markdown blockquote whose first line
+  starts with '> ' (e.g. '> **Bottom line:** MAHABANK scores well on value and
+  price trend but lacks earnings momentum to reach the strong 65+ band.') — one
+  or two sentences capturing the single most important conclusion, with the key
+  data in **bold**. Leave a blank line, then explain it briefly: at most 3-5
+  markdown bullets ('- ') or 2-3 short sentences, important numbers/symbols in
+  **bold**. Keep it tight — no long paragraphs, and no headings unless the user
+  explicitly asks for a detailed report."""
 
 
 def system_prompt() -> str:

@@ -7,13 +7,25 @@ export function mdToHtml(text) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
   const lines = esc.split(/\r?\n/)
-  let html = '', inUl = false, inOl = false
+  let html = '', inUl = false, inOl = false, quote = []
   const closeLists = () => {
     if (inUl) { html += '</ul>'; inUl = false }
     if (inOl) { html += '</ol>'; inOl = false }
   }
+  const flushQuote = () => {
+    if (quote.length) {
+      html += `<blockquote class="callout">${quote.map(q => inline(q)).join('<br/>')}</blockquote>`
+      quote = []
+    }
+  }
   for (const raw of lines) {
     const line = raw.trim()
+    if (/^&gt;\s?/.test(line)) {   // '>' is already HTML-escaped to &gt; above
+      closeLists()
+      quote.push(line.replace(/^&gt;\s?/, ''))
+      continue
+    }
+    flushQuote()
     if (/^[-*•]\s+/.test(line)) {
       if (!inUl) { closeLists(); html += '<ul>'; inUl = true }
       html += `<li>${inline(line.replace(/^[-*•]\s+/, ''))}</li>`
@@ -31,6 +43,7 @@ export function mdToHtml(text) {
       html += `<p>${inline(line)}</p>`
     }
   }
+  flushQuote()
   closeLists()
   return html
 }

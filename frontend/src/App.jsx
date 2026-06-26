@@ -15,7 +15,7 @@ import Admin from './components/Admin.jsx'
 import RunAudit from './components/RunAudit.jsx'
 import About from './components/About.jsx'
 import Login from './components/Login.jsx'
-import { api, getToken, setToken, onUnauthorized } from './api.js'
+import { api, getToken, getRefresh, clearSession, refreshSession, onUnauthorized } from './api.js'
 
 const UP = String.fromCharCode(0x25B2)
 const DN = String.fromCharCode(0x25BC)
@@ -70,10 +70,15 @@ export default function App() {
 
   useEffect(() => {
     onUnauthorized(() => setUser(null))
-    if (getToken()) {
-      api.me().then(u => { setUser(u); setAuthChecked(true) })
-        .catch(() => { setToken(null); setAuthChecked(true) })
-    } else setAuthChecked(true)
+    const boot = async () => {
+      // Have a session? Validate the access token; if it's expired, the api
+      // layer will silently refresh on the 401 and retry.
+      if (getToken() || getRefresh()) {
+        try { setUser(await api.me()) } catch { clearSession() }
+      }
+      setAuthChecked(true)
+    }
+    boot()
   }, [])
 
   const pages = user?.pages || []
@@ -92,21 +97,39 @@ export default function App() {
     return () => clearInterval(t)
   }, [user])
 
-  // Auto sign-out after 1 hour of inactivity (the token itself lives in
-  // sessionStorage, so closing the tab/browser also ends the session).
+  // Session policy. The server now enforces this too: the short access token is
+  // silently refreshed while the user is ACTIVE; once idle past the window we
+  // stop refreshing, so the refresh token expires server-side and the session
+  // is dead regardless of the browser. Tokens live in sessionStorage, so
+  // closing the tab/browser also ends the session.
   useEffect(() => {
     if (!user) return
-    const IDLE_MS = 60 * 60 * 1000
+    const IDLE_MS = 60 * 60 * 1000          // 1h idle window (matches server)
+    const REFRESH_MS = 10 * 60 * 1000       // refresh access well before its 15m TTL
     let last = Date.now()
+    let lastRefresh = Date.now()
     const bump = () => { last = Date.now() }
     const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
     events.forEach(e => window.addEventListener(e, bump, { passive: true }))
     const expire = () => {
-      setToken(null); setUser(null); setTab('Dashboard')
+      clearSession(); setUser(null); setTab('Dashboard')
       try { toast('Signed out after 1 hour of inactivity. Please log in again.') } catch {}
     }
-    const iv = setInterval(() => { if (Date.now() - last >= IDLE_MS) expire() }, 30000)
-    const onVis = () => { if (document.visibilityState === 'visible' && Date.now() - last >= IDLE_MS) expire() }
+    const tick = async () => {
+      const idle = Date.now() - last
+      if (idle >= IDLE_MS) { expire(); return }
+      // Refresh only while active — keeps an idle session from being kept alive.
+      if (Date.now() - lastRefresh >= REFRESH_MS) {
+        lastRefresh = Date.now()
+        const ok = await refreshSession()
+        if (!ok) expire()   // refresh token dead server-side -> hard logout
+      }
+    }
+    const iv = setInterval(tick, 30000)
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - last >= IDLE_MS) expire()
+    }
     document.addEventListener('visibilitychange', onVis)
     return () => {
       events.forEach(e => window.removeEventListener(e, bump))
@@ -120,7 +143,7 @@ export default function App() {
   const nav = pages.map(name => ({ name, icon: ICONS[name] || String.fromCharCode(0x2022) }))
   const can = name => pages.includes(name)
 
-  function logout() { setToken(null); setUser(null); setTab('Dashboard') }
+  function logout() { clearSession(); setUser(null); setTab('Dashboard') }
 
   return (
     <div className={`shell${collapsed ? ' collapsed' : ''}${navOpen ? ' nav-open' : ''}${tab === 'AI Assistant' ? ' chat-active' : ''}`}>

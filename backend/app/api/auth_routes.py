@@ -4,7 +4,8 @@ and admins create further users via /api/v1/admin/users."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 
-from app.core.auth import create_token, get_current_user, verify_password
+from app.core.auth import (get_current_user, issue_tokens, rotate_refresh,
+                           verify_password)
 from app.core.compliance import audit_log
 from app.db.database import SessionLocal, User
 
@@ -16,8 +17,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str = ""
+    expires_in: int = 0
     token_type: str = "bearer"
     user: dict
 
@@ -42,7 +49,22 @@ def login(req: LoginRequest):
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
     audit_log("login_success", user=user.email)
-    return TokenResponse(access_token=create_token(user), user=_user_dict(user))
+    return TokenResponse(**issue_tokens(user), user=_user_dict(user))
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(req: RefreshRequest):
+    """Exchange a valid (non-idle, within-cap) refresh token for a fresh
+    access+refresh pair. 401 here means the session is dead server-side."""
+    from app.core.auth import _decode
+    tokens = rotate_refresh(req.refresh_token)
+    sub = int(_decode(tokens["access_token"])["sub"])
+    db = SessionLocal()
+    try:
+        user = db.get(User, sub)
+    finally:
+        db.close()
+    return TokenResponse(**tokens, user=_user_dict(user))
 
 
 @router.get("/me")

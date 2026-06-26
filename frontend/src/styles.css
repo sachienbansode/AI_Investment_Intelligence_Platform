@@ -435,6 +435,11 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
 .md code { background: rgba(124,92,252,.15); border-radius: 4px; padding: 1px 5px;
   font-size: .85em; }
 .md strong { color: var(--text); }
+.md .callout { margin: 0 0 10px; padding: 10px 14px;
+  background: rgba(79,142,247,.10); border: 1px solid rgba(79,142,247,.28);
+  border-left: 4px solid var(--accent); border-radius: 8px;
+  color: var(--text); font-size: .9rem; line-height: 1.5; }
+.md .callout strong { color: var(--accent); }
 .md-gap { height: 6px; }
 .explain.md { color: var(--muted); }
 .disclaimer.center { text-align: center; margin-top: 8px; }
