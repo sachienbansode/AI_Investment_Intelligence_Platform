@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { confirmDialog, alertDialog, toast } from '../dialog.jsx'
 import Pager from './Pager.jsx'
 import { fmtIST } from '../fmt.js'
+import { mdToHtml } from '../md.js'
+
+function rColor(v) { return v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)' }
 
 export default function Admin() {
   const [view, setView] = useState('stats')
@@ -723,6 +726,7 @@ function Review() {
   const [page, setPage] = useState(0)
   const LIMIT = 20
 
+  const [open, setOpen] = useState(null)
   const load = () => api.scoresHistory({
     score_date: fDate, status: fStatus, symbol: fSymbol,
     limit: LIMIT, offset: page * LIMIT,
@@ -803,7 +807,9 @@ function Review() {
         </tr></thead>
         <tbody>
           {data.rows.map(r => (
-            <tr key={r.id}>
+            <Fragment key={r.id}>
+            <tr className="row-click" onClick={() => setOpen(open === r.id ? null : r.id)}
+                title="Click to view the rationale and pillar breakdown">
               <td><strong>{r.symbol}</strong></td>
               <td>{r.score_date}</td>
               <td>{r.composite_score}</td>
@@ -820,10 +826,36 @@ function Review() {
               <td className="hint">{r.reviewed_by}</td>
               <td className="hint">{r.reviewed_at ? fmtIST(r.reviewed_at) : '—'}</td>
               <td>
-                <button className="ghost sm" onClick={() => decide(r.id, 'approved')}>✓</button>{' '}
-                <button className="ghost sm" onClick={() => decide(r.id, 'rejected')}>✗</button>
+                <button className="ghost sm" onClick={e => { e.stopPropagation(); decide(r.id, 'approved') }}>✓</button>{' '}
+                <button className="ghost sm" onClick={e => { e.stopPropagation(); decide(r.id, 'rejected') }}>✗</button>
               </td>
             </tr>
+            {open === r.id && (
+              <tr>
+                <td colSpan={8}>
+                  <div className="card-body">
+                    <p className="explain" style={{ marginTop: 0 }}>
+                      <strong>{r.symbol}</strong> &middot; score <strong>{r.composite_score}/100</strong> &middot; {r.score_date}
+                      {' '}&middot; status <strong>{r.quality_status}</strong></p>
+                    {r.ai_review?.reason && (
+                      <p className="note">AI checker <strong>{r.ai_review.verdict}</strong>: {r.ai_review.reason}
+                        {r.ai_review.checker_provider ? ` — ${r.ai_review.checker_provider}${r.ai_review.independent ? ' (independent)' : ' (same model)'}` : ''}</p>
+                    )}
+                    {r.pillar_scores && Object.entries(r.pillar_scores).map(([k, v]) => (
+                      <div key={k} className="pillar"><span>{k.replace('_', ' ')}</span>
+                        <div className="bar"><div style={{ width: `${v}%`, background: rColor(v) }} /></div>
+                        <span>{Math.round(v)}</span></div>
+                    ))}
+                    <div className="explain md" dangerouslySetInnerHTML={{ __html: mdToHtml(r.explanation || '_No rationale stored._') }} />
+                    <div className="toolbar">
+                      <button onClick={e => { e.stopPropagation(); decide(r.id, 'approved') }}>Approve</button>
+                      <button className="danger" onClick={e => { e.stopPropagation(); decide(r.id, 'rejected') }}>Reject</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
+            </Fragment>
           ))}
         </tbody>
       </table>
