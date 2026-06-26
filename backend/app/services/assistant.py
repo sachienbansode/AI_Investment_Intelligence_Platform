@@ -567,7 +567,7 @@ async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
     summary = ""
     try:
         resp = await get_llm_router().complete(system, prompt, task="compare",
-                                               max_tokens=600, temperature=0.3)
+                                               max_tokens=400, temperature=0.3)
         summary = resp.text.strip()
     except Exception as e:
         log.warning("Compare summary failed: %s", e)

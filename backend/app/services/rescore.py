@@ -75,7 +75,7 @@ async def rescore_symbol(symbol: str) -> dict | None:
             "Write 3-5 concise markdown bullet points ('- '): what drives the "
             "current score, and if it changed, why it moved (bold the change). "
             "Under 15 words per bullet. No advice, no targets. Output only bullets.",
-            task="rescore", max_tokens=250,
+            task="rescore", max_tokens=200,
         )
         explanation = resp.text.strip()
     except Exception as e:

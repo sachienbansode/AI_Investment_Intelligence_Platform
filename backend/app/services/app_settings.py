@@ -25,7 +25,7 @@ DEFAULTS: dict = {
     "news_refresh_minutes": 30,       # scheduler interval (restart to apply)
     "max_news_items": 15,             # items per news refresh
     "assistant_history_messages": 6,  # prior messages given to the LLM
-    "assistant_max_tokens": 900,
+    "assistant_max_tokens": 500,
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
@@ -58,7 +58,7 @@ DEFAULTS: dict = {
         "anthropic": {"input_usd_per_mtok": 3.0, "output_usd_per_mtok": 15.0},
         "openai": {"input_usd_per_mtok": 2.5, "output_usd_per_mtok": 10.0},
         "gemini": {"input_usd_per_mtok": 1.25, "output_usd_per_mtok": 5.0},
-        "usd_inr": 84.0,
+        "usd_inr": 94.5,
     },
     # Editable persona/behaviour prompt (compliance guardrails are appended
     # automatically in code and cannot be removed via settings)

@@ -77,9 +77,54 @@ async def market_data_agent(ctx: AgentContext):
 # ── 2. Financial Data Agent ──────────────────────────────────────
 async def financial_data_agent(ctx: AgentContext):
     """Enriches with fundamentals available from the quote source (P/E, sector).
+    Backfills missing instrument sectors from the market-data source (NSE
+    industry / Yahoo assetProfile) so the universe gets sectors over time.
     Extend here with corporate-filings / vendor fundamental feeds."""
+    await _backfill_sectors(ctx.symbols)
     audit_log("agent_financial_data",
               with_pe=[s for s, q in ctx.quotes.items() if q.pe])
+
+
+# Cap how many sectors we resolve per run so a fresh, sector-less universe
+# (e.g. after an NSE-all import) fills in gradually without hammering the feed.
+_SECTOR_BACKFILL_PER_RUN = 250
+
+
+async def _backfill_sectors(symbols: list[str]) -> None:
+    """For symbols whose instrument row has no sector yet, fetch it from the
+    market-data source and persist it to the instruments master."""
+    want = [s.upper() for s in symbols]
+    db = SessionLocal()
+    try:
+        rows = (db.query(Instrument)
+                .filter(Instrument.symbol.in_(want), Instrument.is_active == True)  # noqa: E712
+                .all())
+        missing = [r.symbol for r in rows if not (r.sector or "").strip()]
+    finally:
+        db.close()
+    if not missing:
+        return
+    missing = missing[:_SECTOR_BACKFILL_PER_RUN]
+    try:
+        sectors = await get_market_data().get_sectors(missing)
+    except Exception as e:
+        log.warning("Sector backfill fetch failed: %s", e)
+        return
+    if not sectors:
+        return
+    db = SessionLocal()
+    updated = 0
+    try:
+        for sym, sec in sectors.items():
+            inst = db.query(Instrument).filter_by(symbol=sym).first()
+            if inst and sec and not (inst.sector or "").strip():
+                inst.sector = sec
+                updated += 1
+        db.commit()
+    finally:
+        db.close()
+    if updated:
+        audit_log("agent_sector_backfill", resolved=updated, attempted=len(missing))
 
 
 # ── 3. News Agent ────────────────────────────────────────────────
@@ -105,7 +150,7 @@ async def sentiment_agent(ctx: AgentContext):
     try:
         resp = await llm.complete(
             "You are a precise financial news sentiment classifier for Indian equities.",
-            prompt, task="sentiment", max_tokens=800, temperature=0,
+            prompt, task="sentiment", max_tokens=600, temperature=0,
         )
         ctx.sentiments = _extract_json(resp.text) or {}
     except Exception as e:
@@ -189,7 +234,7 @@ async def explainability_agent(ctx: AgentContext):
                 resp = await llm.complete(
                     "You write factual, explainable-AI score rationales for a SEBI-regulated "
                     "broker. Never give investment advice or recommendations.",
-                    prompt, task="explainability", max_tokens=300,
+                    prompt, task="explainability", max_tokens=220,
                 )
                 ctx.explanations[sym] = resp.text.strip()
                 ctx.explanations_provider[sym] = resp.provider
@@ -241,7 +286,7 @@ async def ai_checker_agent(ctx: AgentContext):
             try:
                 resp = await llm.complete(
                     "You are a strict, independent reviewer. Output JSON only.",
-                    prompt, task="ai_checker", max_tokens=120, temperature=0,
+                    prompt, task="ai_checker", max_tokens=100, temperature=0,
                     exclude=ctx.explanations_provider.get(sym),
                 )
                 parsed = _extract_json(resp.text) or {}

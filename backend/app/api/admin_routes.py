@@ -503,7 +503,7 @@ def llm_usage():
     """Token utilization and INR cost from the audit trail: per provider,
     per pipeline stage, today / MTD actuals and month-end estimate."""
     pricing = get_setting("llm_pricing")
-    usd_inr = float(pricing.get("usd_inr", 84.0))
+    usd_inr = float(pricing.get("usd_inr", 94.5))
     now = datetime.now(IST)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     days_in_month = calendar.monthrange(now.year, now.month)[1]

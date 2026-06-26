@@ -88,6 +88,40 @@ class MarketDataAggregator:
             await asyncio.gather(*(_one(s) for s in remaining))
         return out
 
+    async def get_sector(self, symbol: str) -> str | None:
+        """Resolve a script's sector from any provider that can supply it
+        (NSE quote carries industry; Yahoo via assetProfile)."""
+        symbol = symbol.upper()
+        for p in self._providers:
+            try:
+                if hasattr(p, "get_sector"):
+                    sec = await p.get_sector(symbol)
+                    if sec:
+                        return sec
+                else:
+                    q = await p.get_quote(symbol)
+                    if q and getattr(q, "sector", None):
+                        return q.sector
+            except Exception as e:
+                log.warning("get_sector via %s failed for %s: %s", p.name, symbol, e)
+        return None
+
+    async def get_sectors(self, symbols, into=None):
+        """Resolve sectors for many symbols, using a provider batch path when
+        available (Yahoo). `into` is filled live (symbol -> sector)."""
+        out = into if into is not None else {}
+        symbols = [s.upper() for s in symbols]
+        for p in self._providers:
+            remaining = [s for s in symbols if s not in out]
+            if not remaining:
+                break
+            if hasattr(p, "get_sectors_batch"):
+                try:
+                    await p.get_sectors_batch(remaining, into=out)
+                except Exception as e:
+                    log.warning("Batch sectors via %s failed: %s", p.name, e)
+        return out
+
     # Global indices shown when admin enables global markets (labelled "(GL)")
     _GLOBAL = [("^GSPC", "S&P 500 (GL)"), ("^IXIC", "NASDAQ (GL)"),
                ("^DJI", "DOW JONES (GL)"), ("^FTSE", "FTSE 100 (GL)"),

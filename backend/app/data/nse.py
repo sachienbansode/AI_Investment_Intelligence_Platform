@@ -81,6 +81,10 @@ class NSEProvider(MarketDataProvider):
             log.warning("NSE quote failed for %s: %s", symbol, e)
             return None
 
+    async def get_sector(self, symbol: str) -> str | None:
+        q = await self.get_quote(symbol)
+        return q.sector if q and q.sector else None
+
     async def get_indices(self) -> list[dict]:
         try:
             client = await self._client_with_cookies()

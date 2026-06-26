@@ -87,7 +87,7 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         resp = await llm.complete(
             "You write factual portfolio analytics commentary for a SEBI-regulated "
             "broker. Never give investment advice.", prompt,
-            task="portfolio_insights", max_tokens=350,
+            task="portfolio_insights", max_tokens=280,
         )
         insights = resp.text.strip()
     except Exception:

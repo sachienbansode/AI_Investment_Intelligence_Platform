@@ -36,7 +36,7 @@ async def refresh_news(max_items: int = 15) -> int:
     try:
         resp = await llm.complete(
             "You are a financial news analyst for Indian markets producing structured "
-            "summaries.", prompt, task="news_summarization", max_tokens=3000, temperature=0.2,
+            "summaries.", prompt, task="news_summarization", max_tokens=1800, temperature=0.2,
         )
         import re
         m = re.search(r"\[.*\]", resp.text, re.DOTALL)

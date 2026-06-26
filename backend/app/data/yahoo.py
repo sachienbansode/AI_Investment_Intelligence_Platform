@@ -163,6 +163,61 @@ class YahooProvider(MarketDataProvider):
             log.warning("Yahoo fundamentals fallback failed for %s: %s", ysym, e)
         return out
 
+    async def _asset_profile_sector(self, client, ysym):
+        """Sector (and industry) from Yahoo quoteSummary assetProfile module.
+        Returns a sector string or None. Never raises."""
+        try:
+            r = await client.get(
+                f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ysym}",
+                params={"modules": "assetProfile", "crumb": _crumb},
+                headers={**_HEADERS, "Cookie": _cookie_hdr})
+            if r.status_code in (401, 403):
+                _reset_auth()
+                return None
+            r.raise_for_status()
+            res = (r.json().get("quoteSummary", {}).get("result") or [])
+            if not res:
+                return None
+            ap = res[0].get("assetProfile") or {}
+            sector = (ap.get("sector") or ap.get("industry") or "").strip()
+            return sector or None
+        except Exception as e:
+            log.warning("Yahoo assetProfile failed for %s: %s", ysym, e)
+            return None
+
+    async def get_sector(self, symbol):
+        """Best-effort sector for one NSE symbol via Yahoo assetProfile."""
+        try:
+            async with httpx.AsyncClient(timeout=12, headers=_HEADERS) as client:
+                if not await _ensure_auth(client):
+                    return None
+                return await self._asset_profile_sector(client, f"{symbol.upper()}.NS")
+        except Exception as e:
+            log.warning("Yahoo get_sector failed for %s: %s", symbol, e)
+            return None
+
+    async def get_sectors_batch(self, symbols, into=None, limit=8):
+        """Resolve sectors for many symbols. assetProfile is per-symbol, so this
+        gathers concurrently (capped) rather than truly batching. Writes into
+        `into` (symbol -> sector) as each lands."""
+        out = into if into is not None else {}
+        try:
+            async with httpx.AsyncClient(timeout=15, headers=_HEADERS) as client:
+                if not await _ensure_auth(client):
+                    return out
+                sem = asyncio.Semaphore(limit)
+
+                async def _one(s):
+                    async with sem:
+                        sec = await self._asset_profile_sector(client, f"{s.upper()}.NS")
+                        if sec:
+                            out[s.upper()] = sec
+
+                await asyncio.gather(*(_one(s) for s in symbols))
+        except Exception as e:
+            log.warning("Yahoo get_sectors_batch failed: %s", e)
+        return out
+
     async def _quote_chart(self, client, symbol):
         """No-auth fallback: price + 52-week range (no P/E or market cap)."""
         ysym = f"{symbol.upper()}.NS"
