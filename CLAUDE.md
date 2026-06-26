@@ -3,13 +3,14 @@
 > **Read this first.** This is the authoritative project-context document for Claude
 > (Cowork / Claude Code) resuming or taking over this project in a new session or account.
 > It supersedes the older `HANDOFF.md` (pre-v0.3) where they disagree. Also skim
-> `ashika.md` (conventions & compliance), `README.md` (run guide) and `DEPLOY_AWS.md`.
+> `SESSION_HANDOFF.md` (latest deltas + open items), `niytri.md` (conventions &
+> compliance), `README.md` (run guide) and `DEPLOY_AWS.md`.
 
 ## 1. What this is
 
 A SEBI-compliant **AI investment intelligence platform** for an Indian broking firm
-(Ashika Group), built to the BRD in `AI_Investment_Intelligence_Platform_BRD.docx`.
-Owner: **Sachin (sachin.bansode@ashikagroup.com)**. Vendor branding: **NIYTRI Technologies**.
+(NIYTRI), built to the BRD in `AI_Investment_Intelligence_Platform_BRD.docx`.
+Owner: **Ashish (Ashish@niytri.com)**. Vendor branding: **NIYTRI Technologies**.
 Status: feature-complete pilot. App runs on AWS EC2 (systemd + nginx + HTTPS), PostgreSQL
 on AWS RDS. Domain: **dev-invest.niytri.com** (IP 15.207.97.16).
 
@@ -18,7 +19,7 @@ wrapped in compliance guardrails: no buy/sell/hold calls, no price targets, no
 personalised advice; scoring methodology is confidential; outputs are non-authoritative
 and subject to maker-checker review.
 
-## 2. Stack & architecture (decided — do not change without asking Sachin)
+## 2. Stack & architecture (decided — do not change without asking Ashish)
 
 - **Backend**: Python **FastAPI** (`backend/app`), SQLAlchemy ORM, APScheduler (IST jobs
   with catch-up). Entry: `app/main.py`. API prefix `/api/v1`. ~60 endpoints across
@@ -138,7 +139,7 @@ or use pgAdmin for raw SQL.
 
 Bare uvicorn on 127.0.0.1:8000 behind nginx (static `dist/` + `/api` proxy), HTTPS via
 certbot. Repo cloned under `/home/ubuntu/AI_Investment_Intelligence_Platform/...`.
-**Always give full `cd` paths for BOTH laptop and AWS** (Sachin's standing rule).
+**Always give full `cd` paths for BOTH laptop and AWS** (Ashish's standing rule).
 PowerShell on the laptop does NOT support `&&` — use separate lines.
 
 ```
@@ -189,6 +190,15 @@ First-time clone needs `sudo chown -R ubuntu:ubuntu` (was cloned as root). Log t
 - **v0.4** — assistant score-distribution + dynamic confidence + 3-day news, LLM
   enable/disable, saved portfolio analysis, global-markets toggle.
 - **v0.5** — sector heatmap, compare-two-stocks, portfolio PDF export (reportlab).
+
+- **v0.6** — assistant replies now LEAD with a highlighted "Bottom line"
+  callout (md.js blockquote + `.md .callout`), key data bolded. **Hard
+  server-side session enforcement**: 15-min access token (only credential
+  the API accepts) + 60-min sliding refresh token (`POST /auth/refresh`,
+  rotated, carries original-login `lia`) + 12-hour absolute cap; constants in
+  `core/auth.py` (`ACCESS_TTL_MINUTES`/`IDLE_TTL_MINUTES`/`MAX_SESSION_HOURS`).
+  Frontend silently refreshes only while active and stores both tokens in
+  sessionStorage. Deploy logs everyone out once. See `SESSION_HANDOFF.md`.
 
 ## 10. Suggested next steps (not yet built)
 

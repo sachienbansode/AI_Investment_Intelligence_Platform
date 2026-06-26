@@ -116,7 +116,7 @@ See `backend/.env.example`. Getting broker/data API accounts:
 
 ## Contributing / AI assistants
 
-Project conventions and compliance rules live in **ashika.md** — read it before
+Project conventions and compliance rules live in **niytri.md** — read it before
 making changes.
 
 ## Tests

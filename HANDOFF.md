@@ -1,13 +1,13 @@
 # PROJECT HANDOFF — AI Investment Intelligence Platform
 
 > For Claude (or any developer) resuming this project in a new session/account.
-> Read this + `ashika.md` (conventions & compliance rules) + `README.md` (run guide) first.
+> Read this + `niytri.md` (conventions & compliance rules) + `README.md` (run guide) first.
 
 ## What this is
 
-A SEBI-compliant AI investment intelligence platform for Ashika Group (Indian broking),
-built per the BRD in `AI_Investment_Intelligence_Platform_BRD.docx`. Owner: Sachin
-(sachin.bansode@ashikagroup.com). Status: feature-complete pilot, running locally,
+A SEBI-compliant AI investment intelligence platform for NIYTRI (Indian broking),
+built per the BRD in `AI_Investment_Intelligence_Platform_BRD.docx`. Owner: Ashish
+(Ashish@niytri.com). Status: feature-complete pilot, running locally,
 DB on AWS PostgreSQL.
 
 ## Stack & architecture (decided — do not change)
@@ -71,7 +71,7 @@ DB on AWS PostgreSQL.
     IST timestamps, NSE/BSE ticker on separate badged rows (NIFTY 50 & SENSEX
     emphasized), About page (feature cards — keep updated when adding features).
 
-## Compliance (non-negotiable — see ashika.md)
+## Compliance (non-negotiable — see niytri.md)
 
 AI disclaimer on every AI payload; no buy/sell/hold advice anywhere (system prompts
 enforce); audit_log() on all LLM calls/decisions; quality gate before publishing;

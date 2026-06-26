@@ -1,6 +1,6 @@
-# ashika.md — Project Instructions
+# niytri.md — Project Instructions
 
-Working guide for the AI Investment Intelligence Platform (Ashika Group). Read this
+Working guide for the AI Investment Intelligence Platform (NIYTRI). Read this
 before making changes; AI assistants and developers should follow these conventions.
 
 ## What this project is
