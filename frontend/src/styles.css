@@ -898,7 +898,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .score-hist-head { display: flex; justify-content: space-between; gap: 12px;
   flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
 .score-hist-head b { color: var(--text); }
-.mini-trend { width: 100%; max-width: 560px; height: auto; display: block; }
+.mini-trend { width: 100%; max-width: 760px; height: auto; display: block; }
 .mt-axis { font-size: 9px; fill: var(--faint); }
 .mt-score { font-size: 11px; font-weight: 700; fill: var(--text); }
 .mt-date { font-size: 9px; fill: var(--faint); }

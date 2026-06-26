@@ -54,6 +54,9 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
     : (Array.isArray(consts[idx]) ? consts[idx].includes(s.symbol) : true)
   const flist = list.filter(inIndex)
   const fsyms = new Set(flist.map(s => s.symbol))
+  const idxList = Array.isArray(consts[idx]) ? consts[idx] : null
+  const scoredSet = new Set(list.map(s => s.symbol))
+  const missingInScope = idxList ? idxList.filter(s => !scoredSet.has(s)) : []
   const avg = flist.length ? (flist.reduce((a, s) => a + s.composite_score, 0) / flist.length).toFixed(1) : '—'
   const top = [...flist].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
   const approved = flist.filter(s => s.quality_status === 'approved').length
@@ -74,7 +77,12 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
                 title="Filter the dashboard by index or sector">
           {idxOptions.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        <span className="hint">{flist.length} scripts</span>
+        <span className="hint">{idxList ? `${flist.length} of ${idxList.length} scored` : `${flist.length} scripts`}</span>
+        {missingInScope.length > 0 && (
+          <span className="note" style={{ marginLeft: 6 }}
+                title={'Not scored on the last run (no quote fetched): ' + missingInScope.join(', ')}>
+            {missingInScope.length} not scored ⓘ</span>
+        )}
       </div>
       <div className="kpi-row">
         <div className="kpi" title="Number of scripts scored by the AI pipeline on the latest scoring date">

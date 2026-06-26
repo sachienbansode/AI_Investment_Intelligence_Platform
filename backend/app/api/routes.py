@@ -324,7 +324,8 @@ async def score_history(symbol: str, days: int = 30):
     try:
         rows = (db.query(StockScore.score_date, StockScore.composite_score)
                 .filter(StockScore.symbol == symbol.upper(),
-                        StockScore.score_date >= cutoff)
+                        StockScore.score_date >= cutoff,
+                        StockScore.quality_status != "rejected")
                 .order_by(StockScore.score_date).all())
         return {"symbol": symbol.upper(),
                 "history": [{"date": d, "score": sc} for d, sc in rows]}
@@ -352,7 +353,8 @@ async def score_trends(days: int = 30, symbols: str = ""):
                                func.min(StockScore.composite_score),
                                func.max(StockScore.composite_score),
                                strong, neutral, weak)
-                      .filter(StockScore.score_date >= cutoff))
+                      .filter(StockScore.score_date >= cutoff,
+                              StockScore.quality_status != "rejected"))
         if syms:
             daily_rows = daily_rows.filter(StockScore.symbol.in_(syms))
         daily_rows = (daily_rows.group_by(StockScore.score_date)
@@ -365,8 +367,8 @@ async def score_trends(days: int = 30, symbols: str = ""):
         gainers, losers = [], []
         if len(daily) >= 2:
             first_d, last_d = daily[0]["date"], daily[-1]["date"]
-            oq = db.query(StockScore).filter_by(score_date=first_d)
-            cq = db.query(StockScore).filter_by(score_date=last_d)
+            oq = db.query(StockScore).filter_by(score_date=first_d).filter(StockScore.quality_status != "rejected")
+            cq = db.query(StockScore).filter_by(score_date=last_d).filter(StockScore.quality_status != "rejected")
             if syms:
                 oq = oq.filter(StockScore.symbol.in_(syms))
                 cq = cq.filter(StockScore.symbol.in_(syms))

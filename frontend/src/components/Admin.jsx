@@ -480,6 +480,33 @@ function Settings() {
       </div>
 
       <div className="panel">
+        <h4 title="Controls how long the AI Assistant's answers can be and how much past conversation it remembers. Both affect usage (and cost).">
+          AI Assistant usage &amp; cost <span className="info-i">i</span></h4>
+        <p className="hint">The AI Assistant is billed in <strong>tokens</strong> &mdash; tiny chunks of text
+          (about three-quarters of a word each). Two settings decide how many tokens each question uses:</p>
+        <div className="weights-grid">
+          <label>Max answer length (tokens)
+            <input id="set-maxtok" type="number" min="100" max="4000" step="50"
+                   defaultValue={s.assistant_max_tokens} />
+          </label>
+          <label>Conversation memory (messages)
+            <input id="set-hist" type="number" min="1" max="50" step="1"
+                   defaultValue={s.assistant_history_messages} />
+          </label>
+        </div>
+        <div className="toolbar">
+          <button onClick={() => save('assistant_max_tokens', Math.max(100, parseInt(document.getElementById('set-maxtok').value || '0', 10)))}>Save answer length</button>
+          <button onClick={() => save('assistant_history_messages', Math.max(1, parseInt(document.getElementById('set-hist').value || '0', 10)))}>Save memory</button>
+        </div>
+        <p className="hint"><strong>Max answer length</strong> &mdash; a higher number lets the assistant give
+          longer, more detailed replies, but each reply then costs more. Lower it to keep answers short and
+          cheaper. Typical: <strong>600&ndash;900</strong>.<br />
+          <strong>Conversation memory</strong> &mdash; how many earlier messages the assistant re-reads for
+          context on each question. More memory means better follow-ups but more tokens per reply.
+          Typical: <strong>6</strong>. To cut costs, lower both; to improve answer depth, raise them.</p>
+      </div>
+
+      <div className="panel">
         <h4 title="Governance controls for how AI scores are validated and published">
           Maker-checker & AI checker</h4>
         <div className="toolbar">
