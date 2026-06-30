@@ -12,8 +12,8 @@ from sqlalchemy import func
 
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
-from app.db.database import (ChatMessage, Instrument, SessionLocal, StockScore,
-                            UserActivity, utcnow)
+from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
+                            StockScore, UserActivity, utcnow)
 from app.llm.router import get_llm_router
 from app.models.schemas import AskAIResponse
 from app.services.app_settings import get_setting
@@ -79,6 +79,11 @@ def system_prompt() -> str:
 
 _SYMBOL_RE = re.compile(r"\b[A-Z][A-Z&\-]{1,15}\b")
 
+# Common abbreviations the assistant itself emits (e.g. "avg", "max") that can
+# collide with a real ticker - never treat these as the user's stock-of-interest.
+_STOP_TOKENS = {"AVG", "AVERAGE", "MIN", "MAX", "SUM", "TOP", "BOTTOM", "MEAN",
+                "MEDIAN", "TOTAL", "SCORE"}
+
 # instrument symbol cache (5 min)
 _symbols: dict[str, str] = {}
 _symbols_at: float = 0.0
@@ -101,7 +106,7 @@ def known_symbols() -> dict[str, str]:
 def detect_symbols(question: str) -> list[str]:
     syms = known_symbols()
     q_upper = question.upper()
-    found = [s for s in _SYMBOL_RE.findall(q_upper) if s in syms]
+    found = [s for s in _SYMBOL_RE.findall(q_upper) if s in syms and s not in _STOP_TOKENS]
     # also match by company name ("how is infosys doing" → INFY)
     q_lower = question.lower()
     for sym, name in syms.items():
@@ -115,6 +120,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     md = get_market_data()
     sources: list[dict] = []
     deterministic = None   # exact code-computed answer, used as offline fallback
+    pf_intent = False      # user asked about their own portfolio
+    pf_holdings = []
     context_parts: list[str] = []
     score_label = get_setting("score_label") or "NIYTRI Score"
     platform_label = get_setting("platform_label") or "NIYTRI AI"
@@ -401,6 +408,16 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         "for the last K days' intersect these - a convenience slice of the full "
                         "MULTIDAY_SCORES above): " + json.dumps(by_day))
 
+        # Detect a portfolio question and capture the CURRENT user's OWN holdings
+        # (only this user_id). The heavy analysis runs after this DB session
+        # closes, reusing the SAME engine as the Portfolio page.
+        if user_id is not None and any(w in (question or "").lower() for w in (
+                "portfolio", "my holding", "my stock", "my share", "my investment",
+                "my position", "my equit")):
+            pf_intent = True
+            pf = db.query(Portfolio).filter_by(user_id=user_id).first()
+            pf_holdings = (pf.holdings if pf and isinstance(pf.holdings, list) else []) or []
+
         # conversation memory for follow-ups
         n_hist = int(get_setting("assistant_history_messages"))
         hist_rows = (db.query(ChatMessage)
@@ -409,6 +426,64 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         history = "\n".join(f"{r.role}: {r.content[:400]}" for r in reversed(hist_rows))
     finally:
         db.close()
+
+    # Portfolio analysis: reuse the SAME engine as the Portfolio page so the
+    # numbers match exactly, then ask for a SHORT summary that points users to the
+    # Portfolio page for the full breakdown. Never list every holding.
+    if pf_intent:
+        if pf_holdings:
+            try:
+                from app.models.schemas import Holding
+                from app.services.portfolio import portfolio_metrics
+                hs = []
+                for h in pf_holdings:
+                    try:
+                        hs.append(Holding(symbol=str(h.get("symbol")),
+                                          quantity=float(h.get("quantity") or 0) or 1,
+                                          avg_price=float(h.get("avg_price") or 0) or 0.01,
+                                          sector=h.get("sector")))
+                    except Exception:
+                        continue
+                m = await asyncio.wait_for(portfolio_metrics(hs), timeout=18.0)
+                top_sectors = dict(sorted(m["sector_exposure"].items(),
+                                          key=lambda kv: kv[1], reverse=True)[:4])
+                summary = {
+                    "health_score": m["health"], "status": m["status_label"],
+                    "pnl_pct": m["pnl"]["pnl_pct"], "pnl": m["pnl"]["pnl"],
+                    "invested": m["pnl"]["invested"], "current_value": m["pnl"]["current_value"],
+                    "holdings": m["diversification"]["num_holdings"],
+                    "sectors": m["diversification"]["num_sectors"],
+                    "effective_holdings": m["diversification"]["effective_holdings"],
+                    "concentration_level": m["concentration"]["level"],
+                    "top_holding": m["concentration"]["top_holding"],
+                    "top_holding_pct": m["concentration"]["top_holding_weight_pct"],
+                    "hhi": m["concentration"]["herfindahl_index"],
+                    "top_sectors_pct": top_sectors,
+                }
+                context_parts.append(
+                    "PORTFOLIO_ANALYSIS (computed by the SAME engine as the Portfolio page - "
+                    "AUTHORITATIVE, use these EXACT figures, never invent holdings or numbers). "
+                    "Keep the answer SHORT and high-level: open with the health score + status "
+                    "and the P&L, then at most 2-3 bullets on the biggest points (top-holding "
+                    "concentration with its %, sector spread / top sectors). Do NOT list every "
+                    "holding and do NOT build a long per-stock table. End by recommending the "
+                    "user open the Portfolio page for the full breakdown - health-score "
+                    "deductions, full sector exposure, AI insights and PDF export. "
+                    + json.dumps(summary, default=str))
+                sources.append({"type": "db_query", "queries": 1})
+            except Exception as e:
+                log.warning("assistant portfolio analysis failed: %s", e)
+                context_parts.append(
+                    "PORTFOLIO_ANALYSIS: a saved portfolio exists but its full analysis is not "
+                    "available here right now. Do NOT mention any technical/database error or "
+                    "invent numbers - briefly tell the user to open the Portfolio page for the "
+                    "complete analysis (health score, P&L, sector breakdown and PDF).")
+        else:
+            context_parts.append(
+                "USER_PORTFOLIO: this user has NOT uploaded a portfolio yet. Do NOT invent "
+                "holdings or mention any technical/database error. Tell them you don't see a "
+                "saved portfolio and ask them to add it on the Portfolio page (upload CSV/XLSX "
+                "or enter holdings), after which you can analyse it. Offer general help meanwhile.")
 
     news = latest_news(limit=20, days=5)
     if news:
@@ -471,7 +546,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "DB_QUERY_RESULTS (LIVE read-only data queried just now from the "
                     "platform database for THIS question; AUTHORITATIVE - use these exact "
                     "values, and if you list names the count you state MUST equal the rows "
-                    "shown). Each item has the SQL run and its result rows (or an error): "
+                    "shown). If an item shows an error, IGNORE it silently and do NOT mention any "
+                    "technical, database, schema or query error to the user - just answer "
+                    "from other context or say you don't have that detail right now. Each "
+                    "item has the SQL run and its result rows: "
                     + json.dumps(results, default=str, separators=(",", ":")))
                 if any(not r.get("error") for r in results):
                     sources.append({"type": "db_query",

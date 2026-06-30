@@ -441,6 +441,18 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
   color: var(--text); font-size: .9rem; line-height: 1.5; }
 .md .callout strong { color: var(--accent); }
 .md-gap { height: 6px; }
+/* Bordered markdown tables (assistant answers) */
+.md-table-wrap { overflow-x: auto; margin: 6px 0 10px; -webkit-overflow-scrolling: touch; }
+.md-table { border-collapse: collapse; width: 100%; font-size: .8rem;
+  background: var(--panel); }
+.md-table th, .md-table td { border: 1px solid var(--border2); padding: 6px 10px;
+  text-align: left; vertical-align: top; line-height: 1.35; }
+.md-table thead th { background: var(--panel2); color: var(--text); font-weight: 600;
+  white-space: nowrap; }
+.md-table tbody tr:nth-child(even) { background: rgba(127,127,127,.06); }
+.md-table tbody tr:hover { background: rgba(79,142,247,.08); }
+.md-table td { color: var(--text); }
+.md-table strong { color: var(--text); }
 .explain.md { color: var(--muted); }
 .disclaimer.center { text-align: center; margin-top: 8px; }
 textarea { background: var(--panel); color: var(--text); border: 1px solid var(--border2);

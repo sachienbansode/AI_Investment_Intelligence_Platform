@@ -1,6 +1,6 @@
 // Minimal, safe markdown → HTML (escapes input first; no external deps).
 // Supports: **bold**, *italic*, `code`, "- " bullets, "1. " numbered lists,
-// ### headings, [text](url) links, line breaks.
+// ### headings, > callouts, [text](url) links, GFM pipe tables, line breaks.
 export function mdToHtml(text) {
   if (!text) return ''
   const esc = text
@@ -18,8 +18,41 @@ export function mdToHtml(text) {
       quote = []
     }
   }
-  for (const raw of lines) {
-    const line = raw.trim()
+
+  // A GFM table separator row, e.g. "|---|:--:|--:|" (>= 2 columns).
+  const isSep = l => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{1,}:?\s*)+\|?\s*$/.test(l)
+  // Split "| a | b |" into trimmed cells (tolerates missing edge pipes).
+  const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+
+    // ---- GFM table: a header row with pipes immediately followed by a separator
+    if (line.includes('|') && i + 1 < lines.length && isSep(lines[i + 1].trim())) {
+      flushQuote(); closeLists()
+      const aligns = cells(lines[i + 1].trim()).map(c => {
+        const lft = c.startsWith(':'), rgt = c.endsWith(':')
+        return lft && rgt ? 'center' : rgt ? 'right' : lft ? 'left' : ''
+      })
+      const headers = cells(line)
+      const al = k => aligns[k] ? ` style="text-align:${aligns[k]}"` : ''
+      let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>'
+      headers.forEach((h, k) => { t += `<th${al(k)}>${inline(h)}</th>` })
+      t += '</tr></thead><tbody>'
+      let j = i + 2
+      while (j < lines.length && lines[j].trim() !== '' && lines[j].includes('|')) {
+        const row = cells(lines[j].trim())
+        t += '<tr>'
+        headers.forEach((_, k) => { t += `<td${al(k)}>${inline(row[k] || '')}</td>` })
+        t += '</tr>'
+        j++
+      }
+      t += '</tbody></table></div>'
+      html += t
+      i = j - 1
+      continue
+    }
+
     if (/^&gt;\s?/.test(line)) {   // '>' is already HTML-escaped to &gt; above
       closeLists()
       quote.push(line.replace(/^&gt;\s?/, ''))

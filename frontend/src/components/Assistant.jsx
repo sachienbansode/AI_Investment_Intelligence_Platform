@@ -32,7 +32,10 @@ function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i-
 // Words that look like tickers but aren't, so we don't build stock follow-ups for them.
 const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'USD', 'INR', 'CEO',
   'IPO', 'GDP', 'ETF', 'NAV', 'EPS', 'ROE', 'PB', 'FII', 'DII', 'SIP', 'NPA', 'AGM', 'ATH',
-  'EBITDA', 'YOY', 'QOQ', 'NIYTRI', 'NITRI', 'AND', 'THE', 'FOR'])
+  'EBITDA', 'YOY', 'QOQ', 'NIYTRI', 'NITRI', 'AND', 'THE', 'FOR',
+  // statistical abbreviations the assistant prints (e.g. "avg", "max") that can
+  // collide with a real ticker symbol - don't build stock follow-ups for these.
+  'AVG', 'AVERAGE', 'MIN', 'MAX', 'SUM', 'TOP', 'BOTTOM', 'MEAN', 'MEDIAN', 'TOTAL', 'SCORE'])
 
 export default function Assistant({ seed, clearSeed }) {
   const [sessions, setSessions] = useState([])
@@ -70,50 +73,125 @@ export default function Assistant({ seed, clearSeed }) {
     } catch {}
   }
 
-  // Only treat a token as a stock when it's a REAL instrument symbol.
-  function validSymbol(text) {
-    if (!text) return null
-    const cands = (String(text).toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])
-      .filter(w => !NOT_TICKERS.has(w))
-    for (const w of cands) if (symSet.has(w)) return w
-    return null
-  }
-  function symbolFromSources(sources) {
-    if (!Array.isArray(sources)) return null
-    for (const s of sources) {
-      const sym = s && s.symbol ? String(s.symbol).toUpperCase() : ''
-      if (sym && (symSet.size === 0 || symSet.has(sym))) return sym
+  // Extract REAL instrument symbols in priority order: the answer's sources
+  // (server-verified) first, then the question, then the answer text. Statistical
+  // abbreviations / non-tickers are excluded (see NOT_TICKERS).
+  function symbolsFrom(question, answer, sources) {
+    const out = []
+    const addText = t => {
+      for (const w of (String(t || '').toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])) {
+        if (!NOT_TICKERS.has(w) && symSet.has(w) && !out.includes(w)) out.push(w)
+      }
     }
-    return null
+    if (Array.isArray(sources)) {
+      for (const s of sources) {
+        const sym = s && s.symbol ? String(s.symbol).toUpperCase() : ''
+        if (sym && !NOT_TICKERS.has(sym) && (symSet.size === 0 || symSet.has(sym))
+          && !out.includes(sym)) out.push(sym)
+      }
+    }
+    addText(question)
+    addText(answer)
+    return out
   }
 
-  // Up to 5 follow-ups related to the previous answer. Stock-specific only when a
-  // real symbol was involved; otherwise topic-aware (news/market) or general.
+  // Normalise a question for de-duplication (so a follow-up never echoes the
+  // question just asked, or another follow-up).
+  const normQ = q => String(q || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+  // Build up to 5 varied, de-duplicated follow-ups tailored to the previous
+  // answer - portfolio / comparison / single-stock / valuation / score / news /
+  // sector aware - always ending with exactly one general-knowledge prompt, and
+  // never repeating the question that was just asked.
   function buildFollowups(question, answer, sources) {
-    const sym = symbolFromSources(sources) || validSymbol(question) || validSymbol(answer)
-    if (sym) {
-      const ctx = shuffle([
+    const ql = (String(question) + ' ' + String(answer)).toLowerCase()
+    const syms = symbolsFrom(question, answer, sources)
+    const has = re => re.test(ql)
+    const cand = []
+
+    const isPortfolio = has(/\b(portfolio|holdings?|my (stocks?|shares?|positions?|investments?))\b/)
+    const isWatchlist = has(/\bwatch ?list\b/)
+    const isCompare = syms.length >= 2 && has(/\b(compare|vs\.?|versus|better|stronger|which)\b/)
+    const isValuation = has(/\b(valuation|cheap|expensive|p\/e|pe ratio|over ?valued|under ?valued|p\/b)\b/)
+    const isScore = has(/\b(score|scores|rating|rank|ranking|top|bottom|best|worst)\b/)
+    const isNews = has(/\b(news|headline|announce|moved|gain|drop|surge|fell|rose|order win|results?|earnings)\b/)
+    const isSector = has(/\b(sector|sectors|industry|banking|pharma|auto|fmcg|metal|energy|psu)\b/)
+    const isIndex = has(/\b(nifty|sensex|index|indices|market today|market sentiment)\b/)
+
+    if (isPortfolio) {
+      cand.push(
+        'How concentrated is my portfolio by sector?',
+        'Which of my holdings have the weakest scores?',
+        'Which of my holdings look expensive on valuation?',
+        "What are my portfolio's biggest strengths and risks?",
+        'How did my holdings move over the last 5 days?')
+    }
+    if (isWatchlist) {
+      cand.push(
+        'Which of my watchlist stocks score highest?',
+        'Any notable news on my watchlist today?',
+        'Which watchlist stocks improved their score recently?')
+    }
+    if (isCompare) {
+      const [a, b] = syms
+      cand.push(
+        `Which is stronger overall: ${a} or ${b}?`,
+        `How do ${a} and ${b} differ on valuation?`,
+        `Compare ${a} and ${b} on their scores`,
+        `Latest news on ${a}`,
+        `Latest news on ${b}`)
+    }
+    // Per-symbol follow-ups for up to 2 symbols, skipping the angle already asked.
+    for (const sym of syms.slice(0, 2)) {
+      const perSym = [
         `What's driving ${sym}'s score?`,
         `How does ${sym} compare to its sector?`,
         `Latest news on ${sym}`,
         `Is ${sym} cheap or expensive on valuation?`,
         `What changed in ${sym}'s score recently?`,
-      ]).slice(0, 4)
-      return [...ctx, pick(GENERAL_Q)]
+        `What are ${sym}'s key fundamentals?`,
+      ]
+      const drop = re => { const k = perSym.findIndex(q => re.test(q)); if (k >= 0) perSym.splice(k, 1) }
+      if (isValuation) drop(/valuation/)
+      if (isNews) drop(/Latest news/)
+      if (isScore) drop(/driving .* score/)
+      cand.push(...shuffle(perSym).slice(0, 3))
     }
-    const ql = (String(question) + ' ' + String(answer)).toLowerCase()
-    if (/\b(news|market|today|sector|sectors|nifty|sensex|index|indices|gainer|loser|sentiment)\b/.test(ql)) {
-      return shuffle([
-        'Which sectors are strongest today?',
-        'Top 5 stocks by AI score',
+    if (isSector || isIndex) {
+      cand.push(
+        'Which sectors are strongest right now?',
+        'Top 5 stocks by score',
         'What are today’s biggest decliners by score?',
-        'How is overall market sentiment in the news?',
-        pick(GENERAL_Q),
-      ]).slice(0, 5)
+        'How is overall market sentiment in the news?')
     }
-    const dataPool = shuffle((suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q)))
-    const out = [...dataPool.slice(0, 3), pick(GENERAL_Q)]
-    return out.filter((v, i, a) => a.indexOf(v) === i).slice(0, 5)
+    if (isNews && syms.length === 0) {
+      cand.push(
+        'Summarise today’s market news',
+        'What moved the market today?',
+        'Which stocks does today’s news impact most?')
+    }
+    // Fallback when nothing specific matched.
+    if (cand.length === 0) {
+      const pool = (suggestions.length ? suggestions : SUGGESTIONS).filter(q => !GENERAL_Q.includes(q))
+      cand.push(...shuffle(pool),
+        'Top 5 stocks by score', 'Summarise today’s market news',
+        'Which stocks are below 50 on score?')
+    }
+
+    // De-duplicate, drop anything equal to the asked question, cap to 4, then
+    // append exactly one fresh general-knowledge prompt.
+    const askedN = normQ(question)
+    const seen = new Set()
+    const picks = []
+    for (const q of cand) {
+      const n = normQ(q)
+      if (!n || n === askedN || seen.has(n) || GENERAL_Q.includes(q)) continue
+      seen.add(n); picks.push(q)
+      if (picks.length >= 4) break
+    }
+    const gen = shuffle(GENERAL_Q).find(g => !seen.has(normQ(g)) && normQ(g) !== askedN) || GENERAL_Q[0]
+    picks.push(gen)
+    return picks.slice(0, 5)
   }
 
   async function openSession(id) {
