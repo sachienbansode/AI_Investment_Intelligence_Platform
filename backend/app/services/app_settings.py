@@ -26,6 +26,13 @@ DEFAULTS: dict = {
     "max_news_items": 15,             # items per news refresh
     "assistant_history_messages": 6,  # prior messages given to the LLM
     "assistant_max_tokens": 350,
+    # Live DB read access for the assistant: when ON, the assistant may run
+    # admin-bounded, read-only SELECT queries (scores/instruments/news + the
+    # current user's OWN watchlist/portfolio only) to answer questions the
+    # pre-built context does not cover. Never reads users/admin/config tables.
+    "assistant_sql_tool_enabled": True,
+    "assistant_sql_max_rows": 200,      # max rows returned per query
+    "assistant_sql_max_queries": 3,     # max queries per question
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
@@ -190,6 +197,16 @@ def _validate(key: str, value) -> None:
                  "assistant_history_messages", "assistant_max_tokens"):
         if not (isinstance(value, int) and value > 0):
             raise ValueError(f"{key} must be a positive integer")
+    elif key == "assistant_sql_tool_enabled":
+        if not isinstance(value, bool):
+            raise ValueError("assistant_sql_tool_enabled must be true or false")
+    elif key in ("assistant_sql_max_rows", "assistant_sql_max_queries"):
+        if not (isinstance(value, int) and value > 0):
+            raise ValueError(f"{key} must be a positive integer")
+        if key == "assistant_sql_max_rows" and value > 2000:
+            raise ValueError("assistant_sql_max_rows must be <= 2000")
+        if key == "assistant_sql_max_queries" and value > 6:
+            raise ValueError("assistant_sql_max_queries must be <= 6")
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")

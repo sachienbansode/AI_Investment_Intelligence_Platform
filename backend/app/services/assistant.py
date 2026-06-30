@@ -291,21 +291,115 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "compute from ALL_SCORES but follow the ACCURACY RULES above. "
                     + json.dumps(sector_stats, separators=(",", ":")))
 
-                # We DO keep daily history — provide recent per-day top-10 so the
-                # assistant can answer "consistently in top N over the last K days".
+                # FULL multi-day history across the ENTIRE universe (not just a
+                # top/bottom slice) so "performing positive / consistent over the
+                # last N days" is answered from EVERY script in the DB.
                 recent_dates = [d[0] for d in
                                 (db.query(StockScore.score_date).distinct()
                                  .order_by(StockScore.score_date.desc()).limit(5).all())]
-                by_day = {}
-                for d in reversed(recent_dates):
-                    tops = (db.query(StockScore.symbol).filter_by(score_date=d)
-                            .order_by(StockScore.composite_score.desc()).limit(10).all())
-                    by_day[d] = [t[0] for t in tops]
-                if len(by_day) >= 2:
+                recent_dates = list(reversed(recent_dates))  # oldest -> newest
+                if len(recent_dates) >= 2:
+                    hist = defaultdict(dict)
+                    for r in (db.query(StockScore)
+                              .filter(StockScore.score_date.in_(recent_dates)).all()):
+                        hist[r.symbol][r.score_date] = (r.composite_score,
+                                                        _fval(r, "change_pct"))
+                    multiday = {}
+                    for sym, dmap in hist.items():
+                        days = [d for d in recent_dates if d in dmap]
+                        if not days:
+                            continue
+                        scores = [dmap[d][0] for d in days]
+                        chg = [dmap[d][1] for d in days]
+                        chg_known = [c for c in chg if c is not None]
+                        multiday[sym] = {
+                            "days": len(days),
+                            "scores": scores,
+                            "score_delta": round(scores[-1] - scores[0], 1),
+                            "day_change_pct": chg,
+                            "positive_days": sum(1 for c in chg_known if c > 0),
+                            "avg_day_change_pct":
+                                round(sum(chg_known) / len(chg_known), 2) if chg_known else None,
+                        }
                     context_parts.append(
-                        "RECENT_TOP10_BY_DAY (each listed day's top 10 symbols by score; "
-                        "answer 'in top N for the last K days' by intersecting these lists "
-                        "- you DO have this history): " + json.dumps(by_day))
+                        "MULTIDAY_SCORES (window " + str(recent_dates[0]) + " to "
+                        + str(recent_dates[-1]) + ", EVERY published script across these days - "
+                        "you DO have the COMPLETE multi-day history here, NOT just a top/bottom "
+                        "slice; use it for ANY 'over the last N days' question). Per symbol: "
+                        "days=number of days present, scores=score per day oldest->newest, "
+                        "score_delta=last-minus-first score change (score trend/momentum), "
+                        "day_change_pct=daily price move % per day (null if unavailable), "
+                        "positive_days=number of days the price move was positive, "
+                        "avg_day_change_pct=mean daily move. For 'performing positive / up over "
+                        "the last N days' use day_change_pct / positive_days (price); for 'score "
+                        "improving / consistent' use scores / score_delta. ACCURACY RULES apply: "
+                        "any count you state MUST equal the number of names you list, and compute "
+                        "exactly. " + json.dumps(multiday, separators=(",", ":"), default=str))
+                    sources.append({"type": "ai_scores_summary",
+                                    "date": recent_dates[-1], "count": len(multiday)})
+
+                    # Deterministic price-direction answer over the FULL universe for
+                    # clear multi-day questions (model arithmetic over many rows is
+                    # unreliable). Only fires on an explicit multi-day + direction intent.
+                    if deterministic is None:
+                        qq = " " + (question or "").lower() + " "
+                        dm = re.search(r"(\d+)\s*(?:-|\s)?\s*day", qq)
+                        multi_signal = bool(dm) or any(k in qq for k in (
+                            "last few days", "past few days", "recent days", "each day",
+                            "every day", "past week", "last week", "over the days",
+                            "consistently", "streak"))
+                        pos_kw = any(k in qq for k in (
+                            "positive", "gain", "gainer", "rising", "advanc", "green",
+                            "uptrend", "going up", "moved up", " up "))
+                        neg_kw = any(k in qq for k in (
+                            "negative", "loser", "falling", "declin", "red", "downtrend",
+                            "going down", "moved down", " down "))
+                        if multi_signal and (pos_kw or neg_kw):
+                            nd = int(dm.group(1)) if dm else len(recent_dates)
+                            window = (recent_dates[-nd:] if 0 < nd <= len(recent_dates)
+                                      else recent_dates)
+                            want_pos = pos_kw and not neg_kw
+                            hits = []
+                            for sym, dmap in hist.items():
+                                ch = [dmap[d][1] for d in window
+                                      if d in dmap and dmap[d][1] is not None]
+                                if len(ch) < len(window):
+                                    continue  # need a value on every day in the window
+                                if (all(c > 0 for c in ch) if want_pos
+                                        else all(c < 0 for c in ch)):
+                                    hits.append((sym, round(sum(ch) / len(ch), 2)))
+                            hits.sort(key=lambda x: x[1], reverse=want_pos)
+                            dirn = "positive (up)" if want_pos else "negative (down)"
+                            win_txt = str(window[0]) + " to " + str(window[-1])
+                            if hits:
+                                shown = ", ".join("%s (avg %+.2f%%/day)" % (s, v)
+                                                  for s, v in hits[:60])
+                                more = "" if len(hits) <= 60 else (" (showing 60 of %d)"
+                                                                   % len(hits))
+                                deterministic = (
+                                    "%d script(s) had a %s daily price move on EVERY day "
+                                    "across %s (%d days): %s%s." %
+                                    (len(hits), dirn, win_txt, len(window), shown, more))
+                            else:
+                                deterministic = (
+                                    "No script had a %s daily price move on every one of the "
+                                    "%d days across %s." % (dirn, len(window), win_txt))
+                            context_parts.append(
+                                "DETERMINISTIC_ANSWER (computed in code over the FULL universe; "
+                                "AUTHORITATIVE - state these exact names and count, do NOT add, "
+                                "drop, recompute or contradict): " + deterministic)
+                            sources.append({"type": "computed"})
+
+                    # Convenience slice: each day's top-10 by score (for "in top N
+                    # for K days"). Derived from the full data above.
+                    by_day = {str(d): [s for (s,) in
+                              (db.query(StockScore.symbol).filter_by(score_date=d)
+                               .order_by(StockScore.composite_score.desc()).limit(10).all())]
+                              for d in recent_dates}
+                    context_parts.append(
+                        "RECENT_TOP10_BY_DAY (each day's top 10 symbols by score; for 'in top N "
+                        "for the last K days' intersect these - a convenience slice of the full "
+                        "MULTIDAY_SCORES above): " + json.dumps(by_day))
 
         # conversation memory for follow-ups
         n_hist = int(get_setting("assistant_history_messages"))
@@ -342,6 +436,49 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                                 "source": p["source"],
                                 "document_id": p["document_id"]})
 
+    # ---- Live read-only DB access ------------------------------------------------
+    # Let the model query the database for anything the pre-built context above
+    # doesn't already cover. STRICTLY read-only and bounded to non-sensitive
+    # tables + the current user's OWN watchlist/portfolio (see db_query.py).
+    if get_setting("assistant_sql_tool_enabled") and (question or "").strip():
+        try:
+            from app.services import db_query
+            max_q = int(get_setting("assistant_sql_max_queries"))
+            plan_sys = (
+                "You convert an investor's question into at most " + str(max_q) +
+                " READ-ONLY SQL SELECT queries over the schema below, to fetch the exact "
+                "data needed to answer it from the live database. Rules: ONLY use the "
+                "listed tables; never write or modify data; ONE statement per query; "
+                "always add a LIMIT. Use my_watchlist / my_portfolio for the user's own "
+                "holdings. If the question needs no database lookup (a greeting, general "
+                "knowledge, methodology or advice question, or one already answered by "
+                "typical score/news context), return an empty list. Respond with STRICT "
+                'JSON only, no prose: {"queries": ["SELECT ..."]}.\n\n' + db_query.SCHEMA_DOC)
+            plan = await get_llm_router().complete(plan_sys, "Question: " + question,
+                                      task="sql_plan", max_tokens=300, temperature=0.0)
+            mqs = re.search(r"\{.*\}", plan.text, re.DOTALL)
+            queries = []
+            if mqs:
+                try:
+                    queries = (json.loads(mqs.group(0)) or {}).get("queries") or []
+                except Exception:
+                    queries = []
+            results = db_query.run_many(
+                queries, user_id=user_id,
+                max_rows=int(get_setting("assistant_sql_max_rows")), max_queries=max_q)
+            if results:
+                context_parts.append(
+                    "DB_QUERY_RESULTS (LIVE read-only data queried just now from the "
+                    "platform database for THIS question; AUTHORITATIVE - use these exact "
+                    "values, and if you list names the count you state MUST equal the rows "
+                    "shown). Each item has the SQL run and its result rows (or an error): "
+                    + json.dumps(results, default=str, separators=(",", ":")))
+                if any(not r.get("error") for r in results):
+                    sources.append({"type": "db_query",
+                                    "queries": sum(1 for r in results if not r.get("error"))})
+        except Exception as e:
+            log.warning("assistant SQL tool failed: %s", e)
+
     context = "\n\n".join(context_parts) if context_parts else "(no live context available)"
 
     # The global context (all-scores summary, indices, recent news) is attached to
@@ -361,7 +498,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     def _relevant(s):
         t = s["type"]
-        if t in ("quote", "ai_score", "research", "computed"):
+        if t in ("quote", "ai_score", "research", "computed", "db_query"):
             return True          # specific to the question
         if t == "ai_scores_summary":
             return score_q
@@ -377,6 +514,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     # Confidence from the strength of the grounding actually used for this answer.
     conf = 0.35
     conf += 0.30 if "computed" in types else 0.0          # exact, code-computed
+    conf += 0.25 if "db_query" in types else 0.0          # exact, live DB read
     conf += 0.20 if ({"quote", "ai_score"} & types) else 0.0
     conf += 0.15 if "ai_scores_summary" in types else 0.0
     conf += 0.10 if "research" in types else 0.0

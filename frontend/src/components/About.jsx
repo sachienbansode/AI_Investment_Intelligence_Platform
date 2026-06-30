@@ -5,6 +5,7 @@ const CATEGORIES = [
   {
     name: 'Conversational AI',
     features: [
+      { icon: String.fromCharCode(0x25C9), title: 'NIYTRI Data Lense', desc: "A NIYTRI AI capability that lets the assistant read the platform's live database on demand to answer questions the standard context doesn't cover. It runs strictly read-only, bounded queries over scores, instruments and news - plus only your own watchlist and portfolio - so answers reflect the real data. User accounts, admin configuration and the confidential scoring methodology are never accessible." },
       { icon: <AiIcon />, title: 'AI Assistant', desc: "Conversational intelligence grounded in live quotes, the platform's scores and market news. Multilingual, with per-user chat history and smart follow-up suggestions after every reply." },
       { icon: '⇄', title: 'Stock Comparison', desc: "Side-by-side comparison of any two NSE scripts - or a random same-sector pair - with live metrics and an advice-free AI summary and conclusion." },
     ],
