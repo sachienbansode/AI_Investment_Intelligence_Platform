@@ -18,6 +18,7 @@ from app.agents.pipeline import run_daily_pipeline
 from app.api.admin_routes import router as admin_router
 from app.api.auth_routes import router as auth_router
 from app.api.routes import router
+from app.api.partner_routes import router as partner_router
 from app.config import get_settings
 from app.db.database import init_db
 from app.services.news_intel import refresh_news
@@ -127,3 +128,4 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(admin_router)
+app.include_router(partner_router)

@@ -60,7 +60,7 @@ const CATEGORIES = [
       { icon: '⚡', title: 'Prompt Caching', desc: "Optional caching of the assistant's system prompt across Anthropic, OpenAI and Gemini to cut latency and repeated input-token cost - toggled from Admin." },
       { icon: '⚒', title: 'Fully DB-Configurable', desc: "Instruments master with one-click NIFTY500 import, editable scoring weights, scheduler times, chatbot persona, display names and branding - all from the Admin tab." },
       { icon: '▣', title: 'Mobile Apps', desc: "The same experience packaged as native iOS and Android apps (Capacitor) with a mobile-first UI, bottom navigation and a compact assistant." },
-      { icon: '⇲', title: 'Open APIs', desc: "REST APIs for Ask AI, Stock Score, News, Portfolio and Watchlist - JWT-secured and ready for mobile and partner integration." },
+      { icon: '⇲', title: 'Open Partner API', desc: "A dedicated, versioned REST API for partners and mobile apps - AI scores, instruments, market news, the assistant and stateless portfolio analysis. Secured with per-partner API keys, scoped access and rate limits, with a full integration guide and OpenAPI/Swagger docs." },
     ],
   },
 ]

@@ -12,11 +12,11 @@ export default function Admin() {
   return (
     <div>
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'partner', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
                feedback: 'Assistant quality', review: 'Score review', research: 'Research (RAG)', users: 'Users',
-               roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations',
+               roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations', partner: 'Partner API',
                settings: 'Settings' }[v]}
           </button>
         ))}
@@ -32,6 +32,7 @@ export default function Admin() {
       {view === 'roles' && <Roles />}
       {view === 'instruments' && <Instruments />}
       {view === 'integrations' && <Integrations />}
+      {view === 'partner' && <PartnerKeys />}
       {view === 'settings' && <Settings />}
     </div>
   )
@@ -1359,6 +1360,101 @@ function Feedback() {
           <p className="hint" style={{ whiteSpace: 'pre-wrap' }}><strong>A:</strong> {it.answer || '—'}</p>
         </div>
       ))}
+    </div>
+  )
+}
+
+
+function PartnerKeys() {
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState('')
+  const [name, setName] = useState('')
+  const [scopes, setScopes] = useState(['scores', 'news', 'ask', 'portfolio'])
+  const [rate, setRate] = useState(60)
+  const [created, setCreated] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const load = () => api.partnerKeys().then(setData).catch(e => setErr(String(e.message || e)))
+  useEffect(() => { load() }, [])
+  const avail = data?.available_scopes || ['scores', 'news', 'ask', 'portfolio']
+  const toggle = s => setScopes(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
+  async function create() {
+    if (name.trim().length < 2) { toast('Enter a partner name'); return }
+    if (!scopes.length) { toast('Select at least one scope'); return }
+    setBusy(true)
+    try {
+      const r = await api.createPartnerKey(name.trim(), scopes, Number(rate) || 60)
+      setCreated(r); setName(''); load()
+    } catch (e) { toast('Create failed: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  async function revoke(k) {
+    if (!(await confirmDialog('Revoke key "' + k.name + '" (' + k.key_prefix + '...)? Calls will start failing immediately.'))) return
+    try { await api.revokePartnerKey(k.id); load() } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
+  async function del(k) {
+    if (!(await confirmDialog('Delete key "' + k.name + '" permanently?'))) return
+    try { await api.deletePartnerKey(k.id); load() } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
+  function copyKey() {
+    const v = created?.api_key || ''
+    if (navigator.clipboard) navigator.clipboard.writeText(v).then(() => toast('Key copied')).catch(() => {})
+  }
+  return (
+    <div className="panel">
+      <h3>Partner Open API keys</h3>
+      <p className="hint">Issue API keys for partner / mobile integrations. A key is shown ONCE at creation and stored only as a hash. Partners authenticate with <code>Authorization: Bearer &lt;key&gt;</code> and are limited to the scopes you grant. See the Partner API guide (docs/PARTNER_API.md) and the interactive docs at <code>/docs</code>.</p>
+      {err && <p className="note">{err}</p>}
+
+      <div className="panel" style={{ margin: '12px 0' }}>
+        <h4>Create a new key</h4>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label>Partner name<br /><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Securities" /></label>
+          <label>Rate limit (per min)<br /><input type="number" min="1" value={rate} onChange={e => setRate(e.target.value)} style={{ width: 130 }} /></label>
+        </div>
+        <div style={{ margin: '12px 0' }}>
+          <span className="hint">Scopes:&nbsp;</span>
+          {avail.map(sc => (
+            <label key={sc} style={{ marginRight: 16 }}>
+              <input type="checkbox" checked={scopes.includes(sc)} onChange={() => toggle(sc)} /> {sc}
+            </label>
+          ))}
+        </div>
+        <button onClick={create} disabled={busy}>{busy ? 'Creating...' : 'Create key'}</button>
+      </div>
+
+      {created && (
+        <div className="panel" style={{ margin: '12px 0', borderColor: 'var(--accent)' }}>
+          <h4>New key for {created.key?.name}</h4>
+          <p className="note" style={{ color: 'var(--amber)' }}>{created.note}</p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <code style={{ wordBreak: 'break-all', flex: 1 }}>{created.api_key}</code>
+            <button className="ghost" onClick={copyKey}>Copy</button>
+          </div>
+          <button className="ghost" style={{ marginTop: 10 }} onClick={() => setCreated(null)}>Dismiss</button>
+        </div>
+      )}
+
+      <table className="data-table">
+        <thead><tr><th>Name</th><th>Key</th><th>Scopes</th><th>Limit/min</th><th>Status</th><th>Calls</th><th>Last used</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+          {(data?.keys || []).map(k => (
+            <tr key={k.id}>
+              <td>{k.name}</td>
+              <td><code>{k.key_prefix}...</code></td>
+              <td>{(k.scopes || []).join(', ')}</td>
+              <td>{k.rate_limit_per_min}</td>
+              <td><span style={{ color: k.is_active ? 'var(--green)' : 'var(--red)' }}>{k.is_active ? 'active' : 'revoked'}</span></td>
+              <td>{k.call_count}</td>
+              <td>{k.last_used_at || '—'}</td>
+              <td>{k.created_at}</td>
+              <td>
+                {k.is_active && <button className="ghost" onClick={() => revoke(k)}>Revoke</button>}{' '}
+                <button className="ghost" onClick={() => del(k)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+          {data && (data.keys || []).length === 0 && <tr><td colSpan="9" className="hint">No partner keys yet.</td></tr>}
+        </tbody>
+      </table>
     </div>
   )
 }

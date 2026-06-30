@@ -211,6 +211,24 @@ class ResearchChunk(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class PartnerKey(Base):
+    """An API key issued to a partner/integration for the Open Partner API.
+    Only the SHA-256 hash of the key is stored; the plaintext is shown once at
+    creation. `scopes` limits which endpoint groups the key may call."""
+    __tablename__ = "partner_keys"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)                       # partner / integration name
+    key_prefix = Column(String, index=True)     # shown for identification (e.g. niy_live_ab12cd)
+    key_hash = Column(String, unique=True, index=True)  # sha256(full key)
+    scopes = Column(JSON)                        # ["scores","news","ask","portfolio"]
+    rate_limit_per_min = Column(Integer, default=60)
+    is_active = Column(Boolean, default=True)
+    created_by = Column(String, default="")
+    last_used_at = Column(DateTime, nullable=True)
+    call_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(Integer, primary_key=True)

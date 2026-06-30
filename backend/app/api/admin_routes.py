@@ -13,8 +13,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
-from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, PipelineRun, Role,
-                             SessionLocal, StockScore, User)
+from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, PartnerKey,
+                             PipelineRun, Role, SessionLocal, StockScore, User)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -1021,3 +1021,86 @@ async def chat_feedback_list(rating: int = 0, limit: int = 50,
             for r in rows]}
     finally:
         db.close()
+
+
+# ── Partner Open API key management (admin only) ─────────────────
+from app.core.partner_auth import ALL_SCOPES, generate_key  # noqa: E402
+
+
+class PartnerKeyCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=80)
+    scopes: list[str] = Field(default_factory=lambda: list(ALL_SCOPES))
+    rate_limit_per_min: int = Field(default=60, ge=1, le=6000)
+
+
+def _key_public(k: PartnerKey) -> dict:
+    return {"id": k.id, "name": k.name, "key_prefix": k.key_prefix,
+            "scopes": k.scopes or [], "rate_limit_per_min": k.rate_limit_per_min,
+            "is_active": k.is_active, "call_count": k.call_count or 0,
+            "created_by": k.created_by or "", "created_at": fmt_ist(k.created_at),
+            "last_used_at": fmt_ist(k.last_used_at)}
+
+
+@router.get("/partner-keys")
+def list_partner_keys():
+    db = SessionLocal()
+    try:
+        rows = db.query(PartnerKey).order_by(PartnerKey.created_at.desc()).all()
+        return {"keys": [_key_public(k) for k in rows], "available_scopes": list(ALL_SCOPES)}
+    finally:
+        db.close()
+
+
+@router.post("/partner-keys")
+def create_partner_key(req: PartnerKeyCreate, admin: User = Depends(require_admin)):
+    bad = [s for s in req.scopes if s not in ALL_SCOPES]
+    if bad:
+        raise HTTPException(400, f"Unknown scope(s): {bad}. Allowed: {ALL_SCOPES}")
+    if not req.scopes:
+        raise HTTPException(400, "At least one scope is required")
+    full, prefix, khash = generate_key()
+    db = SessionLocal()
+    try:
+        row = PartnerKey(name=req.name.strip(), key_prefix=prefix, key_hash=khash,
+                         scopes=req.scopes, rate_limit_per_min=req.rate_limit_per_min,
+                         is_active=True, created_by=admin.email)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        pub = _key_public(row)
+    finally:
+        db.close()
+    audit_log("partner_key_created", name=req.name, by=admin.email, scopes=req.scopes)
+    # The full key is returned ONCE here and never stored in plaintext.
+    return {"api_key": full, "key": pub,
+            "note": "Store this key now - it cannot be retrieved again."}
+
+
+@router.post("/partner-keys/{key_id}/revoke")
+def revoke_partner_key(key_id: int, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        row = db.get(PartnerKey, key_id)
+        if not row:
+            raise HTTPException(404, "Key not found")
+        row.is_active = False
+        db.commit()
+    finally:
+        db.close()
+    audit_log("partner_key_revoked", key_id=key_id, by=admin.email)
+    return {"ok": True}
+
+
+@router.delete("/partner-keys/{key_id}")
+def delete_partner_key(key_id: int, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        row = db.get(PartnerKey, key_id)
+        if not row:
+            raise HTTPException(404, "Key not found")
+        db.delete(row)
+        db.commit()
+    finally:
+        db.close()
+    audit_log("partner_key_deleted", key_id=key_id, by=admin.email)
+    return {"ok": True}

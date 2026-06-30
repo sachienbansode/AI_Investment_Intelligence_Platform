@@ -177,6 +177,12 @@ export const api = {
   updateRole: (id, name, pages, is_admin) =>
     http(`/admin/roles/${id}`, { method: 'PUT', body: JSON.stringify({ name, pages, is_admin }) }),
   deleteRole: (id) => http(`/admin/roles/${id}`, { method: 'DELETE' }),
+  // Partner Open API key management (admin)
+  partnerKeys: () => http('/admin/partner-keys'),
+  createPartnerKey: (name, scopes, rate_limit_per_min) =>
+    http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min }) }),
+  revokePartnerKey: (id) => http(`/admin/partner-keys/${id}/revoke`, { method: 'POST' }),
+  deletePartnerKey: (id) => http(`/admin/partner-keys/${id}`, { method: 'DELETE' }),
   // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),
