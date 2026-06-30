@@ -37,7 +37,7 @@ const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'US
   // collide with a real ticker symbol - don't build stock follow-ups for these.
   'AVG', 'AVERAGE', 'MIN', 'MAX', 'SUM', 'TOP', 'BOTTOM', 'MEAN', 'MEDIAN', 'TOTAL', 'SCORE'])
 
-export default function Assistant({ seed, clearSeed }) {
+export default function Assistant({ seed, clearSeed, go }) {
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(newSession())
   const [messages, setMessages] = useState([])
@@ -71,6 +71,12 @@ export default function Assistant({ seed, clearSeed }) {
       await api.sendFeedback(val, { session_id: sessionId, question: q, answer: ans, provider: messages[i]?.provider || '' })
       toast('Thanks for the feedback')
     } catch {}
+  }
+
+  // In-answer links like [Portfolio page](#page:Portfolio) navigate within the app.
+  function onContentClick(e) {
+    const a = e.target.closest && e.target.closest('a.md-pagelink')
+    if (a) { e.preventDefault(); const pg = a.getAttribute('data-page'); if (pg && go) go(pg) }
   }
 
   // Extract REAL instrument symbols in priority order: the answer's sources
@@ -314,7 +320,7 @@ export default function Assistant({ seed, clearSeed }) {
               {m.role === 'assistant' && <span className="msg-avatar"><AiIcon /></span>}
               <div className="bubble">
                 {m.role === 'assistant'
-                  ? <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
+                  ? <div className="md" onClick={onContentClick} dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
                   : <p>{m.text}</p>}
                 {m.role === 'assistant' && m.sources?.length > 0 && (
                   <div className="meta">

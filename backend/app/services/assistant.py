@@ -462,13 +462,15 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 }
                 context_parts.append(
                     "PORTFOLIO_ANALYSIS (computed by the SAME engine as the Portfolio page - "
-                    "AUTHORITATIVE, use these EXACT figures, never invent holdings or numbers). "
-                    "Keep the answer SHORT and high-level: open with the health score + status "
-                    "and the P&L, then at most 2-3 bullets on the biggest points (top-holding "
-                    "concentration with its %, sector spread / top sectors). Do NOT list every "
-                    "holding and do NOT build a long per-stock table. End by recommending the "
-                    "user open the Portfolio page for the full breakdown - health-score "
-                    "deductions, full sector exposure, AI insights and PDF export. "
+                    "AUTHORITATIVE, use these EXACT figures; never invent holdings or numbers). "
+                    "Lead with a one-line takeaway giving the health score (out of 100) + status "
+                    "and the P&L (amount and %). Then give 3-4 short bullets covering: invested "
+                    "vs current value; top-holding concentration (name + its % and the HHI); "
+                    "diversification (holdings, sectors, effective holdings); and the top sectors "
+                    "by exposure with their %. Do NOT list every holding or build a long "
+                    "per-stock table. Finish with a line linking to the full breakdown "
+                    "(deductions, sector chart, AI insights, PDF export) using EXACTLY this "
+                    "markdown link: [Portfolio page](#page:Portfolio). "
                     + json.dumps(summary, default=str))
                 sources.append({"type": "db_query", "queries": 1})
             except Exception as e:
@@ -476,14 +478,16 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 context_parts.append(
                     "PORTFOLIO_ANALYSIS: a saved portfolio exists but its full analysis is not "
                     "available here right now. Do NOT mention any technical/database error or "
-                    "invent numbers - briefly tell the user to open the Portfolio page for the "
-                    "complete analysis (health score, P&L, sector breakdown and PDF).")
+                    "invent numbers - briefly tell the user to open the [Portfolio page]"
+                    "(#page:Portfolio) for the complete analysis (health score, P&L, sector "
+                    "breakdown and PDF). Use EXACTLY that markdown link.")
         else:
             context_parts.append(
                 "USER_PORTFOLIO: this user has NOT uploaded a portfolio yet. Do NOT invent "
                 "holdings or mention any technical/database error. Tell them you don't see a "
-                "saved portfolio and ask them to add it on the Portfolio page (upload CSV/XLSX "
-                "or enter holdings), after which you can analyse it. Offer general help meanwhile.")
+                "saved portfolio and ask them to add it on the [Portfolio page](#page:Portfolio) "
+                "(upload CSV/XLSX or enter holdings), after which you can analyse it. Use EXACTLY "
+                "that markdown link. Offer general stock/sector/market help meanwhile.")
 
     news = latest_news(limit=20, days=5)
     if news:

@@ -219,7 +219,7 @@ export default function App() {
         <main>
           <h2 className="page-title">{tab}</h2>
           {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} openSector={openSector} scoreLabel={brand.score_label} />}
-          {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} />}
+          {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} go={setTab} />}
           {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} sectorSeed={sectorSeed} clearSectorSeed={() => setSectorSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}
           {tab === 'Compare' && can('Compare') && <Compare scoreLabel={brand.score_label} />}
           {tab === 'Market News' && can('Market News') && <News />}

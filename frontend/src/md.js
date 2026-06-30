@@ -83,6 +83,8 @@ export function mdToHtml(text) {
 
 function inline(s) {
   return s
+    .replace(/\[([^\]]+)\]\(#page:([A-Za-z][A-Za-z ]{0,19})\)/g,
+             (m, t, p) => `<a href="#" class="md-pagelink" data-page="${p.trim()}">${t}</a>`)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
