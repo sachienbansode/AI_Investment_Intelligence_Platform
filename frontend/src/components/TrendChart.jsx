@@ -44,10 +44,12 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
   for (let t = yMin; t <= yMax + 0.1; t += step) ticks.push(t)
 
   const labelEvery = Math.ceil(n / 12)
-  // Show numeric labels on every point for short windows, and on a readable
-  // subset (same cadence as the date axis + the latest point) for longer windows
-  // like 30 days, so values stay visible without overlapping.
+  // Average (score) labels: every point for short windows, and a readable subset
+  // (date-axis cadence + latest point) for longer windows like 30 days.
   const showLbl = i => n <= 10 || i % labelEvery === 0 || i === n - 1
+  // Min/max range labels only on short windows - on 30 days they clutter the
+  // chart, so the 30-day view shows scores only.
+  const showMM = n <= 8
 
   const bandPath = 'M' + maxs.map((v, i) => `${x(i)},${y(v)}`).join(' L ')
     + ' L ' + mins.map((v, i) => `${x(i)},${y(v)}`).reverse().join(' L ') + ' Z'
@@ -103,8 +105,8 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
 
           {daily.map((d, i) => (
             <g key={d.date}>
-              {showLbl(i) && <text x={x(i)} y={y(maxs[i]) - 5} textAnchor="middle" className="t2mm">{f1(maxs[i])}</text>}
-              {showLbl(i) && <text x={x(i)} y={y(mins[i]) + 12} textAnchor="middle" className="t2mm">{f1(mins[i])}</text>}
+              {showMM && <text x={x(i)} y={y(maxs[i]) - 5} textAnchor="middle" className="t2mm">{f1(maxs[i])}</text>}
+              {showMM && <text x={x(i)} y={y(mins[i]) + 12} textAnchor="middle" className="t2mm">{f1(mins[i])}</text>}
               <circle cx={x(i)} cy={y(d.avg_score)} r={hi === i ? 5 : 3.5} fill={band(d.avg_score)} stroke="var(--panel)" strokeWidth="1.5" />
               {showLbl(i) && <text x={x(i)} y={y(d.avg_score) - 10} textAnchor="middle" className="t2pt">{f1(d.avg_score)}</text>}
             </g>
