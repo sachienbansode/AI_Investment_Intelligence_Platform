@@ -117,6 +117,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
                 <strong>{m.symbol}</strong>
                 <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--green)" />
                 <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--green)' }} /></div>
+                <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
                 <span className="up">▲ {m.delta} ({m.from ? '+' + (m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}
@@ -130,6 +131,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
                 <strong>{m.symbol}</strong>
                 <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--red)" />
                 <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--red)' }} /></div>
+                <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
                 <span className="down">▼ {Math.abs(m.delta)} ({m.from ? '−' + Math.abs(m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
               </div>
             ))}
