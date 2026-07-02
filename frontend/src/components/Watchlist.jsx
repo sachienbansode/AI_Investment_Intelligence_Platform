@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
 import Pager from './Pager.jsx'
+import { useNames } from '../names.js'
 
 const scoreColor = v =>
   v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)'
@@ -11,6 +12,7 @@ const fmtCr = v =>
 const band = v => v == null ? '' : v >= 65 ? 'Strong' : v >= 45 ? 'Neutral' : 'Weak'
 
 export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
+  const names = useNames()
   const [rows, setRows] = useState([])
   const [all, setAll] = useState([])
   const [pick, setPick] = useState('')
@@ -141,7 +143,8 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
               return (
                 <tr key={r.symbol}>
                   <td>
-                    <div><strong>{r.symbol}</strong></div>
+                    <div title={names[r.symbol] || r.symbol}><strong>{r.symbol}</strong>
+                      {names[r.symbol] && <div className="script-name">{names[r.symbol]}</div>}</div>
                     {r.name && <div className="hint" style={{ fontSize: '.82em' }}>{r.name}</div>}
                     {r.sector && <span className="tag" style={{ marginTop: 4 }}>{r.sector}</span>}
                   </td>

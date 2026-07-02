@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { fmtDate } from '../fmt.js'
 import TrendChart from './TrendChart.jsx'
+import { useNames } from '../names.js'
 import Sparkline from './Sparkline.jsx'
 
 function scoreColor(v) {
@@ -21,6 +22,7 @@ function heatColor(v) {
 
 export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIYTRI Score' }) {
   const [scores, setScores] = useState(null)
+  const names = useNames()
   const [news, setNews] = useState([])
   const [watch, setWatch] = useState([])
   const [trend, setTrend] = useState(null)
@@ -113,12 +115,14 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
             {gainers.length === 0 && <p className="hint">No gainers in window.</p>}
             {gainers.map(m => (
               <div key={m.symbol} className="move-row row-click"
-                   title={`${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
+                   title={`${names[m.symbol] ? names[m.symbol] + ' · ' : ''}${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--green)" />
                 <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--green)' }} /></div>
-                <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
-                <span className="up">▲ {m.delta} ({m.from ? '+' + (m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
+                <div className="move-end">
+                  <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
+                  <span className="up">▲ {m.delta} ({m.from ? '+' + (m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
+                </div>
               </div>
             ))}
           </div>
@@ -127,12 +131,14 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
             {losers.length === 0 && <p className="hint">No decliners in window.</p>}
             {losers.map(m => (
               <div key={m.symbol} className="move-row row-click"
-                   title={`${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
+                   title={`${names[m.symbol] ? names[m.symbol] + ' · ' : ''}${m.from} → ${m.to} · open in Stock Scores`} onClick={() => openScore && openScore(m.symbol)}>
                 <strong>{m.symbol}</strong>
                 <Sparkline values={[m.from, m.to]} width={62} height={24} color="var(--red)" />
                 <div className="move-track"><div className="move-fill" style={{ width: `${Math.abs(m.delta) / maxDelta * 100}%`, background: 'var(--red)' }} /></div>
-                <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
-                <span className="down">▼ {Math.abs(m.delta)} ({m.from ? '−' + Math.abs(m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
+                <div className="move-end">
+                  <span className="score sm" style={{ background: scoreColor(m.to) }} title="Current score">{m.to}</span>
+                  <span className="down">▼ {Math.abs(m.delta)} ({m.from ? '−' + Math.abs(m.delta / m.from * 100).toFixed(1) + '%' : '—'})</span>
+                </div>
               </div>
             ))}
           </div>
@@ -147,7 +153,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
           </div>
           {top.length === 0 && <p className="hint">No scores yet — run the pipeline from Stock Scores.</p>}
           {top.map(s => (
-            <div key={s.symbol} className="rank-row row-click" title="Open in Stock Scores"
+            <div key={s.symbol} className="rank-row row-click" title={names[s.symbol] ? names[s.symbol] + ' · open in Stock Scores' : 'Open in Stock Scores'}
                  onClick={() => openScore && openScore(s.symbol)}>
               <strong>{s.symbol}</strong>
               <span className="hint">{s.sector}{s.last_price != null ? ' · ₹' + Number(s.last_price).toLocaleString('en-IN') : ''}</span>
@@ -202,7 +208,7 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
           </div>
           <div className="watch-strip">
             {watch.map(w => (
-              <div key={w.symbol} className="watch-chip row-click" title="Open in Stock Scores"
+              <div key={w.symbol} className="watch-chip row-click" title={names[w.symbol] ? names[w.symbol] + ' · open in Stock Scores' : 'Open in Stock Scores'}
                    onClick={() => openScore && openScore(w.symbol)}>
                 <strong>{w.symbol}</strong>
                 <span>{w.last_price != null ? `₹${w.last_price.toLocaleString('en-IN')}` : '—'}</span>

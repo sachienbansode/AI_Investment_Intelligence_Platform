@@ -868,13 +868,15 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .sbar-cnt { font-size: .72rem; color: var(--faint); text-align: right; }
 
 /* Gainers / decliners with sparkline + magnitude bar */
-.move-row { display: grid; grid-template-columns: 72px 62px 1fr 132px; gap: 10px;
-  align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
+.move-row { display: grid; grid-template-columns: 68px 54px 1fr auto; gap: 10px;
+  align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
 .move-row:first-of-type { border-top: none; }
-.move-row strong { font-size: .9rem; }
+.move-row strong { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .move-track { height: 8px; background: var(--track); border-radius: 5px; overflow: hidden; }
 .move-fill { height: 100%; border-radius: 5px; transition: width .3s ease; }
-.move-row .up, .move-row .down { font-size: .8rem; font-weight: 600; text-align: right; }
+.move-end { display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap; }
+.move-end .score.sm { min-width: 42px; text-align: center; }
+.move-row .up, .move-row .down { font-size: .8rem; font-weight: 600; white-space: nowrap; }
 
 /* per-stock score history sparkline (Stock Scores expanded row) */
 .score-hist { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -883,7 +885,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .score-hist b { color: var(--text); }
 @media (max-width: 860px) {
   .sbar-row { grid-template-columns: 92px 1fr 40px 30px; gap: 7px; }
-  .move-row { grid-template-columns: 60px 52px 1fr 110px; gap: 7px; }
+  .move-row { grid-template-columns: 56px 44px 1fr auto; gap: 7px; }
 }
 
 /* Compact Sector Strength chips (short dashboard format) */
@@ -923,3 +925,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .mt-score { font-size: 11px; font-weight: 700; fill: var(--text); }
 .mt-date { font-size: 9px; fill: var(--faint); }
 @media (max-width: 860px) { .mini-trend { max-width: 100%; } }
+
+/* company name shown under the script symbol */
+.script-name { font-size: .7rem; color: var(--muted); font-weight: 400; margin-top: 1px;
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

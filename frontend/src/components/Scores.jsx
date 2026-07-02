@@ -5,6 +5,7 @@ import { mdToHtml } from '../md.js'
 import Sparkline from './Sparkline.jsx'
 import MiniTrend from './MiniTrend.jsx'
 import { toast } from '../dialog.jsx'
+import { useNames } from '../names.js'
 
 const PILLARS = ['fundamental', 'technical', 'valuation', 'momentum', 'earnings',
                  'news_sentiment', 'institutional', 'risk']
@@ -31,6 +32,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)
+  const names = useNames()
   const [q, setQ] = useState('')
   const [sector, setSector] = useState('')
   const [index, setIndex] = useState('All')
@@ -202,7 +204,10 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
           {rows.map(s => (
             <Fragment key={s.symbol}>
               <tr className="row-click" onClick={() => setOpen(open === s.symbol ? null : s.symbol)}>
-                <td><strong>{s.symbol}</strong></td>
+                <td title={names[s.symbol] || s.symbol}>
+                  <strong>{s.symbol}</strong>
+                  {names[s.symbol] && <div className="script-name">{names[s.symbol]}</div>}
+                </td>
                 <td className="hint">{s.sector || '—'}</td>
                 <td>{s.last_price != null ? '₹' + Number(s.last_price).toLocaleString('en-IN') : '—'}</td>
                 <td><span className="score" style={{ background: color(s.composite_score) }}>{s.composite_score}</span></td>
