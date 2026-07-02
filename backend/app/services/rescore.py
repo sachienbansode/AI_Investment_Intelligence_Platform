@@ -31,16 +31,10 @@ async def rescore_symbol(symbol: str) -> dict | None:
     if not q or q.last_price is None:
         return None
 
-    pillars = {
-        "fundamental": 50.0,
-        "technical": scoring.technical_score(q),
-        "valuation": scoring.valuation_score(q),
-        "momentum": scoring.momentum_score(q),
-        "earnings": 50.0,
-        "news_sentiment": 50.0,   # daily pipeline supplies this; neutral intraday
-        "institutional": 50.0,
-        "risk": scoring.risk_score(q),
-    }
+    # All pillars from the fresh quote; news_sentiment stays neutral intraday (the
+    # daily pipeline supplies real sentiment). fundamental/earnings/institutional
+    # now derive from the quote's fundamentals rather than a constant 50.
+    pillars = scoring.build_pillars(q, None)
     composite = scoring.composite(pillars, get_setting("scoring_weights"))
     today = date.today().isoformat()
 

@@ -161,16 +161,11 @@ async def sentiment_agent(ctx: AgentContext):
 # ── 5. Scoring Agent ─────────────────────────────────────────────
 async def scoring_agent(ctx: AgentContext):
     for sym, q in ctx.quotes.items():
-        pillars = {
-            "fundamental": 50.0,  # neutral until fundamentals feed is connected
-            "technical": scoring.technical_score(q),
-            "valuation": scoring.valuation_score(q),
-            "momentum": scoring.momentum_score(q),
-            "earnings": 50.0,     # neutral until earnings feed is connected
-            "news_sentiment": scoring.sentiment_to_score(ctx.sentiments.get(sym, {})),
-            "institutional": 50.0,  # neutral until FII/DII holdings feed is connected
-            "risk": scoring.risk_score(q),
-        }
+        # All 8 pillars computed from the quote's fundamentals + news sentiment.
+        # fundamental/earnings/institutional now derive from ROE/P-B/dividend/EPS/
+        # market-cap/volume (institutional is a size-stability proxy pending a real
+        # FII/DII feed) instead of a constant 50.
+        pillars = scoring.build_pillars(q, ctx.sentiments.get(sym, {}))
         ctx.pillar_scores[sym] = pillars
         ctx.composites[sym] = scoring.composite(pillars, get_setting("scoring_weights"))
     audit_log("agent_scoring", composites=ctx.composites)
