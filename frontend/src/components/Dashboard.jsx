@@ -63,6 +63,11 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
   const avg = flist.length ? (flist.reduce((a, s) => a + s.composite_score, 0) / flist.length).toFixed(1) : '—'
   const top = [...flist].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
   const approved = flist.filter(s => s.quality_status === 'approved').length
+  const strongN = flist.filter(s => s.composite_score >= 65).length
+  const neutralN = flist.filter(s => s.composite_score >= 45 && s.composite_score < 65).length
+  const weakN = flist.filter(s => s.composite_score < 45).length
+  const bandTot = flist.length || 1
+  const bandPct = c => Math.round(c / bandTot * 100)
   const gainers = (trend?.gainers || []).filter(m => fsyms.has(m.symbol))
   const losers = (trend?.losers || []).filter(m => fsyms.has(m.symbol))
   const maxDelta = Math.max(1, ...[...gainers, ...losers].map(m => Math.abs(m.delta)))
@@ -105,6 +110,21 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
           <span className="kpi-value">{watch.length}</span>
           <span className="kpi-sub">scripts followed</span></div>
       </div>
+
+      {flist.length > 0 && (
+        <div className="band-dist" title="Distribution of scripts across score bands on the latest run">
+          <div className="band-bar">
+            <div className="band-seg strong" style={{ width: `${strongN / bandTot * 100}%` }} title={`Strong 65+: ${strongN} (${bandPct(strongN)}%)`} />
+            <div className="band-seg neutral" style={{ width: `${neutralN / bandTot * 100}%` }} title={`Neutral 45-64: ${neutralN} (${bandPct(neutralN)}%)`} />
+            <div className="band-seg weak" style={{ width: `${weakN / bandTot * 100}%` }} title={`Weak <45: ${weakN} (${bandPct(weakN)}%)`} />
+          </div>
+          <div className="band-keys">
+            <span className="band-key"><i className="dot" style={{ background: 'var(--green)' }} /><b>{strongN}</b> Strong <small>65+</small><em>{bandPct(strongN)}%</em></span>
+            <span className="band-key"><i className="dot" style={{ background: 'var(--amber)' }} /><b>{neutralN}</b> Neutral <small>45-64</small><em>{bandPct(neutralN)}%</em></span>
+            <span className="band-key"><i className="dot" style={{ background: 'var(--red)' }} /><b>{weakN}</b> Weak <small>&lt;45</small><em>{bandPct(weakN)}%</em></span>
+          </div>
+        </div>
+      )}
 
       <TrendChart trend={trend} range={range} setRange={setRange} scoreLabel={scoreLabel} />
 

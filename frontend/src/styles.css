@@ -929,3 +929,21 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 /* company name shown under the script symbol */
 .script-name { font-size: .7rem; color: var(--muted); font-weight: 400; margin-top: 1px;
   max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dashboard score-band distribution bar */
+.band-dist { margin: 2px 0 16px; }
+.band-bar { display: flex; height: 14px; border-radius: 8px; overflow: hidden;
+  background: var(--track); box-shadow: inset 0 1px 2px rgba(0,0,0,.22); }
+.band-seg { height: 100%; transition: width .4s ease; }
+.band-seg.strong { background: var(--green); }
+.band-seg.neutral { background: var(--amber); }
+.band-seg.weak { background: var(--red); }
+.band-keys { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 9px; }
+.band-key { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem;
+  color: var(--muted); background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 11px; }
+.band-key i.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.band-key b { color: var(--text); font-size: .92rem; }
+.band-key small { color: var(--faint); }
+.band-key em { font-style: normal; font-weight: 700; color: var(--text); margin-left: 3px;
+  padding-left: 8px; border-left: 1px solid var(--border2); }
