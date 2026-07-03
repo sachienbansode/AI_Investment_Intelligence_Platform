@@ -15,6 +15,7 @@ import Agents from './components/Agents.jsx'
 import Admin from './components/Admin.jsx'
 import RunAudit from './components/RunAudit.jsx'
 import About from './components/About.jsx'
+import Profile from './components/Profile.jsx'
 import Login from './components/Login.jsx'
 import { api, getToken, getRefresh, clearSession, refreshSession, onUnauthorized } from './api.js'
 
@@ -91,7 +92,7 @@ export default function App() {
   const pages = user?.pages || []
   // Keep the active tab within the user's allowed pages.
   useEffect(() => {
-    if (user && pages.length && !pages.includes(tab)) setTab(pages[0])
+    if (user && pages.length && !pages.includes(tab) && tab !== 'Profile') setTab(pages[0])
   }, [user]) // eslint-disable-line
 
   useEffect(() => {
@@ -177,8 +178,10 @@ export default function App() {
           ))}
         </nav>
         <div className="sidenav-foot">
-          <div className="user-pill" title={user.email}>
-            <span className="avatar">{(user.full_name || user.email)[0].toUpperCase()}</span>
+          <div className="user-pill row-click" title="View profile" onClick={() => selectTab('Profile')}>
+            {user.avatar
+              ? <span className="avatar"><img src={user.avatar} alt="" /></span>
+              : <span className="avatar">{(user.full_name || user.email)[0].toUpperCase()}</span>}
             <div>
               <div className="user-name">{user.full_name || user.email.split('@')[0]}</div>
               <div className="hint">{user.is_admin ? 'Administrator' : 'User'}</div>
@@ -235,6 +238,7 @@ export default function App() {
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
           {tab === 'Alerts' && can('Alerts') && <Alerts go={setTab} openScore={openScore} onSeen={() => api.alertsUnread().then(d => setAlertUnread(d.unread || 0)).catch(() => {})} />}
           {tab === 'About' && can('About') && <About />}
+          {tab === 'Profile' && <Profile user={user} onUpdated={u => setUser(u)} />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
           {tab === 'Admin' && can('Admin') && <Admin />}

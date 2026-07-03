@@ -801,3 +801,35 @@ async def read_alerts(req: AlertsReadReq, user: User = Depends(get_current_user)
 @router.post("/admin/generate-alerts", dependencies=[Depends(require_admin)])
 async def admin_generate_alerts():
     return {"created": alerts.generate_alerts()}
+
+
+class AlertPrefReq(BaseModel):
+    enabled: bool | None = None
+    bands: bool | None = None
+    jumps: bool | None = None
+    min_jump: float | None = None
+    muted_symbols: list[str] | None = None
+
+
+@router.get("/alerts/prefs")
+async def get_alert_prefs(user: User = Depends(get_current_user)):
+    return alerts.get_prefs(user.id)
+
+
+@router.put("/alerts/prefs")
+async def put_alert_prefs(req: AlertPrefReq, user: User = Depends(get_current_user)):
+    data = req.model_dump(exclude_unset=True)
+    if "min_jump" in data and data["min_jump"] is not None:
+        if not (0 < data["min_jump"] <= 100):
+            raise HTTPException(400, "min_jump must be between 0 and 100")
+    return alerts.set_prefs(user.id, data)
+
+
+class MuteReq(BaseModel):
+    symbol: str
+    mute: bool = True
+
+
+@router.post("/alerts/mute")
+async def mute_alert_symbol(req: MuteReq, user: User = Depends(get_current_user)):
+    return alerts.mute_symbol(user.id, req.symbol, req.mute)

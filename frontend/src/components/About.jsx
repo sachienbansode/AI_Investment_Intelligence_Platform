@@ -43,6 +43,7 @@ const CATEGORIES = [
     features: [
       { icon: '◐', title: 'Portfolio Intelligence', desc: "Health score with a transparent deduction breakdown, diversification and concentration metrics (HHI), sector exposure, factual AI insights and a downloadable PDF report." },
       { icon: '☆', title: 'Personal Watchlist', desc: "Follow any script with live price, day change and its latest score in one view." },
+      { icon: '⚑', title: 'Score-Crossing Alerts', desc: "Proactive, in-app alerts when a script in your watchlist or portfolio crosses a score band (into Strong 65+ or down to Weak) or moves sharply between scoring days - each with a plain-language explanation of the pillars that drove the move. Unread badge and one-click open in Stock Scores, with per-user preferences (mute scripts, band-vs-move toggles, personal threshold). Informational only, not advice." },
     ],
   },
   {
@@ -59,6 +60,7 @@ const CATEGORIES = [
       { icon: '⬡', title: 'Multi-LLM Engine', desc: "Anthropic Claude, OpenAI GPT and Google Gemini behind one router with automatic failover and key-based auto-switch - no single-vendor dependency, with per-call usage tracked." },
       { icon: '⚡', title: 'Prompt Caching', desc: "Optional caching of the assistant's system prompt across Anthropic, OpenAI and Gemini to cut latency and repeated input-token cost - toggled from Admin." },
       { icon: '⚒', title: 'Fully DB-Configurable', desc: "Instruments master with one-click NIFTY500 import, editable scoring weights, scheduler times, chatbot persona, display names and branding - all from the Admin tab." },
+      { icon: '◉', title: 'User Profiles & Preferences', desc: "Each user has a self-service profile - update name and photo, change password, and manage personal alert preferences (mute scripts, band-vs-move toggles, custom threshold) - all in one place." },
       { icon: '▣', title: 'Mobile Apps', desc: "The same experience packaged as native iOS and Android apps (Capacitor) with a mobile-first UI, bottom navigation and a compact assistant." },
       { icon: '⇲', title: 'Open Partner API', desc: "A dedicated, versioned REST API for partners and mobile apps - AI scores, instruments, market news, the assistant and stateless portfolio analysis. Secured with per-partner API keys, scoped access and rate limits, with a full integration guide and OpenAPI/Swagger docs." },
     ],

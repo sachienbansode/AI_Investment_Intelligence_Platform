@@ -12,7 +12,7 @@ drivers of the move. Generation is idempotent (one row per user/symbol/date/kind
 import logging
 
 from app.core.compliance import audit_log
-from app.db.database import (Alert, Portfolio, SessionLocal, StockScore,
+from app.db.database import (Alert, AlertPref, Portfolio, SessionLocal, StockScore,
                              WatchlistItem, utcnow)
 from app.services.app_settings import get_setting
 from app.services.rescore import pillar_drivers
@@ -73,6 +73,67 @@ def _message(sym, kind, frm, to, delta, from_band, to_band, drivers) -> str:
             f"{BAND_LABEL.get(to_band, to_band)} band.{drv} Informational only, not advice.")
 
 
+DEFAULT_PREFS = {"enabled": True, "bands": True, "jumps": True,
+                "min_jump": None, "muted_symbols": []}
+
+
+def _pref_dict(row) -> dict:
+    if not row:
+        return dict(DEFAULT_PREFS)
+    return {"enabled": bool(row.enabled), "bands": bool(row.bands),
+            "jumps": bool(row.jumps), "min_jump": row.min_jump,
+            "muted_symbols": [str(x).upper() for x in (row.muted_symbols or [])]}
+
+
+def get_prefs(user_id: int) -> dict:
+    db = SessionLocal()
+    try:
+        return _pref_dict(db.get(AlertPref, user_id))
+    finally:
+        db.close()
+
+
+def set_prefs(user_id: int, data: dict) -> dict:
+    db = SessionLocal()
+    try:
+        row = db.get(AlertPref, user_id)
+        if not row:
+            row = AlertPref(user_id=user_id)
+            db.add(row)
+        if "enabled" in data: row.enabled = bool(data["enabled"])
+        if "bands" in data: row.bands = bool(data["bands"])
+        if "jumps" in data: row.jumps = bool(data["jumps"])
+        if "min_jump" in data:
+            mj = data["min_jump"]
+            row.min_jump = float(mj) if mj is not None else None
+        if "muted_symbols" in data:
+            row.muted_symbols = sorted({str(x).upper() for x in (data["muted_symbols"] or []) if str(x).strip()})
+        db.commit()
+        return _pref_dict(db.get(AlertPref, user_id))
+    finally:
+        db.close()
+
+
+def mute_symbol(user_id: int, symbol: str, mute: bool = True) -> dict:
+    symbol = str(symbol).upper().strip()
+    db = SessionLocal()
+    try:
+        row = db.get(AlertPref, user_id)
+        if not row:
+            row = AlertPref(user_id=user_id, muted_symbols=[])
+            db.add(row)
+        cur = {str(x).upper() for x in (row.muted_symbols or [])}
+        if mute:
+            cur.add(symbol)
+        else:
+            cur.discard(symbol)
+        row.muted_symbols = sorted(cur)
+        db.commit()
+        return _pref_dict(db.get(AlertPref, user_id))
+    finally:
+        db.close()
+
+
 def generate_alerts(score_date: str | None = None) -> int:
     """Create alerts for the latest run (vs the previous day). Returns count created."""
     if not bool(get_setting("alerts_enabled")):
@@ -93,8 +154,18 @@ def generate_alerts(score_date: str | None = None) -> int:
         latest, prev, lmap, pmap = _score_maps(db)
         if not latest or not prev:
             return 0
+        prefs = {r.user_id: _pref_dict(r) for r in db.query(AlertPref).all()}
         for user_id, syms in followed.items():
+            pf = prefs.get(user_id, DEFAULT_PREFS)
+            if not pf["enabled"]:
+                continue
+            u_bands = bands_on and pf["bands"]
+            u_jumps = jumps_on and pf["jumps"]
+            u_min = pf["min_jump"] if pf["min_jump"] else jump_min
+            muted = set(pf["muted_symbols"])
             for sym, source in syms.items():
+                if sym in muted:
+                    continue
                 lr, pr = lmap.get(sym), pmap.get(sym)
                 if not lr or not pr:
                     continue
@@ -104,9 +175,9 @@ def generate_alerts(score_date: str | None = None) -> int:
                 delta = round(to - frm, 1)
                 fb, tb = band_of(frm), band_of(to)
                 kind = None
-                if bands_on and fb != tb:
+                if u_bands and fb != tb:
                     kind = "band_up" if to > frm else "band_down"
-                elif jumps_on and abs(delta) >= jump_min:
+                elif u_jumps and abs(delta) >= u_min:
                     kind = "jump" if delta > 0 else "drop"
                 if not kind:
                     continue

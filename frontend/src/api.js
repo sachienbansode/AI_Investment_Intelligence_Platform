@@ -188,6 +188,11 @@ export const api = {
   alertsUnread: () => http('/alerts/unread-count'),
   markAlertsRead: (body) => http('/alerts/read', { method: 'POST', body: JSON.stringify(body) }),
   generateAlerts: () => http('/admin/generate-alerts', { method: 'POST' }),
+  alertPrefs: () => http('/alerts/prefs'),
+  saveAlertPrefs: (body) => http('/alerts/prefs', { method: 'PUT', body: JSON.stringify(body) }),
+  muteAlertSymbol: (symbol, mute = true) => http('/alerts/mute', { method: 'POST', body: JSON.stringify({ symbol, mute }) }),
+  updateProfile: (body) => http('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
+  changePassword: (body) => http('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
   // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),

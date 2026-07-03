@@ -38,6 +38,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     role_id = Column(Integer, nullable=True)   # FK -> roles.id (RBAC)
+    avatar = Column(Text, nullable=True)       # profile photo as data:image/... URI
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -197,6 +198,20 @@ class Alert(Base):
     )
 
 
+class AlertPref(Base):
+    """Per-user alert preferences (one row per user). These can only NARROW what
+    the admin master switches allow (e.g. a user can turn off jumps, not enable a
+    channel the admin disabled). muted_symbols suppresses named scripts."""
+    __tablename__ = "alert_prefs"
+    user_id = Column(Integer, primary_key=True)
+    enabled = Column(Boolean, default=True)
+    bands = Column(Boolean, default=True)          # band-crossing alerts
+    jumps = Column(Boolean, default=True)          # sharp same-band moves
+    min_jump = Column(Float, nullable=True)        # personal threshold; null -> use global
+    muted_symbols = Column(JSON)                   # list[str] of symbols to suppress
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class NewsItem(Base):
     __tablename__ = "news_items"
     id = Column(Integer, primary_key=True)
@@ -276,6 +291,7 @@ _MIGRATIONS = [
     ("stock_scores", "fundamentals", "JSON"),
     ("instruments", "indices", "JSON"),
     ("users", "role_id", "INTEGER"),
+    ("users", "avatar", "TEXT"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
