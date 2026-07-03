@@ -196,23 +196,31 @@ export default function App() {
           <button className="hamburger icon-btn" onClick={() => setNavOpen(o => !o)} title="Menu">
             {String.fromCharCode(0x2630)}
           </button>
-          <div className="ticker-rows">
-            {[['NSE', indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)'))],
-              ['BSE', indices.filter(i => i.index.includes('(BSE)'))],
-              ['GLOBAL', indices.filter(i => i.index.includes('(GL)'))]]
-              .filter(([, list]) => list.length > 0)
-              .map(([exch, list]) => (
-                <div key={exch} className="ticker">
-                  <span className="exch-badge">{exch}</span>
-                  {[...list].sort((a, b) => isPrimary(b.index) - isPrimary(a.index)).map(i => (
-                    <span key={i.index} className={'tk-item' + (isPrimary(i.index) ? ' primary-index' : '')}>
-                      <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b>
-                      <span className="tk-val">{i.last?.toLocaleString('en-IN')}</span>
-                      <em className={i.pct_change >= 0 ? 'up' : 'down'}>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
-                    </span>
-                  ))}
+          <div className="ticker-marquee">
+            {(() => {
+              const tick = [
+                ...indices.filter(i => !i.index.includes('(BSE)') && !i.index.includes('(GL)')),
+                ...indices.filter(i => i.index.includes('(BSE)')),
+                ...indices.filter(i => i.index.includes('(GL)')),
+              ]
+              if (!tick.length) return null
+              // Duplicate the list so the CSS translateX(-50%) loop is seamless.
+              return (
+                <div className="ticker-track" style={{ animationDuration: Math.max(26, tick.length * 3.5) + 's' }}>
+                  {[...tick, ...tick].map((i, idx) => {
+                    const exch = i.index.includes('(BSE)') ? 'BSE' : i.index.includes('(GL)') ? 'GL' : 'NSE'
+                    return (
+                      <span key={idx} className={'tk-item' + (isPrimary(i.index) ? ' primary-index' : '')} aria-hidden={idx >= tick.length}>
+                        <span className="tk-exch">{exch}</span>
+                        <b>{i.index.replace(' (BSE)', '').replace(' (GL)', '')}</b>
+                        <span className="tk-val">{i.last?.toLocaleString('en-IN')}</span>
+                        <em className={i.pct_change >= 0 ? 'up' : 'down'}>{(i.pct_change > 0 ? UP : DN)} {Math.abs(i.pct_change)}%</em>
+                      </span>
+                    )
+                  })}
                 </div>
-              ))}
+              )
+            })()}
           </div>
           <div className="topbar-right">
             {health && (
