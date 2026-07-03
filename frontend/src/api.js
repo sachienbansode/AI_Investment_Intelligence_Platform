@@ -183,6 +183,11 @@ export const api = {
     http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min }) }),
   revokePartnerKey: (id) => http(`/admin/partner-keys/${id}/revoke`, { method: 'POST' }),
   deletePartnerKey: (id) => http(`/admin/partner-keys/${id}`, { method: 'DELETE' }),
+  // Score-crossing alerts (in-app feed)
+  alerts: (p = {}) => http('/alerts?' + new URLSearchParams(p)),
+  alertsUnread: () => http('/alerts/unread-count'),
+  markAlertsRead: (body) => http('/alerts/read', { method: 'POST', body: JSON.stringify(body) }),
+  generateAlerts: () => http('/admin/generate-alerts', { method: 'POST' }),
   // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),

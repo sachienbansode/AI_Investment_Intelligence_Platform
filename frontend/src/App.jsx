@@ -10,6 +10,7 @@ import Scores from './components/Scores.jsx'
 import News from './components/News.jsx'
 import Watchlist from './components/Watchlist.jsx'
 import Portfolio from './components/Portfolio.jsx'
+import Alerts from './components/Alerts.jsx'
 import Agents from './components/Agents.jsx'
 import Admin from './components/Admin.jsx'
 import RunAudit from './components/RunAudit.jsx'
@@ -24,7 +25,7 @@ const DOT = String.fromCharCode(0x00B7)
 // Icon for every page in the catalog; nav is built from the user's allowed pages.
 const ICONS = {
   'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Stock Scores': '▤', 'Compare': '⇄', 'Market News': '◈',
-  'Watchlist': '☆', 'Portfolio': '◐', 'Agents': '⚙', 'Audit': '≣',
+  'Watchlist': '☆', 'Portfolio': '◐', 'Alerts': '⚑', 'Agents': '⚙', 'Audit': '≣',
   'Admin': '⛨', 'About': 'ⓘ',
 }
 // Primary tabs shown in the mobile bottom bar; the rest live behind "More".
@@ -47,12 +48,18 @@ export default function App() {
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1')
   const [navOpen, setNavOpen] = useState(false)
+  const [alertUnread, setAlertUnread] = useState(0)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
   }, [theme])
   useEffect(() => { localStorage.setItem('navCollapsed', collapsed ? '1' : '0') }, [collapsed])
+  useEffect(() => {
+    if (!user) return
+    const f = () => api.alertsUnread().then(d => setAlertUnread(d.unread || 0)).catch(() => {})
+    f(); const t = setInterval(f, 60000); return () => clearInterval(t)
+  }, [user])
   useEffect(() => { const o = startTableLabels(); return () => o.disconnect() }, [])
 
   function selectTab(name) { setTab(name); setNavOpen(false) }
@@ -165,6 +172,7 @@ export default function App() {
                     title={n.name} onClick={() => selectTab(n.name)}>
               <span className="nav-icon">{n.icon}</span>
               <span className="nav-label">{n.name}</span>
+              {n.name === 'Alerts' && alertUnread > 0 && <span className="nav-badge">{alertUnread}</span>}
             </button>
           ))}
         </nav>
@@ -225,6 +233,7 @@ export default function App() {
           {tab === 'Market News' && can('Market News') && <News />}
           {tab === 'Watchlist' && can('Watchlist') && <Watchlist scoreLabel={brand.score_label} />}
           {tab === 'Portfolio' && can('Portfolio') && <Portfolio />}
+          {tab === 'Alerts' && can('Alerts') && <Alerts go={setTab} openScore={openScore} onSeen={() => api.alertsUnread().then(d => setAlertUnread(d.unread || 0)).catch(() => {})} />}
           {tab === 'About' && can('About') && <About />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}

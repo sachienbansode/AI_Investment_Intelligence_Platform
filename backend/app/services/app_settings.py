@@ -33,6 +33,12 @@ DEFAULTS: dict = {
     "assistant_sql_tool_enabled": True,
     "assistant_sql_max_rows": 200,      # max rows returned per query
     "assistant_sql_max_queries": 3,     # max queries per question
+    # Score-crossing alerts (in-app): raise an alert when a followed script
+    # crosses a score band or moves by at least alert_score_jump points.
+    "alerts_enabled": True,
+    "alert_bands_enabled": True,        # band-crossing alerts (weak/neutral/strong)
+    "alert_jumps_enabled": True,        # sharp same-band moves
+    "alert_score_jump": 5.0,            # min |delta| points for a jump/drop alert
     # LLM pricing for INR billing estimates (USD per 1 MILLION tokens) —
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
@@ -207,6 +213,12 @@ def _validate(key: str, value) -> None:
             raise ValueError("assistant_sql_max_rows must be <= 2000")
         if key == "assistant_sql_max_queries" and value > 6:
             raise ValueError("assistant_sql_max_queries must be <= 6")
+    elif key in ("alerts_enabled", "alert_bands_enabled", "alert_jumps_enabled"):
+        if not isinstance(value, bool):
+            raise ValueError(f"{key} must be true or false")
+    elif key == "alert_score_jump":
+        if not (isinstance(value, (int, float)) and 0 < value <= 100):
+            raise ValueError("alert_score_jump must be a number between 0 and 100")
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")

@@ -53,9 +53,9 @@ class Role(Base):
 
 # Canonical page catalog (matches the frontend nav tab names)
 ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
-             "Watchlist", "Portfolio", "About", "Agents", "Audit", "Admin"]
+             "Watchlist", "Portfolio", "Alerts", "About", "Agents", "Audit", "Admin"]
 USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
-              "Watchlist", "Portfolio", "About"]
+              "Watchlist", "Portfolio", "Alerts", "About"]
 
 
 class Instrument(Base):
@@ -170,6 +170,31 @@ class ChatFeedback(Base):
     answer = Column(Text)
     provider = Column(String, default="")
     created_at = Column(DateTime, default=utcnow)
+
+
+class Alert(Base):
+    """A per-user, in-app alert raised when a followed script's AI score crosses a
+    band boundary or moves sharply between scoring days. Advice-free (informational).
+    One row per (user, symbol, score_date, kind) so generation is idempotent."""
+    __tablename__ = "alerts"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    symbol = Column(String, index=True)
+    score_date = Column(String, index=True)
+    kind = Column(String)                 # band_up | band_down | jump | drop
+    from_score = Column(Float, nullable=True)
+    to_score = Column(Float)
+    delta = Column(Float, nullable=True)
+    from_band = Column(String, default="")   # strong | neutral | weak
+    to_band = Column(String, default="")
+    source = Column(String, default="")      # watchlist | portfolio
+    message = Column(Text, default="")
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=utcnow)
+    __table_args__ = (
+        UniqueConstraint("user_id", "symbol", "score_date", "kind", name="uq_alert_once"),
+        Index("ix_alerts_user_read", "user_id", "is_read"),
+    )
 
 
 class NewsItem(Base):

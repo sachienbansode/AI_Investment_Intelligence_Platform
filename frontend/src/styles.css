@@ -951,3 +951,19 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 /* Compact watchlist rows so ~10 scripts fit before scrolling */
 .wl-table td { padding-top: 6px; padding-bottom: 6px; vertical-align: middle; }
 .wl-table .script-name { max-width: 280px; margin-top: 1px; }
+
+/* Alerts feed */
+.alert-row { display: flex; gap: 10px; padding: 10px 6px; border-top: 1px solid var(--border); align-items: flex-start; }
+.alert-row:first-child { border-top: none; }
+.alert-row.unread { background: rgba(79,142,247,.06); }
+.alert-ico { font-size: .9rem; margin-top: 2px; }
+.alert-body { flex: 1; min-width: 0; }
+.alert-top { display: flex; align-items: center; gap: 8px; }
+.alert-top strong { font-size: .9rem; }
+.alert-delta { font-size: .8rem; font-weight: 600; }
+.alert-src { font-size: .7rem; text-transform: capitalize; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: auto; }
+.alert-msg { font-size: .84rem; color: var(--text); margin-top: 3px; line-height: 1.42; }
+.alert-time { font-size: .7rem; margin-top: 3px; }
+.nav-badge { min-width: 18px; text-align: center; background: var(--red); color: #fff;
+  font-size: .66rem; font-weight: 700; border-radius: 999px; padding: 1px 6px; margin-left: auto; }

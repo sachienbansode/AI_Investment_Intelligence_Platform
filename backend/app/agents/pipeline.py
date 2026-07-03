@@ -481,6 +481,13 @@ async def run_daily_pipeline(symbols: list[str] | None = None,
                 a["detail"] = _agent_detail(agent.__name__, ctx)
         run["status"] = ("completed" if all(a["status"] == "completed"
                                             for a in run["agents"]) else "partial")
+        # After scoring is published, raise in-app score-crossing alerts for
+        # users' followed scripts (best-effort; never fails the run).
+        try:
+            from app.services.alerts import generate_alerts
+            generate_alerts()
+        except Exception:
+            log.exception("alert generation failed")
     finally:
         run.pop("_ctx", None)
         run["finished"] = _time.time()

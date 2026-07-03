@@ -18,6 +18,7 @@ from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
 from app.services import news_intel
 from app.services.assistant import ask
+from app.services import alerts
 from app.services.portfolio import analyze_portfolio
 
 router = APIRouter(prefix="/api/v1")
@@ -773,3 +774,30 @@ async def health():
         "llm_providers": get_llm_router().active_providers,
         "market_data_providers": get_market_data().active_providers,
     }
+
+
+# ── Score-crossing alerts (in-app feed) ──────────────────────────
+@router.get("/alerts")
+async def get_alerts(limit: int = 30, offset: int = 0, unread: bool = False,
+                     user: User = Depends(get_current_user)):
+    return alerts.list_alerts(user.id, limit=limit, offset=offset, unread_only=unread)
+
+
+@router.get("/alerts/unread-count")
+async def get_alerts_unread(user: User = Depends(get_current_user)):
+    return {"unread": alerts.unread_count(user.id)}
+
+
+class AlertsReadReq(BaseModel):
+    ids: list[int] | None = None
+    all: bool = False
+
+
+@router.post("/alerts/read")
+async def read_alerts(req: AlertsReadReq, user: User = Depends(get_current_user)):
+    return {"updated": alerts.mark_read(user.id, ids=req.ids, all_=req.all)}
+
+
+@router.post("/admin/generate-alerts", dependencies=[Depends(require_admin)])
+async def admin_generate_alerts():
+    return {"created": alerts.generate_alerts()}
