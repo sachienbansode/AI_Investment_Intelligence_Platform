@@ -947,3 +947,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .band-key small { color: var(--faint); }
 .band-key em { font-style: normal; font-weight: 700; color: var(--text); margin-left: 3px;
   padding-left: 8px; border-left: 1px solid var(--border2); }
+
+/* Compact watchlist rows so ~10 scripts fit before scrolling */
+.wl-table td { padding-top: 6px; padding-bottom: 6px; vertical-align: middle; }
+.wl-table .script-name { max-width: 280px; margin-top: 1px; }

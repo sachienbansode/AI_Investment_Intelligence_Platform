@@ -3,7 +3,6 @@ import { api } from '../api.js'
 import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
 import Pager from './Pager.jsx'
-import { useNames } from '../names.js'
 
 const scoreColor = v =>
   v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)'
@@ -12,7 +11,6 @@ const fmtCr = v =>
 const band = v => v == null ? '' : v >= 65 ? 'Strong' : v >= 45 ? 'Neutral' : 'Weak'
 
 export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
-  const names = useNames()
   const [rows, setRows] = useState([])
   const [all, setAll] = useState([])
   const [pick, setPick] = useState('')
@@ -123,7 +121,7 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
       {rows.length > 0 && view.length === 0 && <p className="hint">No scripts match the filter.</p>}
 
       {view.length > 0 && (
-        <table className="data-table">
+        <table className="data-table wl-table">
           <thead><tr>
             {th('symbol', 'Script', 'NSE symbol / company — click to sort')}
             {th('last_price', 'Price (LTP)', 'Last traded price — click to sort')}
@@ -143,10 +141,8 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
               return (
                 <tr key={r.symbol}>
                   <td>
-                    <div title={names[r.symbol] || r.symbol}><strong>{r.symbol}</strong>
-                      {names[r.symbol] && <div className="script-name">{names[r.symbol]}</div>}</div>
-                    {r.name && <div className="hint" style={{ fontSize: '.82em' }}>{r.name}</div>}
-                    {r.sector && <span className="tag" style={{ marginTop: 4 }}>{r.sector}</span>}
+                    <strong title={r.name || r.symbol}>{r.symbol}</strong>
+                    {(r.name || r.sector) && <div className="script-name">{[r.name, r.sector].filter(Boolean).join(' \u00b7 ')}</div>}
                   </td>
                   <td style={{ fontWeight: 600 }}>
                     {r.last_price != null ? '₹' + r.last_price.toLocaleString('en-IN') : '—'}</td>
@@ -159,7 +155,7 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
                       : <span className="hint">—</span>}
                     {d != null && (
                       <div className={d > 0 ? 'up' : d < 0 ? 'down' : 'hint'}
-                           style={{ fontSize: '.82em', marginTop: 4 }}
+                           style={{ fontSize: '.8em', marginTop: 1 }}
                            title="Change vs previous scoring day">
                         {d > 0 ? '▲' : d < 0 ? '▼' : '–'} {Math.abs(d)}
                         {dpct != null ? ` (${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(dpct).toFixed(1)}%)` : ''}
