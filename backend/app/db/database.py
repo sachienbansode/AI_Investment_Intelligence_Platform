@@ -371,6 +371,7 @@ def init_db():
             ("stock_scores", "fundamentals", "JSONB"),
             ("instruments", "indices", "JSONB"),
             ("users", "role_id", "INTEGER"),
+            ("users", "avatar", "TEXT"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:
