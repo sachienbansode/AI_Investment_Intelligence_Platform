@@ -155,15 +155,21 @@ def _topn_over_days(question, db):
     hits = [(sym, c) for sym, c in counts.items() if c >= min_days]
     hits.sort(key=lambda x: (-x[1], -(scoresum[x[0]] / x[1])))
     span = str(dates[-1]) + " to " + str(dates[0])
-    label = ("EVERY one of the last %d day(s)" % ndays if min_days >= ndays
-             else "at least %d of the last %d day(s)" % (min_days, ndays))
+    label = ("every one of the last %d days" % ndays if min_days >= ndays
+             else "at least %d of the last %d days" % (min_days, ndays))
     if not hits:
-        return ("No script stayed in the top %d by NIYTRI Score on %s (%s)."
+        return ("> No script stayed in the **top %d** by NIYTRI Score on %s (%s)."
                 % (topn, label, span))
-    shown = ", ".join("%s (%d/%d days)" % (sym, c, ndays) for sym, c in hits[:60])
-    more = "" if len(hits) <= 60 else " (showing 60 of %d)" % len(hits)
-    return ("%d script(s) were in the top %d by NIYTRI Score on %s (%s): %s%s."
-            % (len(hits), topn, label, span, shown, more))
+    # Markdown: a one-line takeaway + a compact bordered table (renders via md.js).
+    cap = hits[:40]
+    rows = "\n".join("| %d | **%s** | %d/%d |" % (i, sym, c, ndays)
+                     for i, (sym, c) in enumerate(cap, 1))
+    more = ("\n\n_Showing 40 of %d; ask to narrow (e.g. a higher day threshold)._" % len(hits)
+            if len(hits) > 40 else "")
+    return (
+        "> **%d script(s)** stayed in the **top %d** by NIYTRI Score on %s.\n\n"
+        "| # | Script | Days in top %d |\n|--:|---|--:|\n%s%s\n\n_Window: %s._"
+        % (len(hits), topn, label, topn, rows, more, span))
 
 
 async def ask(question: str, session_id: str = "default", language: str = "en",
