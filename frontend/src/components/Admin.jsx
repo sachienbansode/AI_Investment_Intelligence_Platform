@@ -48,8 +48,7 @@ const MODEL_OPTIONS = {
   gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'],
   // Groq serves open-weight models (OpenAI-compatible). Ids change over time -
   // the field is editable, so type any current id from console.groq.com/docs/models.
-  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b',
-         'qwen-2.5-32b', 'gemma2-9b-it', 'moonshotai/kimi-k2-instruct'],
+  groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'],
 }
 
 function LlmBilling() {

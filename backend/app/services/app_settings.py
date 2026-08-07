@@ -71,7 +71,7 @@ DEFAULTS: dict = {
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "show_active_model": True,        # show the currently active AI model in the top bar
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
-                   "gemini": "gemini-1.5-pro", "groq": "llama-3.3-70b-versatile"},
+                   "gemini": "gemini-1.5-pro", "groq": "openai/gpt-oss-120b"},
     "llm_pricing": {
         "anthropic": {"input_usd_per_mtok": 3.0, "output_usd_per_mtok": 15.0},
         "openai": {"input_usd_per_mtok": 2.5, "output_usd_per_mtok": 10.0},

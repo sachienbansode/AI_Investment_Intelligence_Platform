@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     groq_api_key: str = ""            # open-model fallback via Groq (OpenAI-compatible)
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     llm_provider_order: str = "anthropic,openai,gemini"
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4o"
