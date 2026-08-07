@@ -33,6 +33,15 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
 - When asked for "top/best stocks" or rankings, report the platform's AI scores
   factually (symbol + score out of 100) from AI_SCORES_SUMMARY in context, and note
   these are informational analytics, not recommendations.
+- SCORE MEANING: if the user says "score", "rating" or "rank" without specifying
+  which, ASSUME they mean the platform's composite score (the NIYTRI Score per the
+  CONTEXT TERMINOLOGY) and answer from platform data - briefly noting you are
+  referring to the NIYTRI Score. Do NOT ask the user which score they mean.
+- DATA WINDOW: the platform stores the COMPLETE daily score history in its database
+  (see SCORE_HISTORY_AVAILABLE for the exact span). For trend/period questions over
+  ANY range (7/15/30/90 days, since a date, etc.), use that history / the read-only
+  SQL tool (DB_QUERY_RESULTS). NEVER claim only a few days are available, and never
+  refuse a longer-period trend on the grounds of a limited data window.
 - SCOPE: this platform covers Indian equity markets (NSE/BSE) — stocks, indices,
   news and portfolios. If asked about out-of-scope topics (foreign indices like
   the Dow Jones, crypto, commodities), do NOT mention internal data, your context
@@ -188,6 +197,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         latest = (db.query(StockScore.score_date)
                   .order_by(StockScore.score_date.desc()).first())
         if latest:
+            # Full daily-history span so the assistant never claims a tiny window
+            # (e.g. "only 4 days"); the DB holds the complete history - query it.
+            span = (db.query(func.min(StockScore.score_date),
+                             func.max(StockScore.score_date),
+                             func.count(func.distinct(StockScore.score_date))).first())
+            if span and span[2]:
+                context_parts.append(
+                    "SCORE_HISTORY_AVAILABLE: the platform stores the DAILY " + score_label +
+                    " for EVERY script from " + str(span[0]) + " to " + str(span[1]) + " (" +
+                    str(span[2]) + " trading day(s) on record). The COMPLETE daily history is in "
+                    "the database - for ANY trend/period question (7/15/30/90 days, since a "
+                    "date, etc.) use the read-only SQL tool to query stock_scores for that "
+                    "range. Do NOT say only a few days are available.")
             # Match the Stock Scores page: all published scores for the latest
             # run (every status), so "stocks below 50" is answered from the same
             # universe the user sees, not just the approved subset.
@@ -329,10 +351,11 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                                 round(sum(chg_known) / len(chg_known), 2) if chg_known else None,
                         }
                     context_parts.append(
-                        "MULTIDAY_SCORES (window " + str(recent_dates[0]) + " to "
+                        "MULTIDAY_SCORES (a RECENT 5-day slice, " + str(recent_dates[0]) + " to "
                         + str(recent_dates[-1]) + ", EVERY published script across these days - "
-                        "you DO have the COMPLETE multi-day history here, NOT just a top/bottom "
-                        "slice; use it for ANY 'over the last N days' question). Per symbol: "
+                        "handy for short 'last few days' questions. The FULL daily history is in "
+                        "the database (see SCORE_HISTORY_AVAILABLE); for longer periods query it "
+                        "with the SQL tool). Per symbol: "
                         "days=number of days present, scores=score per day oldest->newest, "
                         "score_delta=last-minus-first score change (score trend/momentum), "
                         "day_change_pct=daily price move % per day (null if unavailable), "
