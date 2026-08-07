@@ -771,21 +771,25 @@ async def llm_test():
     """Probe each configured LLM provider with a 1-token call and report which
     work and which fail (and why)."""
     from app.config import get_settings
-    from app.llm.providers import AnthropicProvider, GeminiProvider, OpenAIProvider
+    from app.llm.providers import (AnthropicProvider, GeminiProvider, GroqProvider,
+                                   OpenAIProvider)
+    from app.services.app_settings import get_setting, llm_key
     s = get_settings()
+    models = get_setting("llm_models") or {}
     candidates = [
-        ("anthropic", AnthropicProvider, s.anthropic_model, bool(s.anthropic_api_key)),
-        ("openai", OpenAIProvider, s.openai_model, bool(s.openai_api_key)),
-        ("gemini", GeminiProvider, s.gemini_model, bool(s.google_api_key)),
+        ("anthropic", AnthropicProvider, models.get("anthropic") or s.anthropic_model),
+        ("openai", OpenAIProvider, models.get("openai") or s.openai_model),
+        ("gemini", GeminiProvider, models.get("gemini") or s.gemini_model),
+        ("groq", GroqProvider, models.get("groq") or s.groq_model),
     ]
     results = []
-    for name, cls, model, has_key in candidates:
-        if not has_key:
+    for name, cls, model in candidates:
+        if not llm_key(name):
             results.append({"provider": name, "model": model, "configured": False,
-                            "ok": False, "detail": "no API key in backend/.env"})
+                            "ok": False, "detail": "no API key set (Admin -> Integrations or .env)"})
             continue
         try:
-            p = cls()
+            p = cls(model)
             resp = await p.complete("You are a test.", "Reply with the single word OK.",
                                     max_tokens=5, temperature=0)
             results.append({"provider": name, "model": model, "configured": True,
