@@ -5,7 +5,7 @@ import json
 import logging
 import re
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date
 
 from sqlalchemy import func
@@ -122,6 +122,48 @@ def detect_symbols(question: str) -> list[str]:
         if sym not in found and name and name.lower() in q_lower:
             found.append(sym)
     return found[:4]
+
+
+def _topn_over_days(question, db):
+    """Deterministic: which scripts were in the TOP-N by NIYTRI Score on X of the
+    last K days. Handles 'top 10 for at least 10 days in last 30 days' and
+    'always in the top 10 over the last 30 days'. Returns a factual string or None."""
+    import re as _re
+    low = " " + (question or "").lower() + " "
+    if not (_re.search(r"\btop\b", low) and _re.search(r"\bday(s)?\b", low)):
+        return None
+    mtop = _re.search(r"top\s+(\d+)", low)
+    topn = int(mtop.group(1)) if mtop else 10
+    daynums = [int(x) for x in _re.findall(r"(\d+)\s*days?", low)]
+    window = max(daynums) if daynums else 30
+    window = max(2, min(window, 120))
+    matleast = _re.search(r"at\s*least\s+(\d+)\s*days?", low)
+    dates = [d[0] for d in (db.query(StockScore.score_date).distinct()
+             .order_by(StockScore.score_date.desc()).limit(window).all())]
+    if len(dates) < 2:
+        return None
+    ndays = len(dates)
+    counts, scoresum = Counter(), defaultdict(float)
+    for d in dates:
+        for sym, sc in (db.query(StockScore.symbol, StockScore.composite_score)
+                        .filter_by(score_date=d)
+                        .order_by(StockScore.composite_score.desc()).limit(topn).all()):
+            counts[sym] += 1
+            scoresum[sym] += (sc or 0)
+    # "at least M days" if given; otherwise treat "for the last K days" as EVERY day.
+    min_days = min(int(matleast.group(1)), ndays) if matleast else ndays
+    hits = [(sym, c) for sym, c in counts.items() if c >= min_days]
+    hits.sort(key=lambda x: (-x[1], -(scoresum[x[0]] / x[1])))
+    span = str(dates[-1]) + " to " + str(dates[0])
+    label = ("EVERY one of the last %d day(s)" % ndays if min_days >= ndays
+             else "at least %d of the last %d day(s)" % (min_days, ndays))
+    if not hits:
+        return ("No script stayed in the top %d by NIYTRI Score on %s (%s)."
+                % (topn, label, span))
+    shown = ", ".join("%s (%d/%d days)" % (sym, c, ndays) for sym, c in hits[:60])
+    more = "" if len(hits) <= 60 else " (showing 60 of %d)" % len(hits)
+    return ("%d script(s) were in the top %d by NIYTRI Score on %s (%s): %s%s."
+            % (len(hits), topn, label, span, shown, more))
 
 
 async def ask(question: str, session_id: str = "default", language: str = "en",
@@ -320,12 +362,27 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         "price_to_book": _stat(rs, "pb"),
                         "day_change_pct": _stat(rs, "change_pct"),
                     }
+                # Multi-day "in the top N over the last K days" (consistency) - exact.
+                if deterministic is None:
+                    try:
+                        _mdt = _topn_over_days(question, db)
+                    except Exception as e:
+                        _mdt = None
+                        log.warning("topn_over_days failed: %s", e)
+                    if _mdt:
+                        context_parts.append(
+                            "DETERMINISTIC_ANSWER (computed in code over the full daily history; "
+                            "AUTHORITATIVE - state these exact names and counts, do NOT recompute "
+                            "or contradict): " + _mdt)
+                        sources.append({"type": "computed"})
+                        deterministic = _mdt
                 det = None
-                try:
-                    from app.services import analytics
-                    det = analytics.compute(question, rows, sect, known_symbols())
-                except Exception as e:
-                    log.warning("analytics.compute failed: %s", e)
+                if deterministic is None:
+                    try:
+                        from app.services import analytics
+                        det = analytics.compute(question, rows, sect, known_symbols())
+                    except Exception as e:
+                        log.warning("analytics.compute failed: %s", e)
                 if det:
                     context_parts.append(
                         "DETERMINISTIC_ANSWER (computed in code; AUTHORITATIVE - state these "

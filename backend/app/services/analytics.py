@@ -96,6 +96,12 @@ def compute(question, rows, sectors, names):
     lower = " " + (question or "").lower() + " "
     met = _metric(lower)
 
+    # Multi-day "in the top/bottom N over the last K days" is handled by the
+    # assistant's dedicated day-window handler; this function is single-day only.
+    # Bail out so "at least 10 days" is not misread as a score threshold.
+    if re.search(r"\bday(s)?\b", lower) and re.search(r"\b(top|bottom)\b", lower):
+        return None
+
     # 1) threshold count / list (e.g. "stocks below 50", "P/E under 15")
     m = re.search(r"(at least|at most|greater than|less than|more than|fewer than|above|over|below|under|>=|<=|>|<)\s*[₹$]?\s*([0-9]+(?:\.[0-9]+)?)", lower)
     if m:
