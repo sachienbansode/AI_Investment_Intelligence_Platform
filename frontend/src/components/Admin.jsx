@@ -40,12 +40,16 @@ export default function Admin() {
 
 const inr = v => '₹' + (v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 
-const ALL_PROVIDERS = ['anthropic', 'openai', 'gemini']
+const ALL_PROVIDERS = ['anthropic', 'openai', 'gemini', 'groq']
 const MODEL_OPTIONS = {
   anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8',
               'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4-turbo'],
   gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'],
+  // Groq serves open-weight models (OpenAI-compatible). Ids change over time -
+  // the field is editable, so type any current id from console.groq.com/docs/models.
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b',
+         'qwen-2.5-32b', 'gemma2-9b-it', 'moonshotai/kimi-k2-instruct'],
 }
 
 function LlmBilling() {
@@ -684,6 +688,13 @@ function Settings() {
             {' '}Enable prompt caching (Anthropic, OpenAI &amp; Gemini)
           </label>
         </div>
+        <div className="toolbar">
+          <label title="Show the currently active AI model (provider + model) in the top bar for everyone.">
+            <input type="checkbox" defaultChecked={s.show_active_model !== false}
+                   onChange={e => save('show_active_model', e.target.checked)} />
+            {' '}Show active AI model in the top bar
+          </label>
+        </div>
       </div>
 
       {llm && (
@@ -707,8 +718,9 @@ function Settings() {
 
         <h4 style={{ fontSize: '.9rem', margin: '14px 0 4px' }}>Provider priority &amp; model</h4>
         {llm.order.map((prov, idx) => {
-          const opts = MODEL_OPTIONS[prov].includes(llm.models[prov])
-            ? MODEL_OPTIONS[prov] : [llm.models[prov], ...MODEL_OPTIONS[prov]].filter(Boolean)
+          const base = MODEL_OPTIONS[prov] || []
+          const opts = base.includes(llm.models[prov])
+            ? base : [llm.models[prov], ...base].filter(Boolean)
           return (
             <div className="toolbar" key={prov} style={{ margin: '4px 0' }}>
               <span style={{ minWidth: 24 }}>{idx + 1}.</span>
@@ -725,10 +737,13 @@ function Settings() {
               <button className="ghost sm" disabled={llm.order.length === 1} title="Remove from rotation"
                       onClick={() => removeProv(prov)}>Remove</button>
               <span style={{ minWidth: 44 }} className="hint">model</span>
-              <select value={llm.models[prov] || opts[0]}
-                      onChange={e => setLlm({ ...llm, models: { ...llm.models, [prov]: e.target.value } })}>
-                {opts.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <input list={`models-${prov}`} value={llm.models[prov] || ''}
+                     placeholder={opts[0] || 'model id'} style={{ minWidth: 240 }}
+                     title="Pick a suggestion or type any model id (e.g. Groq/OpenRouter open models)"
+                     onChange={e => setLlm({ ...llm, models: { ...llm.models, [prov]: e.target.value } })} />
+              <datalist id={`models-${prov}`}>
+                {opts.map(m => <option key={m} value={m} />)}
+              </datalist>
             </div>
           )
         })}

@@ -151,6 +151,29 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             return default
 
     mentioned = detect_symbols(question)[:3]
+    # ---- token diet: only attach heavy context the question actually needs ----
+    _ql = " " + (question or "").lower() + " "
+    import re as _re
+    wants_scores = any(k in _ql for k in (
+        " score", "scores", "top ", "bottom", "best ", "worst", "rank", "p/e", " pe ",
+        "valuation", "dividend", "average", " avg", "below", "above", "market cap",
+        "fundamental", "highest", "lowest", "compare", "p/b", "roe", "eps", "stock",
+        "script", "strong", "weak", "neutral", "which "))
+    wants_sector = any(k in _ql for k in (
+        "sector", "industry", "bank", "pharma", "auto", "fmcg", "metal", "energy",
+        "power", "cement", "insurance", "financ", "realty", "telecom", "psu",
+        "average", " avg"))
+    wants_multiday = bool(_re.search(r"\d+\s*(day|days|d|week|weeks|month|months)", _ql)) or any(
+        k in _ql for k in ("trend", "last ", "past ", "recent", "consistent", "over the",
+        "history", "daily", "weekly", "monthly", "moved", "gain", "drop", "cross",
+        "rose", "fell", "surge", "declin"))
+    wants_news = any(k in _ql for k in (
+        "news", "today", "happening", "latest", "why", "moved", "head", "rally",
+        "update", "announce", "result", "earnings", "fell", "rose", "gain", "drop"))
+    # A pure definition/how-to question (no specific script) needs no platform data.
+    if not mentioned and _re.match(
+            r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql):
+        wants_scores = wants_sector = wants_multiday = wants_news = False
     quotes, indices = await asyncio.gather(
         asyncio.gather(*[_safe(md.get_quote(s)) for s in mentioned]),
         _safe(md.get_indices(), {}),
@@ -258,7 +281,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
                 full = [_frow(r) for r in rows]
                 pe_cov = sum(1 for x in full if x[3] is not None)
-                context_parts.append(
+                if wants_scores:
+                    context_parts.append(
                     "ALL_SCORES for " + str(latest[0]) + " - EVERY published script as "
                     "[symbol, score, sector, pe, market_cap_cr, day_change_pct, "
                     "dividend_yield_pct, price_to_book]. You DO have the COMPLETE list here; use "
@@ -310,7 +334,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     sources.append({"type": "computed"})
                     deterministic = det
 
-                context_parts.append(
+                if wants_sector:
+                    context_parts.append(
                     "SECTOR_STATS (PRECOMPUTED, EXACT - per platform sector tag): for each "
                     "sector, 'count' = number of scripts, and each metric gives n (how many had "
                     "the value), avg, min, max. market_cap_cr is in Rs crore. For 'average "
@@ -327,7 +352,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                                 (db.query(StockScore.score_date).distinct()
                                  .order_by(StockScore.score_date.desc()).limit(5).all())]
                 recent_dates = list(reversed(recent_dates))  # oldest -> newest
-                if len(recent_dates) >= 2:
+                if len(recent_dates) >= 2 and wants_multiday:
                     hist = defaultdict(dict)
                     for r in (db.query(StockScore)
                               .filter(StockScore.score_date.in_(recent_dates)).all()):
@@ -512,7 +537,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 "(upload CSV/XLSX or enter holdings), after which you can analyse it. Use EXACTLY "
                 "that markdown link. Offer general stock/sector/market help meanwhile.")
 
-    news = latest_news(limit=20, days=5)
+    news = latest_news(limit=(15 if wants_news else 6), days=5)
     if news:
         context_parts.append("NEWS:\n" + "\n".join(
             f"- {n['title']} ({n['source']}) [{n['link']}]" for n in news))
@@ -542,7 +567,9 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     # Let the model query the database for anything the pre-built context above
     # doesn't already cover. STRICTLY read-only and bounded to non-sensitive
     # tables + the current user's OWN watchlist/portfolio (see db_query.py).
-    if get_setting("assistant_sql_tool_enabled") and (question or "").strip():
+    data_intent = (wants_scores or wants_multiday or wants_news or wants_sector
+                   or bool(mentioned) or pf_intent)
+    if get_setting("assistant_sql_tool_enabled") and (question or "").strip() and data_intent:
         try:
             from app.services import db_query
             max_q = int(get_setting("assistant_sql_max_queries"))

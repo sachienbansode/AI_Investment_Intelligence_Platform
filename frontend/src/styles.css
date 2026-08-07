@@ -999,3 +999,9 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .profile-fields label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--muted); }
 .profile-fields input { width: 100%; }
 @media (max-width: 620px) { .profile-fields { grid-template-columns: 1fr; } }
+
+/* Active AI model indicator (top bar) */
+.active-model { display: inline-flex; align-items: center; gap: 5px; font-size: .72rem;
+  font-weight: 600; color: var(--text); background: var(--panel2);
+  border: 1px solid var(--border2); border-radius: 999px; padding: 3px 10px;
+  white-space: nowrap; text-transform: capitalize; }

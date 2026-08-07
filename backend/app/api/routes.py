@@ -769,10 +769,18 @@ async def branding():
 
 @router.get("/health")
 async def health():
+    from app.services.app_settings import get_setting
+    providers = get_llm_router().active_providers
+    active_provider = providers[0] if providers else None
+    models = get_setting("llm_models") or {}
+    active_model = models.get(active_provider) if active_provider else None
     return {
         "status": "ok",
-        "llm_providers": get_llm_router().active_providers,
+        "llm_providers": providers,
         "market_data_providers": get_market_data().active_providers,
+        "active_provider": active_provider,
+        "active_model": active_model,
+        "show_active_model": bool(get_setting("show_active_model")),
     }
 
 

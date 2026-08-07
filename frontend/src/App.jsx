@@ -223,6 +223,11 @@ export default function App() {
             })()}
           </div>
           <div className="topbar-right">
+            {health && health.show_active_model && health.active_provider && (
+              <div className="active-model" title="AI model currently answering">
+                {String.fromCharCode(0x26A1)} {health.active_provider}{health.active_model ? ' ' + DOT + ' ' + health.active_model : ''}
+              </div>
+            )}
             {health && (
               <div className="status" title="Active engines">
                 <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}

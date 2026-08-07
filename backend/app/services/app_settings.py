@@ -43,9 +43,9 @@ DEFAULTS: dict = {
     # update to your negotiated rates; estimates only, verify against invoices
     # LLM routing (admin-configurable; applied live, no restart)
     "brand_logo": "",   # admin-uploaded logo as a data: URI (favicon + app logo)
-    "llm_provider_order": ["anthropic", "openai", "gemini"],
+    "llm_provider_order": ["anthropic", "openai", "gemini", "groq"],
     "llm_strategy": "failover",          # "failover" | "round_robin"
-    "llm_enabled": {"anthropic": True, "openai": True, "gemini": True},
+    "llm_enabled": {"anthropic": True, "openai": True, "gemini": True, "groq": True},
     # Global markets: when on, include global indices + global news alongside India
     "global_markets_enabled": False,
     # Prompt caching: cache the Anthropic system prompt (cache_control: ephemeral)
@@ -69,12 +69,14 @@ DEFAULTS: dict = {
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
+    "show_active_model": True,        # show the currently active AI model in the top bar
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
-                   "gemini": "gemini-1.5-pro"},
+                   "gemini": "gemini-1.5-pro", "groq": "llama-3.3-70b-versatile"},
     "llm_pricing": {
         "anthropic": {"input_usd_per_mtok": 3.0, "output_usd_per_mtok": 15.0},
         "openai": {"input_usd_per_mtok": 2.5, "output_usd_per_mtok": 10.0},
         "gemini": {"input_usd_per_mtok": 1.25, "output_usd_per_mtok": 5.0},
+        "groq": {"input_usd_per_mtok": 0.59, "output_usd_per_mtok": 0.79},
         "usd_inr": 94.5,
     },
     # Editable persona/behaviour prompt (compliance guardrails are appended
@@ -147,7 +149,7 @@ def _validate(key: str, value) -> None:
         if not (isinstance(value, int) and 0 <= value <= 23):
             raise ValueError("daily_scoring_hour must be 0-23")
     elif key in ("strict_maker_checker", "ai_checker_enabled", "prompt_caching_enabled",
-                 "incremental_rescore_enabled", "bulk_explanations_llm"):
+                 "incremental_rescore_enabled", "bulk_explanations_llm", "show_active_model"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
     elif key == "brand_logo":
@@ -158,7 +160,7 @@ def _validate(key: str, value) -> None:
         if len(value) > 900000:
             raise ValueError("logo too large (max ~600KB)")
     elif key == "llm_provider_order":
-        valid = {"anthropic", "openai", "gemini"}
+        valid = {"anthropic", "openai", "gemini", "groq"}
         if not (isinstance(value, list) and value and all(v in valid for v in value)):
             raise ValueError("llm_provider_order must be a non-empty list from: "
                              "anthropic, openai, gemini")
@@ -166,7 +168,7 @@ def _validate(key: str, value) -> None:
         if value not in ("failover", "round_robin"):
             raise ValueError("llm_strategy must be 'failover' or 'round_robin'")
     elif key == "llm_enabled":
-        valid = {"anthropic", "openai", "gemini"}
+        valid = {"anthropic", "openai", "gemini", "groq"}
         if not (isinstance(value, dict) and set(value) <= valid
                 and all(isinstance(v, bool) for v in value.values())):
             raise ValueError("llm_enabled must map anthropic/openai/gemini -> true/false")
@@ -196,7 +198,7 @@ def _validate(key: str, value) -> None:
         if not isinstance(value, dict):
             raise ValueError("llm_models must be a dict of provider -> model")
         for k, v in value.items():
-            if k not in ("anthropic", "openai", "gemini") or not (isinstance(v, str) and v.strip()):
+            if k not in ("anthropic", "openai", "gemini", "groq") or not (isinstance(v, str) and v.strip()):
                 raise ValueError("llm_models keys must be anthropic/openai/gemini "
                                  "with non-empty model strings")
     elif key in ("news_refresh_minutes", "max_news_items",

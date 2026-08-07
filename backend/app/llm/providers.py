@@ -59,7 +59,11 @@ class OpenAIProvider(LLMProvider):
         self._client = None
         if self._key:
             from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(api_key=self._key)
+            # Optional base_url lets this slot target ANY OpenAI-compatible host
+            # (Groq, OpenRouter, Together, Fireworks, DeepInfra, ...) serving an
+            # open-weight model - just set openai_base_url + openai_api_key + model.
+            base = (getattr(s, "openai_base_url", "") or "").strip()
+            self._client = AsyncOpenAI(api_key=self._key, base_url=base or None)
 
     def available(self) -> bool:
         return self._client is not None
@@ -88,6 +92,29 @@ class OpenAIProvider(LLMProvider):
             text=resp.choices[0].message.content, provider=self.name, model=self._model,
             usage=usage,
         )
+
+
+class GroqProvider(OpenAIProvider):
+    """Open-weight models via Groq's OpenAI-compatible API (fast, low cost).
+    Reuses the OpenAI chat-completions path but with Groq creds + base URL, and
+    skips the OpenAI-only prompt-cache field."""
+    name = "groq"
+
+    def __init__(self, model=None):
+        s = get_settings()
+        self._key = s.groq_api_key
+        self._model = model or s.groq_model
+        self._client = None
+        if self._key:
+            from openai import AsyncOpenAI
+            self._client = AsyncOpenAI(
+                api_key=self._key,
+                base_url=(s.groq_base_url or "https://api.groq.com/openai/v1"))
+
+    async def complete(self, system, prompt, max_tokens=1024, temperature=0.3, cache=False):
+        # Groq doesn't accept OpenAI's prompt_cache_key extra_body -> force cache off.
+        return await super().complete(system, prompt, max_tokens=max_tokens,
+                                      temperature=temperature, cache=False)
 
 
 class GeminiProvider(LLMProvider):

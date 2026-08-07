@@ -7,11 +7,13 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import get_settings
 from app.core.compliance import audit_log
 from app.llm.base import LLMResponse
-from app.llm.providers import AnthropicProvider, GeminiProvider, MockProvider, OpenAIProvider
+from app.llm.providers import (AnthropicProvider, GeminiProvider, GroqProvider,
+                                MockProvider, OpenAIProvider)
 
 log = logging.getLogger(__name__)
 
-_REGISTRY = {"anthropic": AnthropicProvider, "openai": OpenAIProvider, "gemini": GeminiProvider}
+_REGISTRY = {"anthropic": AnthropicProvider, "openai": OpenAIProvider,
+             "gemini": GeminiProvider, "groq": GroqProvider}
 
 
 class LLMRouter:
