@@ -40,3 +40,7 @@ Thumbs.db
 .vscode/
 *.swp
 .tmp_admin
+
+# Google Drive sync temp files (repo is in a synced folder)
+.tmp.driveupload/
+.tmp.drivedownload/
