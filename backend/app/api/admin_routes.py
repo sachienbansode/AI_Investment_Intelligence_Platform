@@ -975,7 +975,11 @@ class SettingUpdate(BaseModel):
 
 @router.get("/settings")
 def get_app_settings():
-    return {"settings": all_settings(), "defaults": DEFAULTS}
+    # Never expose raw API keys to the browser - blank them in the settings payload
+    # (managed separately via /admin/llm-keys with masking).
+    st = dict(all_settings())
+    st["llm_api_keys"] = {}
+    return {"settings": st, "defaults": DEFAULTS}
 
 
 @router.put("/settings")
@@ -1103,4 +1107,62 @@ def delete_partner_key(key_id: int, admin: User = Depends(require_admin)):
     finally:
         db.close()
     audit_log("partner_key_deleted", key_id=key_id, by=admin.email)
+    return {"ok": True}
+
+
+# ── LLM API key management (admin only) ──────────────────────────
+def _mask_key(k: str) -> str:
+    k = (k or "").strip()
+    return ("\u2026" + k[-4:]) if len(k) >= 4 else ("set" if k else "")
+
+
+class LlmKeyReq(BaseModel):
+    provider: str
+    key: str | None = None      # new key; "" clears the DB entry (falls back to .env)
+    base: str | None = None     # optional base URL override
+
+
+@router.get("/llm-keys")
+def llm_keys_status():
+    from app.config import get_settings
+    s = get_settings()
+    db_keys = all_settings().get("llm_api_keys") or {}
+    bases = all_settings().get("llm_base_urls") or {}
+    envmap = {"anthropic": s.anthropic_api_key, "openai": s.openai_api_key,
+              "gemini": s.google_api_key, "groq": s.groq_api_key}
+    out = []
+    for p in ("anthropic", "openai", "gemini", "groq"):
+        dbk = (db_keys.get(p) or "").strip()
+        envk = (envmap.get(p) or "").strip()
+        out.append({
+            "provider": p,
+            "source": "db" if dbk else ("env" if envk else "none"),
+            "masked": _mask_key(dbk or envk),
+            "base": bases.get(p) or "",
+        })
+    return {"keys": out}
+
+
+@router.post("/llm-keys")
+def set_llm_key(req: LlmKeyReq, admin: User = Depends(require_admin)):
+    if req.provider not in ("anthropic", "openai", "gemini", "groq"):
+        raise HTTPException(400, "unknown provider")
+    if req.key is not None:
+        keys = dict(all_settings().get("llm_api_keys") or {})
+        kv = req.key.strip()
+        if kv:
+            keys[req.provider] = kv
+        else:
+            keys.pop(req.provider, None)     # cleared -> fall back to .env
+        set_setting("llm_api_keys", keys)
+    if req.base is not None:
+        bases = dict(all_settings().get("llm_base_urls") or {})
+        bv = req.base.strip()
+        if bv:
+            bases[req.provider] = bv
+        else:
+            bases.pop(req.provider, None)
+        set_setting("llm_base_urls", bases)
+    audit_log("llm_key_set", provider=req.provider, by=admin.email,
+              has_key=bool((req.key or "").strip()))
     return {"ok": True}

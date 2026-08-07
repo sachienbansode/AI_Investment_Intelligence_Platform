@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 _gemini_caches: dict = {}
 
 from app.config import get_settings
+from app.services.app_settings import llm_base as _llm_base, llm_key as _llm_key
 from app.llm.base import LLMProvider, LLMResponse
 
 
@@ -17,7 +18,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model = s.anthropic_api_key, model or s.anthropic_model
+        self._key, self._model = _llm_key("anthropic"), model or s.anthropic_model
         self._client = None
         if self._key:
             from anthropic import AsyncAnthropic
@@ -55,14 +56,14 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model = s.openai_api_key, model or s.openai_model
+        self._key, self._model = _llm_key("openai"), model or s.openai_model
         self._client = None
         if self._key:
             from openai import AsyncOpenAI
             # Optional base_url lets this slot target ANY OpenAI-compatible host
             # (Groq, OpenRouter, Together, Fireworks, DeepInfra, ...) serving an
             # open-weight model - just set openai_base_url + openai_api_key + model.
-            base = (getattr(s, "openai_base_url", "") or "").strip()
+            base = (_llm_base("openai") or "").strip()
             self._client = AsyncOpenAI(api_key=self._key, base_url=base or None)
 
     def available(self) -> bool:
@@ -102,14 +103,14 @@ class GroqProvider(OpenAIProvider):
 
     def __init__(self, model=None):
         s = get_settings()
-        self._key = s.groq_api_key
+        self._key = _llm_key("groq")
         self._model = model or s.groq_model
         self._client = None
         if self._key:
             from openai import AsyncOpenAI
             self._client = AsyncOpenAI(
                 api_key=self._key,
-                base_url=(s.groq_base_url or "https://api.groq.com/openai/v1"))
+                base_url=(_llm_base("groq") or "https://api.groq.com/openai/v1"))
 
     async def complete(self, system, prompt, max_tokens=1024, temperature=0.3, cache=False):
         # Groq doesn't accept OpenAI's prompt_cache_key extra_body -> force cache off.
@@ -122,7 +123,7 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, model=None):
         s = get_settings()
-        self._key, self._model_name = s.google_api_key, model or s.gemini_model
+        self._key, self._model_name = _llm_key("gemini"), model or s.gemini_model
         self._model = None
         if self._key:
             import google.generativeai as genai

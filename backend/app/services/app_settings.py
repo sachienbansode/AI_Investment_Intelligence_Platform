@@ -5,6 +5,7 @@ rejected so the Admin UI can't break the app.
 """
 import time
 
+from app.config import get_settings
 from app.db.database import AppSetting, SessionLocal
 
 DEFAULTS: dict = {
@@ -46,6 +47,10 @@ DEFAULTS: dict = {
     "llm_provider_order": ["anthropic", "openai", "gemini", "groq"],
     "llm_strategy": "failover",          # "failover" | "round_robin"
     "llm_enabled": {"anthropic": True, "openai": True, "gemini": True, "groq": True},
+    # DB-stored API keys / base URLs (admin-managed). Take priority over .env;
+    # empty -> fall back to the .env value. Never returned raw to the browser.
+    "llm_api_keys": {},
+    "llm_base_urls": {},
     # Global markets: when on, include global indices + global news alongside India
     "global_markets_enabled": False,
     # Prompt caching: cache the Anthropic system prompt (cache_control: ephemeral)
@@ -136,6 +141,13 @@ def set_setting(key: str, value) -> None:
             _agg_mod._agg = None   # rebuild provider chain on next use
         except Exception:
             pass
+    if key in ("llm_api_keys", "llm_base_urls", "llm_models", "llm_provider_order",
+               "llm_enabled", "llm_strategy"):
+        try:
+            import app.llm.router as _r
+            _r._router = None   # rebuild router + provider clients with fresh keys
+        except Exception:
+            pass
 
 
 def _validate(key: str, value) -> None:
@@ -174,6 +186,11 @@ def _validate(key: str, value) -> None:
             raise ValueError("llm_enabled must map anthropic/openai/gemini -> true/false")
         if value and not any(value.get(k, False) for k in valid):
             raise ValueError("At least one LLM provider must remain enabled")
+    elif key in ("llm_api_keys", "llm_base_urls"):
+        valid = {"anthropic", "openai", "gemini", "groq"}
+        if not (isinstance(value, dict) and set(value) <= valid
+                and all(isinstance(v, str) for v in value.values())):
+            raise ValueError(f"{key} must map anthropic/openai/gemini/groq -> string")
     elif key == "global_markets_enabled":
         if not isinstance(value, bool):
             raise ValueError("global_markets_enabled must be true or false")
@@ -239,3 +256,26 @@ def _validate(key: str, value) -> None:
                       and all(isinstance(v.get(f), (int, float)) and v.get(f) >= 0
                               for f in ("input_usd_per_mtok", "output_usd_per_mtok"))):
                 raise ValueError(f"llm_pricing.{k} needs input/output_usd_per_mtok numbers")
+
+
+def llm_key(provider: str) -> str:
+    """Resolve an LLM API key: DB (admin-set) first, else the .env value."""
+    k = ((all_settings().get("llm_api_keys") or {}).get(provider) or "").strip()
+    if k:
+        return k
+    s = get_settings()
+    return ({"anthropic": s.anthropic_api_key, "openai": s.openai_api_key,
+             "gemini": s.google_api_key, "groq": s.groq_api_key}.get(provider) or "")
+
+
+def llm_base(provider: str) -> str:
+    """Resolve an LLM base URL: DB first, else .env / built-in default."""
+    b = ((all_settings().get("llm_base_urls") or {}).get(provider) or "").strip()
+    if b:
+        return b
+    s = get_settings()
+    if provider == "openai":
+        return (getattr(s, "openai_base_url", "") or "")
+    if provider == "groq":
+        return (s.groq_base_url or "https://api.groq.com/openai/v1")
+    return ""

@@ -188,6 +188,8 @@ export const api = {
   alertsUnread: () => http('/alerts/unread-count'),
   markAlertsRead: (body) => http('/alerts/read', { method: 'POST', body: JSON.stringify(body) }),
   generateAlerts: () => http('/admin/generate-alerts', { method: 'POST' }),
+  llmKeysStatus: () => http('/admin/llm-keys'),
+  setLlmKey: (provider, key, base) => http('/admin/llm-keys', { method: 'POST', body: JSON.stringify({ provider, key, base }) }),
   alertPrefs: () => http('/alerts/prefs'),
   saveAlertPrefs: (body) => http('/alerts/prefs', { method: 'PUT', body: JSON.stringify(body) }),
   muteAlertSymbol: (symbol, mute = true) => http('/alerts/mute', { method: 'POST', body: JSON.stringify({ symbol, mute }) }),

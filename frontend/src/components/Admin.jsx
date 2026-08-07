@@ -696,6 +696,8 @@ function Settings() {
         </div>
       </div>
 
+      <ProviderKeys />
+
       {llm && (
       <div className="panel">
         <h4>LLM routing</h4>
@@ -1469,6 +1471,51 @@ function PartnerKeys() {
           {data && (data.keys || []).length === 0 && <tr><td colSpan="9" className="hint">No partner keys yet.</td></tr>}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+
+function ProviderKeys() {
+  const [rows, setRows] = useState(null)
+  const [draft, setDraft] = useState({})
+  const [busy, setBusy] = useState('')
+  const load = () => api.llmKeysStatus().then(d => setRows(d.keys)).catch(() => {})
+  useEffect(() => { load() }, [])
+  const setD = (p, k, v) => setDraft(d => ({ ...d, [p]: { ...(d[p] || {}), [k]: v } }))
+  async function save(p) {
+    setBusy(p)
+    try {
+      const d = draft[p] || {}
+      await api.setLlmKey(p, d.key ?? null, d.base ?? null)
+      setDraft(x => ({ ...x, [p]: {} })); await load(); toast('Saved ' + p + ' key')
+    } catch (e) { toast('Failed: ' + (e.message || e)) } finally { setBusy('') }
+  }
+  async function clearKey(p) {
+    if (!(await confirmDialog('Clear the saved ' + p + ' key? It will fall back to the .env value.'))) return
+    try { await api.setLlmKey(p, '', null); await load() } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
+  if (!rows) return null
+  const badge = src => src === 'db' ? 'positive' : src === 'env' ? '' : 'negative'
+  const label = src => src === 'db' ? 'saved here' : src === 'env' ? '.env' : 'not set'
+  return (
+    <div className="panel">
+      <h4>Provider API keys</h4>
+      <p className="hint">Keys saved here are stored in the database and take priority over <code>.env</code>. Leave the field blank to keep using the <code>.env</code> value. Keys are never shown in full.</p>
+      {rows.map(r => (
+        <div className="toolbar" key={r.provider} style={{ margin: '6px 0', flexWrap: 'wrap' }}>
+          <strong style={{ minWidth: 96, textTransform: 'capitalize' }}>{r.provider}</strong>
+          <span className={'tag ' + badge(r.source)}>{label(r.source)}{r.masked ? ' \u00b7 ' + r.masked : ''}</span>
+          <input type="password" placeholder="set / replace key" style={{ minWidth: 240 }}
+                 value={(draft[r.provider]?.key) ?? ''} onChange={e => setD(r.provider, 'key', e.target.value)} />
+          {(r.provider === 'groq' || r.provider === 'openai') && (
+            <input placeholder="base URL (optional)" style={{ minWidth: 220 }}
+                   value={(draft[r.provider]?.base) ?? (r.base || '')} onChange={e => setD(r.provider, 'base', e.target.value)} />
+          )}
+          <button onClick={() => save(r.provider)} disabled={busy === r.provider}>Save</button>
+          {r.source === 'db' && <button className="ghost sm" onClick={() => clearKey(r.provider)}>Clear</button>}
+        </div>
+      ))}
     </div>
   )
 }
