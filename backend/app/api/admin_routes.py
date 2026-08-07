@@ -654,16 +654,22 @@ def integrations():
             return key[:4] + "•" * 10 + key[-4:]
         return "•" * 12
 
+    from app.services.app_settings import llm_key as _llm_key, llm_base as _llm_base
+    _models = get_setting("llm_models") or {}
+    _dbkeys = get_setting("llm_api_keys") or {}
+
+    def _prov(name, key, default_model, endpoint):
+        resolved = _llm_key(key)
+        src = "db" if (_dbkeys.get(key) or "").strip() else ("env" if resolved else "none")
+        return {"name": name, "key": key, "model": _models.get(key) or default_model,
+                "configured": bool(resolved), "api_key_masked": mask(resolved), "source": src,
+                "enabled": llm_en.get(key, True), "endpoint": _llm_base(key) or endpoint}
+
     llm_providers = [
-        {"name": "Anthropic Claude", "key": "anthropic", "model": s.anthropic_model,
-         "configured": bool(s.anthropic_api_key), "api_key_masked": mask(s.anthropic_api_key),
-         "enabled": llm_en.get("anthropic", True), "endpoint": "https://api.anthropic.com"},
-        {"name": "OpenAI GPT", "key": "openai", "model": s.openai_model,
-         "configured": bool(s.openai_api_key), "api_key_masked": mask(s.openai_api_key),
-         "enabled": llm_en.get("openai", True), "endpoint": "https://api.openai.com"},
-        {"name": "Google Gemini", "key": "gemini", "model": s.gemini_model,
-         "configured": bool(s.google_api_key), "api_key_masked": mask(s.google_api_key),
-         "enabled": llm_en.get("gemini", True), "endpoint": "https://generativelanguage.googleapis.com"},
+        _prov("Anthropic Claude", "anthropic", s.anthropic_model, "https://api.anthropic.com"),
+        _prov("OpenAI GPT", "openai", s.openai_model, "https://api.openai.com"),
+        _prov("Google Gemini", "gemini", s.gemini_model, "https://generativelanguage.googleapis.com"),
+        _prov("Groq (open models)", "groq", s.groq_model, "https://api.groq.com/openai/v1"),
     ]
     market_data = [
         {"name": "NSE India", "key": "nse", "type": "public — no key required", "configured": True,
@@ -690,8 +696,9 @@ def integrations():
     news_feeds = [{"name": n, "url": u} for n, u in FEEDS.items()]
     return {"llm_providers": llm_providers, "market_data": market_data,
             "news_feeds": news_feeds,
-            "note": "Keys are stored only in backend/.env on the server and are "
-                    "masked here. To change a key, edit .env and restart the backend."}
+            "note": "Set a key here to store it in the database (masked) - it takes "
+                    "priority over backend/.env. Leave the field blank to keep using the .env "
+                    "value. Full keys never leave the server."}
 
 
 # ── Broker-research RAG store ────────────────────────────────────

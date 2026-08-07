@@ -168,7 +168,17 @@ function Integrations() {
   const [err, setErr] = useState('')
   const [test, setTest] = useState(null)
   const [testing, setTesting] = useState(false)
+  const [keyDraft, setKeyDraft] = useState({})
   useEffect(() => { api.integrations().then(setData).catch(e => setErr(e.message)) }, [])
+
+  async function saveKey(prov) {
+    const key = keyDraft[prov]
+    if (key == null || key === '') { toast('Enter a key to save'); return }
+    try {
+      await api.setLlmKey(prov, key, null)
+      setKeyDraft(d => ({ ...d, [prov]: '' })); setData(await api.integrations()); toast('Key saved')
+    } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
 
   async function runTest() {
     setTesting(true); setTest(null)
@@ -233,9 +243,18 @@ function Integrations() {
                 <td><strong>{p.name}</strong></td>
                 <td>{p.model}</td>
                 <td className="hint">{p.endpoint}</td>
-                <td><code>{p.api_key_masked || '—'}</code></td>
+                <td>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {p.api_key_masked && <code>{p.api_key_masked}</code>}
+                    <input type="password" placeholder="set / replace key" style={{ minWidth: 160 }}
+                           value={keyDraft[p.key] ?? ''}
+                           onChange={e => setKeyDraft(d => ({ ...d, [p.key]: e.target.value }))} />
+                    <button className="ghost sm" onClick={() => saveKey(p.key)}>Save</button>
+                  </div>
+                </td>
                 <td><span className={`tag ${p.configured ? 'positive' : 'pending'}`}>
-                  {p.configured ? 'configured' : 'not configured'}</span></td>
+                  {p.configured ? ('configured \u00b7 ' + (p.source === 'db' ? 'saved' : '.env'))
+                                : 'not configured'}</span></td>
                 <td><input type="checkbox" checked={p.enabled !== false}
                            onChange={e => setEnabled('llm', p.key, e.target.checked)}
                            title="Enable/disable this provider in the AI router" /></td>
@@ -695,8 +714,6 @@ function Settings() {
           </label>
         </div>
       </div>
-
-      <ProviderKeys />
 
       {llm && (
       <div className="panel">
