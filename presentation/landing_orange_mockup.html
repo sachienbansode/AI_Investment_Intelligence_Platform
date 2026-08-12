@@ -1,0 +1,196 @@
+<!-- NIYTRI AI — Landing (Orange & White theme mockup, review only) -->
+<meta charset="utf-8"><title>NIYTRI AI — Landing (Orange & White)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;--soft:#fff7f0;--card:#ffffff;--line:#f0e6dc;--line2:#ecdfd2;
+    --ink:#181d27;--mut:#6b7280;--faint:#9aa3b2;
+    --or1:#FF8A3D;--or2:#FF6A00;--or3:#F94C00;
+    --grad:linear-gradient(90deg,#FF8A3D,#FF6A00 55%,#F94C00);
+    --green:#12a06b;--amber:#d4920f;--red:#e0503f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
+    background:radial-gradient(900px 520px at 12% -8%,rgba(255,138,61,.12),transparent 60%),
+               radial-gradient(820px 480px at 92% 4%,rgba(249,76,0,.08),transparent 60%),var(--bg)}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 26px}
+  .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .btn{border:none;border-radius:14px;padding:13px 22px;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit;transition:.15s}
+  .btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}
+  .btn-grad:hover{filter:brightness(1.05)}
+  .btn-login{background:#fff;border:1px solid var(--line2);color:#2a3140;padding:12px 20px}
+  .btn-login:hover{border-color:var(--or2);color:var(--or3)}
+  .btn-google{background:#fff;border:1px solid var(--line2);color:#20242e;display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .mk{width:38px;height:38px;border-radius:11px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:19px}
+  .brand .word{font-weight:800;font-size:23px;letter-spacing:1.5px}
+  .navbtns{display:flex;gap:11px}
+  .ticker{overflow:hidden;background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .track{display:inline-flex;gap:28px;padding:9px 26px;white-space:nowrap;animation:marq 30s linear infinite}
+  @keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tk{display:inline-flex;gap:8px;align-items:center;font-size:13px}
+  .tk .ex{font-size:10px;font-weight:700;color:#fff;background:var(--or2);border-radius:5px;padding:1px 6px}
+  .tk b{color:#181d27}.tk .val{color:var(--mut)}.tk .up{color:var(--green);font-style:normal}.tk .dn{color:var(--red);font-style:normal}
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:44px 0 30px}
+  .ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(255,106,0,.10);border:1px solid rgba(255,106,0,.28);color:#c24a00;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
+  .hero h1{font-size:clamp(42px,5.8vw,64px);line-height:1.04;font-weight:900;letter-spacing:-1.4px}
+  .hero .sub{color:var(--mut);font-size:19px;margin:22px 0 30px;max-width:540px}
+  .cta-row{display:flex;gap:13px;flex-wrap:wrap}
+  .chips{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;color:#8a93a4;font-size:14px}.chips b{color:#3a4150;font-weight:600}
+  .preview{position:relative;background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 30px 70px rgba(24,29,39,.10)}
+  .pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#0f8f5f;background:rgba(18,160,107,.10);border:1px solid rgba(18,160,107,.25);border-radius:999px;padding:4px 11px;margin-bottom:14px}
+  .pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+  .pv-top .nm{font-weight:800;font-size:20px}.pv-top .pvsub{color:var(--mut);font-size:13px}.pv-top .up{color:var(--green);font-weight:600}
+  .score{color:#fff;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px;background:linear-gradient(135deg,#12a06b,#0c8256)}
+  .pvtabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 12px}
+  .pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
+  .pvtabs button.on{background:var(--grad);color:#fff}
+  .chartbox{position:relative}
+  .cmeta{display:flex;gap:16px;color:#8a93a4;font-size:12px;margin-top:6px}.cmeta b{color:#3a4150}.cmeta span:last-child{margin-left:auto}
+  .analysis{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#b25a12;margin-bottom:9px}
+  .an-p{color:#3a4150;font-size:14px;line-height:1.6;margin-bottom:13px}
+  .pills{display:grid;gap:8px}
+  .pillrow{display:grid;grid-template-columns:110px 1fr 28px;gap:10px;align-items:center;font-size:12.5px}
+  .pillrow>span{color:var(--mut);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pbar{height:7px;background:#f2e4d6;border-radius:6px;overflow:hidden}.pbar i{display:block;height:100%;border-radius:6px;background:var(--grad)}
+  .pillrow b{text-align:right;font-variant-numeric:tabular-nums}
+  .an-foot{color:#9aa3b2;font-size:11px;margin-top:11px}
+  .sec{padding:56px 0}
+  .sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
+  .sec .subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{border-radius:20px;padding:28px;border:1px solid var(--line);background:#fff;transition:.18s;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+  .card:hover{transform:translateY(-6px);border-color:var(--or1);box-shadow:0 18px 44px rgba(255,106,0,.12)}
+  .ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:rgba(255,106,0,.10);color:var(--or3)}
+  .ic svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .card h3{font-size:20px;margin-bottom:10px;font-weight:700}.card p{color:var(--mut);font-size:15px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .step{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+  .num{width:48px;height:48px;border-radius:15px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:19px;background:var(--grad)}
+  .step h3{font-size:21px;font-weight:700;margin-bottom:10px}.step p{color:var(--mut);font-size:15.5px;line-height:1.65;max-width:280px;margin:0 auto}
+  .join{background:linear-gradient(120deg,rgba(255,138,61,.14),rgba(255,106,0,.10) 55%,rgba(249,76,0,.12));border:1px solid var(--line2);border-radius:28px;padding:52px 24px;text-align:center}
+  .join>p{color:var(--mut);margin-top:8px}
+  .auth{background:#fff;border:1px solid var(--line2);border-radius:20px;padding:26px;max-width:420px;margin:26px auto 0;text-align:center;box-shadow:0 20px 50px rgba(24,29,39,.10)}
+  .tabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
+  .tabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px}
+  .tabs button.on{background:var(--grad);color:#fff}
+  .field{width:100%;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--ink);margin:6px 0;font-size:15px;font-family:inherit}
+  .field:focus{outline:none;border-color:var(--or2);box-shadow:0 0 0 3px rgba(255,106,0,.15)}
+  .btn.full{width:100%;margin-top:6px}
+  .or{color:#9aa3b2;font-size:13px;margin:14px 0}.invite{margin-top:16px;font-size:13px;color:var(--mut)}.invite a{color:var(--or3);font-weight:600}
+  footer{color:#9aa3b2;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
+  @media(max-width:840px){.hero{grid-template-columns:1fr}.cards,.steps{grid-template-columns:1fr}.word{display:none}}
+</style>
+
+<div class="wrap">
+  <nav>
+    <div class="brand"><div class="mk">N</div><span class="grad word">NIYTRI</span></div>
+    <div class="navbtns"><button class="btn btn-login">Log In</button><button class="btn btn-grad">Get Started</button></div>
+  </nav>
+</div>
+
+<div class="ticker"><div class="track" id="track"></div></div>
+
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <span class="ribbon">&#10022;&nbsp; Invite-Only Beta — Grab Your Seat</span>
+      <h1>Invest Smarter,<br><span class="grad">Your Way.</span></h1>
+      <p class="sub">NIYTRI is your AI investing companion for Indian markets — it scores every NSE stock daily, explains the “why” in plain language, watches your portfolio, and answers your questions in English or your language.</p>
+      <div class="cta-row">
+        <button class="btn btn-google"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue With Google</button>
+        <button class="btn btn-grad">Sign Up Free</button>
+      </div>
+      <div class="chips"><span><b>Explainable</b> AI</span><span><b>NSE &amp; BSE</b></span><span><b>Delayed</b> Charts</span><span><b>SEBI</b>-Compliant</span></div>
+    </div>
+
+    <div class="preview">
+      <div class="pv-badge">Today's Top NIYTRI Score</div>
+      <div class="pv-top"><div><div class="nm">PNB</div><div class="pvsub">Punjab National Bank · ₹118.49 <span class="up">▲ 3.91%</span></div></div><div class="score">70</div></div>
+      <div class="pvtabs"><button class="on">NIYTRI Score</button><button>Delayed Price</button></div>
+      <div class="chartbox"><svg id="chart" viewBox="0 0 360 160" width="100%" height="160" style="display:block"></svg>
+        <div class="cmeta"><span>Low <b>64</b></span><span>High <b>70</b></span><span>Hover for any day</span></div>
+      </div>
+      <div class="analysis">
+        <div class="an-h">Score Analysis</div>
+        <p class="an-p">Leads on value and price trend with steady institutional interest; earnings momentum is neutral and near-term volatility stays moderate. A balanced, broadly constructive profile across the eight pillars.</p>
+        <div class="pills">
+          <div class="pillrow"><span>value</span><div class="pbar"><i style="width:78%"></i></div><b>78</b></div>
+          <div class="pillrow"><span>price trend</span><div class="pbar"><i style="width:74%"></i></div><b>74</b></div>
+          <div class="pillrow"><span>institutions</span><div class="pbar"><i style="width:70%"></i></div><b>70</b></div>
+          <div class="pillrow"><span>fundamentals</span><div class="pbar"><i style="width:66%"></i></div><b>66</b></div>
+        </div>
+        <div class="an-foot">AI-generated · informational, not investment advice</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Your Edge, <span class="grad">In One Place</span></h2>
+    <div class="subh">A quick look at what you get. Sign in to explore the full platform.</div>
+    <div class="cards">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>AI Assistant</h3><p>Chat with an analyst that never sleeps. Ask about any stock, your portfolio, the market or a score — grounded in live data.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20a8 8 0 1 1 16 0"/><path d="M12 20V9"/><path d="M12 9l4.5 3.3"/></svg></div><h3>Explainable NIYTRI Score</h3><p>Every NSE stock rated 0–100 daily across 8 factors — each with a clear reason, never a black box.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div><h3>Smart Alerts</h3><p>Get notified the moment a stock crosses into Strong, slips to Weak, or moves sharply — with a one-line reason.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/></svg></div><h3>Portfolio X-Ray</h3><p>Upload your holdings and see a health score, concentration and sector risk, and estimated P&amp;L.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h8M7 12h8M7 16h5"/></svg></div><h3>Market News AI</h3><p>The day's market news, summarised and sentiment-tagged, linked to the stocks each headline moves.</p></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Start In <span class="grad">30 Seconds</span></h2>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><h3>Create Your Account</h3><p>Sign up in seconds with Google or email — or redeem a friend's invite code to skip the queue.</p></div>
+      <div class="step"><div class="num">2</div><h3>Follow Your Stocks</h3><p>Add the stocks you care about to a watchlist, or upload your whole portfolio in one tap.</p></div>
+      <div class="step"><div class="num">3</div><h3>Ask &amp; Act</h3><p>Let the AI explain any score, headline or risk in plain language — and ping you when things change.</p></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="join">
+      <h2>Ready To <span class="grad">Invest Smarter?</span></h2>
+      <p>Join the invite-only beta today.</p>
+      <div class="auth">
+        <div class="tabs"><button class="on">Log In</button><button>Sign Up</button><button>Waitlist</button></div>
+        <button class="btn btn-google" style="width:100%"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue With Google</button>
+        <div class="or">— or —</div>
+        <input class="field" placeholder="Full name">
+        <input class="field" placeholder="name@email.com">
+        <input class="field" type="password" placeholder="Create a password">
+        <input class="field" type="password" placeholder="Confirm password">
+        <input class="field" placeholder="Invite code (required)">
+        <button class="btn btn-grad full">Create Account</button>
+        <div class="invite">No code? <a>Join the waitlist →</a> · members invite up to <b style="color:#3a4150">5 friends</b>.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>© 2026 NIYTRI Technologies · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
+</div>
+
+<script>
+  // ticker
+  var idx=[["NSE","NIFTY 50",24218.6,0.63],["BSE","SENSEX",79420.1,0.55],["NSE","BANK NIFTY",51840.3,0.81],["BSE","BANKEX",58210.7,0.72],["NSE","NIFTY IT",38112.4,-0.34],["NSE","NIFTY FMCG",56230.9,0.21]];
+  var t=document.getElementById('track'),h='';
+  function row(a){return '<span class="tk"><span class="ex">'+a[0]+'</span><b>'+a[1]+'</b><span class="val">'+a[2].toLocaleString('en-IN')+'</span><em class="'+(a[3]>=0?'up':'dn')+'">'+(a[3]>=0?'▲':'▼')+' '+Math.abs(a[3])+'%</em></span>';}
+  idx.concat(idx).forEach(function(a){h+=row(a);});t.innerHTML=h;
+  // seeded score chart
+  (function(){
+    var W=360,H=160,padT=14,padB=22,padL=10,padR=52,n=30,seed=42;
+    var rnd=function(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+    var v=66,vals=[];for(var i=0;i<n;i++){v=Math.max(60,Math.min(72,v+(rnd()-0.44)*2.4));vals.push(v);}vals[n-1]=70;
+    var mn=Math.min.apply(0,vals),mx=Math.max.apply(0,vals),pad=(mx-mn)*0.1||1,lo=mn-pad,hi=mx+pad,rng=hi-lo;
+    var X=function(i){return padL+(W-padL-padR)*(i/(n-1));},Y=function(x){return padT+(H-padT-padB)*(1-(x-lo)/rng);};
+    var col='#FF6A00';var d='M'+X(0)+','+Y(vals[0]);
+    for(var j=1;j<n;j++){var cx=(X(j-1)+X(j))/2;d+=' Q'+X(j-1)+','+Y(vals[j-1])+' '+cx+','+((Y(vals[j-1])+Y(vals[j]))/2);}d+=' T'+X(n-1)+','+Y(vals[n-1]);
+    var gy=[0.15,0.4,0.65,0.9].map(function(f){return padT+(H-padT-padB)*f;});
+    var grid=gy.map(function(y){return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="#f0e6dc"/>';}).join('');
+    var yl=[mx,(mx+mn)/2,mn].map(function(val){return '<text x="'+(W-padR+8)+'" y="'+(Y(val)+4).toFixed(1)+'" fill="#9aa3b2" font-size="10">'+Math.round(val)+'</text>';}).join('');
+    var dates=['14 Jul','28 Jul','12 Aug'];var xi=[0,Math.floor((n-1)/2),n-1];
+    var xl=xi.map(function(i,k){return '<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" fill="#9aa3b2" font-size="10" text-anchor="'+(k===0?'start':k===2?'end':'middle')+'">'+dates[k]+'</text>';}).join('');
+    document.getElementById('chart').innerHTML='<defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity=".22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+grid+'<path d="'+d+' L'+(W-padR)+','+(H-padB)+' L'+padL+','+(H-padB)+' Z" fill="url(#fl)"/><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(vals[n-1]).toFixed(1)+'" r="3.5" fill="'+col+'"/>'+yl+xl;
+  })();
+</script>

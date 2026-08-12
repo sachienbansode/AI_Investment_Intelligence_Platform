@@ -77,7 +77,7 @@ function HoverChart({ series, prefix = '', round = 0 }) {
     d += ' T' + X(n - 1).toFixed(1) + ',' + Y(vals[n - 1]).toFixed(1)
     return { vals, n, mn, mx, lo, hiV, X, Y, up, d }
   }, [series])
-  const col = g.up ? '#22D3EE' : '#ff5d8f'
+  const col = g.up ? '#FF6A00' : '#e0503f'
   const gy = [0.15, 0.4, 0.65, 0.9].map(f => padT + (H - padT - padB) * f)
   const lbl = v => prefix + Number(v).toLocaleString('en-IN', { maximumFractionDigits: round })
   function move(e) { const r = e.currentTarget.getBoundingClientRect(); const frac = (e.clientX - r.left) / r.width; setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1))))) }
@@ -86,16 +86,33 @@ function HoverChart({ series, prefix = '', round = 0 }) {
     <div className="lp-chartbox">
       <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }} onMouseMove={move} onMouseLeave={() => setHi(null)}>
         <defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
-        {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#1b2340" strokeWidth="1" />)}
+        {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#f0e6dc" strokeWidth="1" />)}
         <path d={g.d + ' L' + (W - padR) + ',' + (H - padB) + ' L' + padL + ',' + (H - padB) + ' Z'} fill="url(#lpfl)" />
         <path d={g.d} fill="none" stroke={col} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        {[g.mx, (g.mx + g.mn) / 2, g.mn].map((val, i) => (<text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#6f7c9c" fontSize="10">{lbl(val)}</text>))}
-        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (<text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#6f7c9c" fontSize="10" textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{series[i].label}</text>))}
+        {[g.mx, (g.mx + g.mn) / 2, g.mn].map((val, i) => (<text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#9aa3b2" fontSize="10">{lbl(val)}</text>))}
+        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (<text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#9aa3b2" fontSize="10" textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{series[i].label}</text>))}
         <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.vals[g.n - 1]).toFixed(1)} r="3.5" fill={col} />
-        {cur && <><line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#5b6790" strokeWidth="1" strokeDasharray="3 3" /><circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.value).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" /></>}
+        {cur && <><line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#d9c4b0" strokeWidth="1" strokeDasharray="3 3" /><circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.value).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" /></>}
       </svg>
       {cur && <div className="lp-tip" style={{ left: (g.X(hi) / W * 100) + '%' }}><b>{lbl(cur.value)}</b> <span>{cur.label}</span></div>}
       <div className="lp-chart-meta"><span>Low <b>{lbl(g.mn)}</b></span><span>High <b>{lbl(g.mx)}</b></span><span>Hover for any day</span></div>
+    </div>
+  )
+}
+
+function TickerRow({ items, reverse }) {
+  return (
+    <div className="lp-ticker">
+      <div className={'lp-track' + (reverse ? ' rev' : '')} style={{ animationDuration: Math.max(26, items.length * 4) + 's' }}>
+        {[...items, ...items].map((i, idx) => (
+          <span className="lp-tk" key={idx} aria-hidden={idx >= items.length}>
+            <span className="ex">{i.exch}</span>
+            <b>{i.index.replace(' (BSE)', '')}</b>
+            <span className="val">{i.last?.toLocaleString('en-IN')}</span>
+            <em className={i.pct_change >= 0 ? 'up' : 'dn'}>{(i.pct_change >= 0 ? String.fromCharCode(0x25B2) : String.fromCharCode(0x25BC))} {Math.abs(i.pct_change)}%</em>
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -112,7 +129,7 @@ function ScoreAnalysis({ explanation, pillars }) {
           {top.map(([k, v]) => (
             <div className="lp-pillrow" key={k}>
               <span>{k.replace(/_/g, ' ')}</span>
-              <div className="lp-pbar"><i style={{ width: Math.max(3, Math.min(100, v)) + '%', background: bandCol(v) }} /></div>
+              <div className="lp-pbar"><i style={{ width: Math.max(3, Math.min(100, v)) + '%', background: 'linear-gradient(90deg,#FF8A3D,#F94C00)' }} /></div>
               <b>{Math.round(v)}</b>
             </div>
           ))}
@@ -208,9 +225,9 @@ export default function Landing({ onLogin }) {
   const priceSeries = pricePts.map(p => ({ label: fmtDate(new Date(p.t * 1000)), value: p.c }))
   const hasPrice = priceSeries.length >= 2
 
-  const ticker = useMemo(() => indices
-    .map(i => ({ ...i, exch: i.index.includes('(BSE)') ? 'BSE' : i.index.includes('(GL)') ? 'GL' : 'NSE' }))
-    .filter(i => i.exch !== 'GL'), [indices])
+  const mapped = useMemo(() => indices.map(i => ({ ...i, exch: i.index.includes('(BSE)') ? 'BSE' : i.index.includes('(GL)') ? 'GL' : 'NSE' })), [indices])
+  const nse = mapped.filter(i => i.exch === 'NSE')
+  const bse = mapped.filter(i => i.exch === 'BSE')
 
   return (
     <div className="lp">
@@ -228,18 +245,10 @@ export default function Landing({ onLogin }) {
         </nav>
       </div>
 
-      {ticker.length > 0 && (
-        <div className="lp-ticker">
-          <div className="lp-track" style={{ animationDuration: Math.max(28, ticker.length * 3.6) + 's' }}>
-            {[...ticker, ...ticker].map((i, idx) => (
-              <span className="lp-tk" key={idx} aria-hidden={idx >= ticker.length}>
-                <span className="ex">{i.exch}</span>
-                <b>{i.index.replace(' (BSE)', '')}</b>
-                <span className="val">{i.last?.toLocaleString('en-IN')}</span>
-                <em className={i.pct_change >= 0 ? 'up' : 'dn'}>{(i.pct_change >= 0 ? String.fromCharCode(0x25B2) : String.fromCharCode(0x25BC))} {Math.abs(i.pct_change)}%</em>
-              </span>
-            ))}
-          </div>
+      {(nse.length > 0 || bse.length > 0) && (
+        <div className="lp-tickers">
+          {nse.length > 0 && <TickerRow items={nse} />}
+          {bse.length > 0 && <TickerRow items={bse} reverse />}
         </div>
       )}
 
@@ -377,12 +386,12 @@ export default function Landing({ onLogin }) {
 }
 
 const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');" + `
-.lp{--bg:#080b14;--bg2:#0e1322;--card:#111726;--line:#1e2740;--ink:#eef2fb;--mut:#9aa6c2;
-  --cy:#22D3EE;--pu:#7C5CFC;--pk:#EC4899;--grad:linear-gradient(90deg,#22D3EE,#7C5CFC 52%,#EC4899);
+.lp{--bg:#ffffff;--soft:#fff7f0;--card:#ffffff;--line:#f0e6dc;--line2:#ecdfd2;--ink:#181d27;--mut:#6b7280;--faint:#9aa3b2;
+  --or1:#FF8A3D;--or2:#FF6A00;--or3:#F94C00;--grad:linear-gradient(90deg,#FF8A3D,#FF6A00 55%,#F94C00);
   position:fixed;inset:0;overflow-y:auto;z-index:50;color:var(--ink);line-height:1.6;
   font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;
-  background:radial-gradient(900px 520px at 12% -8%,rgba(124,92,252,.16),transparent 60%),
-             radial-gradient(820px 480px at 92% 6%,rgba(34,211,238,.12),transparent 60%),var(--bg)}
+  background:radial-gradient(900px 520px at 12% -8%,rgba(255,138,61,.12),transparent 60%),
+             radial-gradient(820px 480px at 92% 4%,rgba(249,76,0,.08),transparent 60%),var(--bg)}
 .lp *{box-sizing:border-box}
 .lp-wrap{max-width:1140px;margin:0 auto;padding:0 26px}
 .lp-grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -392,88 +401,89 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-word{font-weight:800;font-size:23px;letter-spacing:1.5px}
 .lp-navbtns{display:flex;gap:11px}
 .lp-btn{border:none;border-radius:14px;padding:13px 22px;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit;transition:.15s}
-.lp-btn-grad{background:var(--grad);color:#08101f;font-weight:700;box-shadow:0 10px 30px rgba(124,92,252,.35)}
-.lp-btn-grad:hover{filter:brightness(1.06)}
-.lp-btn-google{background:#fff;color:#20242e;display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
-.lp-btn-login{background:transparent;border:1px solid var(--line);color:#dbe2f2;padding:12px 20px}
-.lp-btn-login:hover{border-color:#33406a;color:#fff}
+.lp-btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}
+.lp-btn-grad:hover{filter:brightness(1.05)}
+.lp-btn-google{background:#fff;color:#20242e;border:1px solid var(--line2);display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
+.lp-btn-login{background:#fff;border:1px solid var(--line2);color:#2a3140;padding:12px 20px}
+.lp-btn-login:hover{border-color:var(--or2);color:var(--or3)}
 .lp-full{width:100%;margin-top:6px}
-.lp-ticker{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(11,17,32,.55)}
-.lp-track{display:inline-flex;gap:28px;padding:9px 0;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+.lp-tickers{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.lp-ticker{overflow:hidden;background:var(--soft)}
+.lp-tickers .lp-ticker + .lp-ticker{border-top:1px solid var(--line)}
+.lp-track{display:inline-flex;gap:28px;padding:8px 26px;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+.lp-track.rev{animation-direction:reverse}
 @keyframes lpmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .lp-tk{display:inline-flex;gap:8px;align-items:center;font-size:13px}
-.lp-tk .ex{font-size:10px;font-weight:700;color:#08101f;background:var(--cy);border-radius:5px;padding:1px 6px}
-.lp-tk b{color:#fff;font-weight:700}.lp-tk .val{color:var(--mut);font-variant-numeric:tabular-nums}
-.lp-tk .up{color:#5fe3ad;font-style:normal}.lp-tk .dn{color:#ff8080;font-style:normal}
+.lp-tk .ex{font-size:10px;font-weight:700;color:#fff;background:var(--or2);border-radius:5px;padding:1px 6px}
+.lp-tk b{color:#181d27;font-weight:700}.lp-tk .val{color:var(--mut);font-variant-numeric:tabular-nums}
+.lp-tk .up{color:#12a06b;font-style:normal}.lp-tk .dn{color:#e0503f;font-style:normal}
 .lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:40px 0 30px}
-.lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(124,92,252,.14);border:1px solid rgba(124,92,252,.35);color:#ccc2ff;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
-.lp-hero h1{font-size:clamp(42px,5.8vw,66px);line-height:1.03;font-weight:900;letter-spacing:-1.5px}
+.lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(255,106,0,.10);border:1px solid rgba(255,106,0,.28);color:#c24a00;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
+.lp-hero h1{font-size:clamp(42px,5.8vw,64px);line-height:1.04;font-weight:900;letter-spacing:-1.4px}
 .lp-hero p{color:var(--mut);font-size:19px;margin:22px 0 30px;max-width:540px}
 .lp-cta-row{display:flex;gap:13px;flex-wrap:wrap}
-.lp-chips{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;color:#7f8bab;font-size:14px}.lp-chips b{color:#cfd6ea;font-weight:600}
-.lp-preview{position:relative;background:linear-gradient(180deg,#141b2e,#0f1524);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 40px 90px rgba(0,0,0,.55)}
+.lp-chips{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;color:#8a93a4;font-size:14px}.lp-chips b{color:#3a4150;font-weight:600}
+.lp-preview{position:relative;background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 30px 70px rgba(24,29,39,.10)}
 .lp-pv-load{height:300px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
-.lp-pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#9fe9d6;background:rgba(18,185,129,.14);border:1px solid rgba(18,185,129,.3);border-radius:999px;padding:4px 11px;margin-bottom:14px}
+.lp-pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#0f8f5f;background:rgba(18,160,107,.10);border:1px solid rgba(18,160,107,.25);border-radius:999px;padding:4px 11px;margin-bottom:14px}
 .lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.lp-nm{font-weight:700;font-size:19px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#5fe3ad;font-weight:600}.lp-dn{color:#ff8080;font-weight:600}
-.lp-score{color:#052a20;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
-.lp-pvtabs{display:flex;gap:6px;background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 10px}
+.lp-nm{font-weight:800;font-size:20px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#12a06b;font-weight:600}.lp-dn{color:#e0503f;font-weight:600}
+.lp-score{color:#fff;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
+.lp-pvtabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 12px}
 .lp-pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
-.lp-pvtabs button.on{background:var(--grad);color:#08101f}
+.lp-pvtabs button.on{background:var(--grad);color:#fff}
 .lp-chartbox{position:relative}
-.lp-tip{position:absolute;top:2px;transform:translateX(-50%);background:#0b1120;border:1px solid var(--line);border-radius:9px;padding:4px 9px;font-size:12px;color:var(--ink);pointer-events:none;white-space:nowrap}
-.lp-tip b{color:var(--cy)}.lp-tip span{color:var(--mut);margin-left:4px}
-.lp-chart-meta{display:flex;gap:16px;color:#7f8bab;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#cfd6ea}.lp-chart-meta span:last-child{margin-left:auto}
+.lp-tip{position:absolute;top:2px;transform:translateX(-50%);background:#fff;border:1px solid var(--line2);border-radius:9px;padding:4px 9px;font-size:12px;color:var(--ink);pointer-events:none;white-space:nowrap;box-shadow:0 6px 18px rgba(24,29,39,.10)}
+.lp-tip b{color:var(--or3)}.lp-tip span{color:var(--mut);margin-left:4px}
+.lp-chart-meta{display:flex;gap:16px;color:#8a93a4;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#3a4150}.lp-chart-meta span:last-child{margin-left:auto}
 .lp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-.lp-stats div{background:#0b1120;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.lp-stats div{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
 .lp-stats span{display:block;color:var(--mut);font-size:11.5px;margin-bottom:3px}.lp-stats b{font-size:14px;font-variant-numeric:tabular-nums}
-.lp-bubble{background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.28);border-radius:16px;padding:14px 16px;font-size:14.5px;color:#e6e9f7;margin-top:14px}
-.lp-demoflag{color:#9aa6c2;font-style:italic}
-.lp-analysis{margin-top:14px;background:#0b1120;border:1px solid var(--line);border-radius:16px;padding:16px}
-.lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#9fb0d6;margin-bottom:9px}
-.lp-an-p{color:#dbe2f2;font-size:14px;line-height:1.6;margin-bottom:13px}
+.lp-bubble{background:rgba(255,106,0,.08);border:1px solid rgba(255,106,0,.20);border-radius:16px;padding:14px 16px;font-size:14.5px;color:#3a4150;margin-top:14px}
+.lp-demoflag{color:#9aa3b2;font-style:italic}
+.lp-analysis{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:16px}
+.lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#b25a12;margin-bottom:9px}
+.lp-an-p{color:#3a4150;font-size:14px;line-height:1.6;margin-bottom:13px}
 .lp-pills{display:grid;gap:8px}
 .lp-pillrow{display:grid;grid-template-columns:110px 1fr 28px;gap:10px;align-items:center;font-size:12.5px}
 .lp-pillrow>span{color:var(--mut);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lp-pbar{height:7px;background:#141b2e;border-radius:6px;overflow:hidden}
-.lp-pbar i{display:block;height:100%;border-radius:6px}
-.lp-pillrow b{text-align:right;font-variant-numeric:tabular-nums;color:#eef2fb}
-.lp-an-foot{color:#6f7c9c;font-size:11px;margin-top:11px}
+.lp-pbar{height:7px;background:#f2e4d6;border-radius:6px;overflow:hidden}
+.lp-pbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#FF8A3D,#F94C00)}
+.lp-pillrow b{text-align:right;font-variant-numeric:tabular-nums;color:#181d27}
+.lp-an-foot{color:#9aa3b2;font-size:11px;margin-top:11px}
 .lp-sec{padding:56px 0}
 .lp-sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
 .lp-subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.lp-card{border-radius:20px;padding:28px;border:1px solid var(--line);background:var(--card);transition:.18s}
-.lp-card:hover{transform:translateY(-6px);border-color:#33406a}
-.lp-ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.lp-card{border-radius:20px;padding:28px;border:1px solid var(--line);background:#fff;transition:.18s;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+.lp-card:hover{transform:translateY(-6px);border-color:var(--or1);box-shadow:0 18px 44px rgba(255,106,0,.12)}
+.lp-ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:rgba(255,106,0,.10);color:var(--or3)}
 .lp-ic svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .lp-card h3{font-size:20px;margin-bottom:10px;font-weight:700}
 .lp-card p{color:var(--mut);font-size:15px}
-.k1{background:rgba(124,92,252,.16);color:#b7a8ff}.k2{background:rgba(18,185,129,.16);color:#5fe3ad}
-.k3{background:rgba(236,72,153,.16);color:#ff8bc2}.k4{background:rgba(34,211,238,.16);color:#66e2f5}
-.k5{background:rgba(59,130,246,.16);color:#8fb6ff}.k6{background:rgba(245,165,36,.16);color:#ffce7a}
+.k1,.k2,.k3,.k4,.k5,.k6{background:rgba(255,106,0,.10);color:var(--or3)}
 .lp-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-.lp-step{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:28px;text-align:center}
-.lp-num{width:48px;height:48px;border-radius:15px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#08101f;font-size:19px;background:var(--grad)}
+.lp-step{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+.lp-num{width:48px;height:48px;border-radius:15px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:19px;background:var(--grad)}
 .lp-step h3{font-size:21px;font-weight:700;margin-bottom:10px}
-.lp-step p{color:#c2cbe3;font-size:15.5px;line-height:1.65;max-width:280px;margin:0 auto}
-.lp-join{background:linear-gradient(120deg,rgba(34,211,238,.12),rgba(124,92,252,.14) 55%,rgba(236,72,153,.12));border:1px solid var(--line);border-radius:28px;padding:52px 24px;text-align:center}
+.lp-step p{color:var(--mut);font-size:15.5px;line-height:1.65;max-width:280px;margin:0 auto}
+.lp-join{background:linear-gradient(120deg,rgba(255,138,61,.14),rgba(255,106,0,.10) 55%,rgba(249,76,0,.12));border:1px solid var(--line2);border-radius:28px;padding:52px 24px;text-align:center}
 .lp-join>p{color:var(--mut);margin-top:8px}
-.lp-auth{background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:26px;max-width:420px;margin:26px auto 0;text-align:center}
-.lp-tabs{display:flex;gap:6px;background:#0b1120;border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
+.lp-auth{background:#fff;border:1px solid var(--line2);border-radius:20px;padding:26px;max-width:420px;margin:26px auto 0;text-align:center;box-shadow:0 20px 50px rgba(24,29,39,.10)}
+.lp-tabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
 .lp-tabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px}
-.lp-tabs button.on{background:var(--grad);color:#08101f}
+.lp-tabs button.on{background:var(--grad);color:#fff}
 .lp-google{display:flex;justify-content:center;min-height:44px}
-.lp-field{width:100%;background:#0b1120;border:1px solid var(--line);border-radius:12px;padding:14px;color:var(--ink);margin:6px 0;font-size:15px;font-family:inherit}
-.lp-field:focus{outline:none;border-color:var(--pu);box-shadow:0 0 0 3px rgba(124,92,252,.2)}
-.lp-or{color:#6f7c9c;font-size:13px;margin:14px 0}
+.lp-field{width:100%;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--ink);margin:6px 0;font-size:15px;font-family:inherit}
+.lp-field:focus{outline:none;border-color:var(--or2);box-shadow:0 0 0 3px rgba(255,106,0,.15)}
+.lp-or{color:#9aa3b2;font-size:13px;margin:14px 0}
 .lp-invite{margin-top:16px;font-size:13px;color:var(--mut)}
-.lp-invite a{cursor:pointer;font-weight:600;text-decoration:none}
+.lp-invite a{cursor:pointer;font-weight:600;text-decoration:none;color:var(--or3)}
 .lp-vtext{color:var(--mut);font-size:14.5px;margin-bottom:8px}
 .lp-verify-ic{font-size:34px;margin-bottom:6px}
 .lp-verify h3{font-size:20px;font-weight:700;margin-bottom:8px}
-.lp-err{color:#ff9a9a;font-size:13.5px;margin-top:12px}
-.lp-ok{color:#6ee7b7;font-size:13.5px;margin-top:12px}
-.lp-foot{color:#6f7c9c;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
+.lp-err{color:#d23b3b;font-size:13.5px;margin-top:12px}
+.lp-ok{color:#0f8f5f;font-size:13.5px;margin-top:12px}
+.lp-foot{color:#9aa3b2;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
 @media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
 `
