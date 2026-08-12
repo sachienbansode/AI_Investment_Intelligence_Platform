@@ -9,6 +9,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code    VARCHAR;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_code  VARCHAR;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider    VARCHAR DEFAULT 'email';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified   BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token     VARCHAR;
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_referral_code ON users (referral_code);
 
 -- Invite codes (member codes + admin seed codes) -----------------------------

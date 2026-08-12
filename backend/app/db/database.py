@@ -43,6 +43,7 @@ class User(Base):
     invited_by_code = Column(String, nullable=True)   # code they signed up with (referral graph)
     auth_provider = Column(String, default="email")  # email | google
     email_verified = Column(Boolean, default=False)
+    verify_token = Column(String, nullable=True)      # email-verification token (one-time)
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -337,6 +338,7 @@ _MIGRATIONS = [
     ("users", "invited_by_code", "VARCHAR"),
     ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
     ("users", "email_verified", "BOOLEAN DEFAULT 0"),
+    ("users", "verify_token", "VARCHAR"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -421,6 +423,7 @@ def init_db():
             ("users", "invited_by_code", "VARCHAR"),
             ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
             ("users", "email_verified", "BOOLEAN DEFAULT FALSE"),
+            ("users", "verify_token", "VARCHAR"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:

@@ -79,7 +79,7 @@ DEFAULTS: dict = {
     "registration_mode": "invite_only",
     "invites_per_user": 5,            # invite codes each member can share
     "waitlist_enabled": True,
-    "require_email_verification": False,
+    "require_email_verification": True,
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
                    "gemini": "gemini-1.5-pro", "groq": "openai/gpt-oss-120b"},
     "llm_pricing": {

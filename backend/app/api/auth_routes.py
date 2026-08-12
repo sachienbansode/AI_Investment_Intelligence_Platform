@@ -9,6 +9,7 @@ from app.core.auth import (get_current_user, hash_password, issue_tokens,
 from app.core.compliance import audit_log
 from app.db.database import SessionLocal, User
 from app.core import registration
+from app.services.app_settings import get_setting
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -51,6 +52,10 @@ def login(req: LoginRequest):
         raise HTTPException(401, "Invalid email or password")
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
+    if (getattr(user, "auth_provider", "email") == "email" and not user.email_verified
+            and bool(get_setting("require_email_verification"))):
+        raise HTTPException(403,
+            "Please verify your email first \u2014 check your inbox for the verification link.")
     audit_log("login_success", user=user.email)
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
 
@@ -154,12 +159,38 @@ def registration_info():
             "google_client_id": (get_settings().google_oauth_client_id or "").strip()}
 
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register")
 def register(req: RegisterRequest):
-    user = registration.register_email(req.email, req.password, req.full_name, req.invite_code)
+    res = registration.register_email(req.email, req.password, req.full_name, req.invite_code)
+    if res.get("needs_verification"):
+        audit_log("register_pending", user=req.email.lower(), provider="email")
+        return {"needs_verification": True, "delivered": bool(res.get("delivered")),
+                "resent": bool(res.get("resent")), "verify_link": res.get("verify_link")}
+    user = res["user"]
     audit_log("register", user=user.email, provider="email",
               invited_by=user.invited_by_code or "")
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
+
+
+class VerifyRequest(BaseModel):
+    token: str
+
+
+@router.post("/verify", response_model=TokenResponse)
+def verify_email(req: VerifyRequest):
+    """Confirm an email via the emailed token and log the user in."""
+    user = registration.verify_email_token(req.token)
+    audit_log("email_verified", user=user.email)
+    return TokenResponse(**issue_tokens(user), user=_user_dict(user))
+
+
+class ResendRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-verification")
+def resend_verification(req: ResendRequest):
+    return registration.resend_verification(req.email)
 
 
 @router.post("/google")
@@ -171,8 +202,8 @@ def google_auth(req: GoogleRequest):
 
 @router.post("/waitlist")
 def join_waitlist(req: WaitlistRequest):
-    registration.add_to_waitlist(req.email)
-    return {"ok": True}
+    res = registration.add_to_waitlist(req.email)
+    return {"ok": True, **res}
 
 
 @router.get("/my-invites")
