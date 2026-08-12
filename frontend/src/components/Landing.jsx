@@ -82,16 +82,6 @@ export default function Landing({ onLogin }) {
     <div className="lp">
       <style>{CSS}</style>
 
-      <header className="lp-nav">
-        <div className="lp-brand">
-          <img src="/niytri-logo.svg" alt="NIYTRI" onError={e => { e.currentTarget.src = '/niytri-logo.png' }} />
-        </div>
-        <div className="lp-navbtns">
-          <button className="lp-ghost" onClick={() => { setView('signin'); scrollAuth() }}>Log In</button>
-          <button className="lp-cta" onClick={() => { setView(closed ? 'waitlist' : 'signup'); scrollAuth() }}>
-            {closed ? 'Join Waitlist' : 'Get Started'}</button>
-        </div>
-      </header>
 
       <section className="lp-hero">
         <div className="lp-hero-copy">
