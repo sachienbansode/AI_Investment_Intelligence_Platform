@@ -49,5 +49,12 @@ CREATE INDEX IF NOT EXISTS ix_invitations_inviter ON invitations (inviter_user_i
 CREATE INDEX IF NOT EXISTS ix_invitations_email   ON invitations (email);
 
 -- Permissions for the application role ----------------------------------------
-GRANT SELECT, INSERT, UPDATE, DELETE ON invite_codes, waitlist, invitations TO broking_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO broking_app;
+-- Only granted if a role named "broking_app" exists (skip cleanly otherwise —
+-- if your app connects as the table owner, these grants aren't needed at all).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'broking_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON invite_codes, waitlist, invitations TO broking_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO broking_app;
+  END IF;
+END $$;

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, setSession } from '../api.js'
 
-// Public marketing landing + auth. Faithful to the approved mockup (v5): dark brand
-// gradient, Inter, hero preview chart, icon feature cards, steps, join auth card.
-// The logged-in application is unchanged; this only replaces the pre-auth screen.
+// Public marketing landing + auth. Matches the approved mockup (v5): dark brand
+// gradient, Inter, hero SPOTLIGHT card (today's top NIYTRI-scored stock, live), icon
+// feature cards, steps, join auth card. The logged-in app is unchanged.
 
 const GoogleG = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -34,44 +34,96 @@ const STEPS = [
   ['Ask & Act', 'Let the AI explain any score, headline or risk in plain language — and ping you the moment things change.'],
 ]
 
-// Seeded random-walk preview chart (matches the approved mockup exactly).
-function usePreviewChart() {
-  return useMemo(() => {
-    const W = 360, H = 160, padT = 14, padB = 22, padL = 6, padR = 52, n = 64
-    let seed = 42
-    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
-    let v = 1180; const vals = []
-    for (let i = 0; i < n; i++) { v += (rnd() - 0.46) * 22 + Math.sin(i / 7) * 4; vals.push(v) }
-    const prev = vals[0], last = vals[n - 1]
-    const min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1
-    const X = i => padL + (W - padL - padR) * (i / (n - 1))
-    const Y = val => padT + (H - padT - padB) * (1 - (val - min) / rng)
-    const up = last >= prev
-    const line = up ? '#22D3EE' : '#ff5d8f'
-    let d = 'M' + X(0) + ',' + Y(vals[0])
-    for (let i = 1; i < n; i++) { const cx = (X(i - 1) + X(i)) / 2; d += ' Q' + X(i - 1) + ',' + Y(vals[i - 1]) + ' ' + cx + ',' + ((Y(vals[i - 1]) + Y(vals[i])) / 2) }
-    d += ' T' + X(n - 1) + ',' + Y(vals[n - 1])
-    const gy = [0.15, 0.4, 0.65, 0.9].map(f => padT + (H - padT - padB) * f)
-    const grid = gy.map(y => '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" stroke="#1b2340" stroke-width="1"/>').join('')
-    const yl = [max, (max + min) / 2, min].map(val => '<text x="' + (W - padR + 8) + '" y="' + (Y(val) + 4).toFixed(1) + '" fill="#6f7c9c" font-size="10">₹' + Math.round(val) + '</text>').join('')
-    const dates = ['4 wk', '3 wk', '2 wk', '1 wk', 'now']
-    const xl = dates.map((t, i) => '<text x="' + X(i / (dates.length - 1) * (n - 1)).toFixed(1) + '" y="' + (H - 6) + '" fill="#6f7c9c" font-size="10" text-anchor="' + (i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle') + '">' + t + '</text>').join('')
-    const inner =
-      '<defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + line + '" stop-opacity=".22"/><stop offset="1" stop-color="' + line + '" stop-opacity="0"/></linearGradient></defs>' +
-      grid +
-      '<line x1="' + padL + '" y1="' + Y(prev).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + Y(prev).toFixed(1) + '" stroke="#454f73" stroke-width="1" stroke-dasharray="4 4"/>' +
-      '<path d="' + d + ' L' + (W - padR) + ',' + (H - padB) + ' L' + padL + ',' + (H - padB) + ' Z" fill="url(#lpfl)"/>' +
-      '<path d="' + d + '" fill="none" stroke="' + line + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<circle cx="' + (W - padR).toFixed(1) + '" cy="' + Y(last).toFixed(1) + '" r="3.5" fill="' + line + '"/>' +
-      '<rect x="' + (W - padR + 2) + '" y="' + (Y(last) - 11).toFixed(1) + '" width="46" height="20" rx="6" fill="' + line + '"/>' +
-      '<text x="' + (W - padR + 25) + '" y="' + (Y(last) + 3).toFixed(1) + '" fill="#08101f" font-size="11" font-weight="700" text-anchor="middle">₹' + Math.round(last) + '</text>' +
-      yl + xl
-    return { inner, up, last: Math.round(last) }
-  }, [])
+// Synthetic fallback when the public spotlight has no data yet (pre-first-run).
+function demoSpotlight() {
+  let seed = 42
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+  const hist = []
+  let v = 66
+  const today = new Date()
+  for (let i = 29; i >= 0; i--) {
+    v += (rnd() - 0.45) * 3
+    v = Math.max(40, Math.min(88, v))
+    const dt = new Date(today); dt.setDate(today.getDate() - i)
+    hist.push({ date: dt.toISOString().slice(0, 10), score: Math.round(v * 10) / 10 })
+  }
+  hist[hist.length - 1].score = 72
+  return { available: true, demo: true, symbol: 'RELIANCE', name: 'Reliance Industries Ltd',
+    score: 72, last_price: 1308, change_pct: 0.42, history: hist }
+}
+
+const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) } catch { return s } }
+const bandCol = (sc) => sc >= 65 ? '#12b981' : sc >= 45 ? '#d4920f' : '#e05252'
+
+// Interactive score chart — day-wise NIYTRI score, hover shows date + score.
+function ScoreChart({ history }) {
+  const [hi, setHi] = useState(null)
+  const W = 360, H = 160, padT = 14, padB = 22, padL = 10, padR = 52
+  const g = useMemo(() => {
+    const scores = history.map(h => h.score)
+    const n = scores.length
+    const mn = Math.min(...scores), mx = Math.max(...scores)
+    const lo = Math.floor(mn - 2), hiV = Math.ceil(mx + 2), rng = (hiV - lo) || 1
+    const X = i => padL + (W - padL - padR) * (i / Math.max(1, n - 1))
+    const Y = v => padT + (H - padT - padB) * (1 - (v - lo) / rng)
+    const up = scores[n - 1] >= scores[0]
+    let d = 'M' + X(0).toFixed(1) + ',' + Y(scores[0]).toFixed(1)
+    for (let i = 1; i < n; i++) { const cx = (X(i - 1) + X(i)) / 2; d += ' Q' + X(i - 1).toFixed(1) + ',' + Y(scores[i - 1]).toFixed(1) + ' ' + cx.toFixed(1) + ',' + ((Y(scores[i - 1]) + Y(scores[i])) / 2).toFixed(1) }
+    d += ' T' + X(n - 1).toFixed(1) + ',' + Y(scores[n - 1]).toFixed(1)
+    return { scores, n, mn, mx, lo, hiV, X, Y, up, d }
+  }, [history])
+  const col = g.up ? '#22D3EE' : '#ff5d8f'
+  const gy = [0.15, 0.4, 0.65, 0.9].map(f => padT + (H - padT - padB) * f)
+
+  function move(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    const frac = (e.clientX - r.left) / r.width
+    setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1)))))
+  }
+  const cur = hi != null ? history[hi] : null
+
+  return (
+    <div className="lp-chartbox">
+      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }}
+           onMouseMove={move} onMouseLeave={() => setHi(null)}>
+        <defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
+        {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#1b2340" strokeWidth="1" />)}
+        <path d={g.d + ' L' + (W - padR) + ',' + (H - padB) + ' L' + padL + ',' + (H - padB) + ' Z'} fill="url(#lpfl)" />
+        <path d={g.d} fill="none" stroke={col} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        {/* y labels: max / mid / min score */}
+        {[g.hiV, Math.round((g.hiV + g.lo) / 2), g.lo].map((val, i) => (
+          <text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#6f7c9c" fontSize="10">{val}</text>
+        ))}
+        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (
+          <text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#6f7c9c" fontSize="10"
+                textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{fmtDate(history[i].date)}</text>
+        ))}
+        {/* last marker */}
+        <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.scores[g.n - 1]).toFixed(1)} r="3.5" fill={col} />
+        {/* hover marker */}
+        {cur && <>
+          <line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#5b6790" strokeWidth="1" strokeDasharray="3 3" />
+          <circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.score).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" />
+        </>}
+      </svg>
+      {cur && (
+        <div className="lp-tip" style={{ left: (g.X(hi) / W * 100) + '%' }}>
+          <b>{Math.round(cur.score)}</b> <span>{fmtDate(cur.date)}</span>
+        </div>
+      )}
+      <div className="lp-chart-meta">
+        <span>Low <b>{Math.round(g.mn)}</b></span>
+        <span>High <b>{Math.round(g.mx)}</b></span>
+        <span>Hover the line for day-wise score</span>
+      </div>
+    </div>
+  )
 }
 
 export default function Landing({ onLogin }) {
   const [info, setInfo] = useState(null)
+  const [spot, setSpot] = useState(null)
   const [view, setView] = useState('signin')
   const [full_name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -81,24 +133,26 @@ export default function Landing({ onLogin }) {
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
-  const [pending, setPending] = useState(null)   // email-verification pending
+  const [pending, setPending] = useState(null)
   const gbtn = useRef(null)
-  const chart = usePreviewChart()
 
   useEffect(() => { api.registrationInfo().then(setInfo).catch(() => setInfo({ mode: 'invite_only' })) }, [])
+  useEffect(() => {
+    api.publicSpotlight()
+      .then(d => setSpot(d && d.available && (d.history || []).length >= 2 ? d : demoSpotlight()))
+      .catch(() => setSpot(demoSpotlight()))
+  }, [])
 
-  // Complete email verification if the page was opened from the emailed link.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     const token = p.get('verify')
-    if (!token) { if (p.get('invite')) setInvite(p.get('invite')) ; return }
+    if (!token) { if (p.get('invite')) setInvite(p.get('invite')); return }
     api.verifyEmail(token)
       .then(r => { setSession(r); onLogin(r.user) })
       .catch(() => { setErr('This verification link is invalid or has already been used.'); setView('signin') })
-      .finally(() => { window.history.replaceState({}, '', window.location.pathname) })
+      .finally(() => window.history.replaceState({}, '', window.location.pathname))
   }, [])
 
-  // Google Identity Services (only when a client id is configured).
   useEffect(() => {
     if (!info || !info.google_enabled || !info.google_client_id) return
     function render() {
@@ -124,6 +178,8 @@ export default function Landing({ onLogin }) {
   const mode = info ? info.mode : 'invite_only'
   const inviteRequired = mode === 'invite_only'
   const closed = mode === 'closed'
+  const googleOn = info && info.google_enabled
+  const waitlistOn = closed || (info && info.waitlist_enabled)
 
   async function doLogin(e) {
     e.preventDefault(); setBusy(true); setErr(''); setOk('')
@@ -159,13 +215,23 @@ export default function Landing({ onLogin }) {
   }
   function goAuth(v) { setView(v); setPending(null); setTimeout(() => { const el = document.getElementById('lp-auth'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 0) }
 
-  const googleOn = info && info.google_enabled
-  const waitlistOn = closed || (info && info.waitlist_enabled)
+  const sc = spot ? Math.round(spot.score) : 0
 
   return (
     <div className="lp">
       <style>{CSS}</style>
       <div className="lp-wrap">
+
+        <nav className="lp-nav">
+          <div className="lp-brand">
+            <img src="/niytri-mark.svg" alt="NIYTRI" onError={e => { e.currentTarget.style.display = 'none' }} />
+            <span className="lp-grad lp-word">NIYTRI</span>
+          </div>
+          <div className="lp-navbtns">
+            <button className="lp-btn lp-btn-login" onClick={() => goAuth('signin')}>Log In</button>
+            <button className="lp-btn lp-btn-grad" onClick={() => goAuth(closed ? 'waitlist' : 'signup')}>{closed ? 'Join Waitlist' : 'Get Started'}</button>
+          </div>
+        </nav>
 
         <section className="lp-hero">
           <div className="lp-hero-l">
@@ -184,13 +250,22 @@ export default function Landing({ onLogin }) {
           </div>
 
           <div className="lp-preview">
-            <div className="lp-pv-top">
-              <div><div className="lp-nm">RELIANCE</div><div className="lp-pvsub">Reliance Industries Ltd · {String.fromCharCode(0x20B9)}{chart.last.toLocaleString('en-IN')} <span className="lp-up">{String.fromCharCode(0x25B2)} 0.42%</span></div></div>
-              <div className="lp-score">72</div>
-            </div>
-            <div className="lp-ranges"><span className="lp-rg">1D</span><span className="lp-rg">1W</span><span className="lp-rg on">1M</span><span className="lp-rg">6M</span><span className="lp-rg">1Y</span></div>
-            <svg viewBox="0 0 360 160" width="100%" height="160" style={{ display: 'block' }} dangerouslySetInnerHTML={{ __html: chart.inner }} />
-            <div className="lp-bubble">“Why Is RELIANCE Strong?” — it leads on <b>value</b> and <b>price trend</b>, while earnings momentum stays neutral.</div>
+            {!spot ? <div className="lp-pv-load">Loading today's top stock…</div> : (<>
+              <div className="lp-pv-badge">Today's Top NIYTRI Score</div>
+              <div className="lp-pv-top">
+                <div>
+                  <div className="lp-nm">{spot.symbol}</div>
+                  <div className="lp-pvsub">{spot.name}
+                    {spot.last_price != null && <> · {String.fromCharCode(0x20B9)}{Number(spot.last_price).toLocaleString('en-IN')}</>}
+                    {spot.change_pct != null && <span className={spot.change_pct >= 0 ? 'lp-up' : 'lp-dn'}> {spot.change_pct >= 0 ? String.fromCharCode(0x25B2) : String.fromCharCode(0x25BC)} {Math.abs(spot.change_pct).toFixed(2)}%</span>}
+                  </div>
+                </div>
+                <div className="lp-score" style={{ background: 'linear-gradient(135deg,' + bandCol(sc) + ',' + bandCol(sc) + 'cc)' }}>{sc}</div>
+              </div>
+              <ScoreChart history={spot.history} />
+              <div className="lp-bubble">NIYTRI Score for <b>{spot.symbol}</b> over the last {spot.history.length} days — hover to see any day.
+                {spot.demo && <span className="lp-demoflag"> Sample preview.</span>}</div>
+            </>)}
           </div>
         </section>
 
@@ -304,28 +379,38 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp *{box-sizing:border-box}
 .lp-wrap{max-width:1140px;margin:0 auto;padding:0 26px}
 .lp-grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lp-btn{border:none;border-radius:14px;padding:14px 24px;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit;transition:.15s}
+.lp-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.lp-brand{display:flex;align-items:center;gap:10px}
+.lp-brand img{width:38px;height:38px;display:block}
+.lp-word{font-weight:800;font-size:23px;letter-spacing:1.5px}
+.lp-navbtns{display:flex;gap:11px}
+.lp-btn{border:none;border-radius:14px;padding:13px 22px;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit;transition:.15s}
 .lp-btn-grad{background:var(--grad);color:#08101f;font-weight:700;box-shadow:0 10px 30px rgba(124,92,252,.35)}
 .lp-btn-grad:hover{filter:brightness(1.06)}
 .lp-btn-google{background:#fff;color:#20242e;display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
-.lp-btn-login{background:transparent;border:1px solid var(--line);color:#dbe2f2}
+.lp-btn-login{background:transparent;border:1px solid var(--line);color:#dbe2f2;padding:12px 20px}
 .lp-btn-login:hover{border-color:#33406a;color:#fff}
 .lp-full{width:100%;margin-top:6px}
-.lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:52px 0 30px}
+.lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:40px 0 30px}
 .lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(124,92,252,.14);border:1px solid rgba(124,92,252,.35);
   color:#ccc2ff;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
 .lp-hero h1{font-size:clamp(42px,5.8vw,66px);line-height:1.03;font-weight:900;letter-spacing:-1.5px}
 .lp-hero p{color:var(--mut);font-size:19px;margin:22px 0 30px;max-width:540px}
 .lp-cta-row{display:flex;gap:13px;flex-wrap:wrap}
 .lp-chips{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;color:#7f8bab;font-size:14px}.lp-chips b{color:#cfd6ea;font-weight:600}
-.lp-preview{background:linear-gradient(180deg,#141b2e,#0f1524);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 40px 90px rgba(0,0,0,.55)}
+.lp-preview{position:relative;background:linear-gradient(180deg,#141b2e,#0f1524);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 40px 90px rgba(0,0,0,.55)}
+.lp-pv-load{height:300px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.lp-pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#9fe9d6;background:rgba(18,185,129,.14);border:1px solid rgba(18,185,129,.3);border-radius:999px;padding:4px 11px;margin-bottom:14px}
 .lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.lp-nm{font-weight:700;font-size:19px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#5fe3ad;font-weight:600}
-.lp-score{background:linear-gradient(135deg,#22D3EE,#12b981);color:#052a20;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
-.lp-ranges{display:flex;gap:6px;margin:2px 0 8px}
-.lp-rg{font-size:12px;color:#8794b3;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
-.lp-rg.on{color:#08101f;background:var(--cy);border-color:transparent;font-weight:700}
+.lp-nm{font-weight:700;font-size:19px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#5fe3ad;font-weight:600}.lp-dn{color:#ff8080;font-weight:600}
+.lp-score{color:#052a20;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
+.lp-chartbox{position:relative}
+.lp-tip{position:absolute;top:2px;transform:translateX(-50%);background:#0b1120;border:1px solid var(--line);border-radius:9px;padding:4px 9px;font-size:12px;color:var(--ink);pointer-events:none;white-space:nowrap}
+.lp-tip b{color:var(--cy)}.lp-tip span{color:var(--mut);margin-left:4px}
+.lp-chart-meta{display:flex;gap:16px;color:#7f8bab;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#cfd6ea}
+.lp-chart-meta span:last-child{margin-left:auto}
 .lp-bubble{background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.28);border-radius:16px;padding:14px 16px;font-size:14.5px;color:#e6e9f7;margin-top:14px}
+.lp-demoflag{color:#9aa6c2;font-style:italic}
 .lp-sec{padding:56px 0}
 .lp-sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
 .lp-subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}
@@ -362,5 +447,5 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-err{color:#ff9a9a;font-size:13.5px;margin-top:12px}
 .lp-ok{color:#6ee7b7;font-size:13.5px;margin-top:12px}
 .lp-foot{color:#6f7c9c;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
-@media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:34px}.lp-cards,.lp-steps{grid-template-columns:1fr}}
+@media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
 `

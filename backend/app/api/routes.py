@@ -445,6 +445,41 @@ async def stock_detail(symbol: str, user: User = Depends(get_current_user)):
     return detail
 
 
+@router.get("/public/spotlight")
+async def public_spotlight():
+    """Public (no auth): today's top stock by NIYTRI Score, for the landing preview.
+    Information only — no advice. Returns day-wise score history for the chart."""
+    db = SessionLocal()
+    try:
+        latest = (db.query(StockScore.score_date)
+                  .order_by(StockScore.score_date.desc()).first())
+        if not latest:
+            return {"available": False}
+        latest_date = latest[0]
+        q = db.query(StockScore).filter(StockScore.score_date == latest_date)
+        # Prefer approved scores when maker-checker is on; fall back to top composite.
+        row = (q.filter(StockScore.quality_status == "approved")
+               .order_by(StockScore.composite_score.desc()).first()
+               or q.order_by(StockScore.composite_score.desc()).first())
+        if not row:
+            return {"available": False}
+        sym = row.symbol
+        inst = db.query(Instrument).filter_by(symbol=sym).first()
+        hist = [{"date": r.score_date, "score": r.composite_score} for r in
+                (db.query(StockScore.score_date, StockScore.composite_score)
+                 .filter(StockScore.symbol == sym)
+                 .order_by(StockScore.score_date.desc()).limit(30).all())][::-1]
+    finally:
+        db.close()
+    f = (row.fundamentals or {})
+    return {"available": True, "symbol": sym, "name": inst.name if inst else sym,
+            "sector": inst.sector if inst else "",
+            "score": row.composite_score, "score_date": latest_date,
+            "last_price": (getattr(row, "last_price", None) or f.get("last_price")),
+            "change_pct": f.get("change_pct"), "history": hist,
+            "disclaimer": AI_DISCLAIMER}
+
+
 @router.get("/price-history/{symbol}")
 async def price_history(symbol: str, range: str = "1M", user: User = Depends(get_current_user)):
     """Delayed price history for charts (Yahoo ~15-min delayed). Provider-abstracted."""

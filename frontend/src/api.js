@@ -84,6 +84,7 @@ export const api = {
   login: (email, password) =>
     http('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   registrationInfo: () => http('/auth/registration-info'),
+  publicSpotlight: () => http('/public/spotlight'),
   register: (body) => http('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   googleAuth: (id_token, invite_code) => http('/auth/google', { method: 'POST', body: JSON.stringify({ id_token, invite_code }) }),
   waitlist: (email) => http('/auth/waitlist', { method: 'POST', body: JSON.stringify({ email }) }),
