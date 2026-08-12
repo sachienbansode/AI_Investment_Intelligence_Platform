@@ -118,24 +118,30 @@ function TickerRow({ items, reverse }) {
 }
 
 function ScoreAnalysis({ explanation, pillars }) {
-  const top = Object.entries(pillars || {}).sort((a, b) => b[1] - a[1]).slice(0, 4)
-  if (!explanation && !top.length) return null
+  const rows = Object.entries(pillars || {}).sort((a, b) => b[1] - a[1])
+  if (!explanation && !rows.length) return null
+  const lbl = v => v >= 65 ? 'Strong' : v >= 45 ? 'Moderate' : 'Weak'
+  const cls = v => v >= 65 ? 'g' : v >= 45 ? 'a' : 'r'
   return (
     <div className="lp-analysis">
-      <div className="lp-an-h">Score Analysis</div>
+      <div className="lp-an-top">
+        <div className="lp-an-h">Score Analysis</div>
+        <span className="lp-pro">{String.fromCharCode(0x2605)} Pro</span>
+      </div>
       {explanation && <p className="lp-an-p">{explanation}</p>}
-      {top.length > 0 && (
+      {rows.length > 0 && (
         <div className="lp-pills">
-          {top.map(([k, v]) => (
+          {rows.map(([k, v]) => (
             <div className="lp-pillrow" key={k}>
               <span>{k.replace(/_/g, ' ')}</span>
               <div className="lp-pbar"><i style={{ width: Math.max(3, Math.min(100, v)) + '%', background: 'linear-gradient(90deg,#FF8A3D,#F94C00)' }} /></div>
               <b>{Math.round(v)}</b>
+              <em className={'lp-pl ' + cls(v)}>{lbl(v)}</em>
             </div>
           ))}
         </div>
       )}
-      <div className="lp-an-foot">AI-generated · informational, not investment advice</div>
+      <div className="lp-pro-note">{String.fromCharCode(0x1F513)} This full 8-pillar breakdown with daily AI rationale is part of your <b>Pro workspace</b> — sign in to unlock live scores, alerts and your portfolio.</div>
     </div>
   )
 }
@@ -179,20 +185,35 @@ export default function Landing({ onLogin }) {
       .finally(() => window.history.replaceState({}, '', window.location.pathname))
   }, [])
 
+  const inviteRef = useRef('')
+  useEffect(() => { inviteRef.current = invite }, [invite])
+  const [gReady, setGReady] = useState(false)
+
+  // Load + initialise Google Identity Services once the server enables it.
   useEffect(() => {
     if (!info || !info.google_enabled || !info.google_client_id) return
-    function render() {
-      if (!window.google || !gbtn.current) return
+    function init() {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return false
       window.google.accounts.id.initialize({
         client_id: info.google_client_id,
-        callback: async (resp) => { setBusy(true); setErr(''); try { const r = await api.googleAuth(resp.credential, invite.trim() || null); setSession(r); onLogin(r.user) } catch (ex) { setErr(ex.message) } finally { setBusy(false) } },
+        callback: async (resp) => {
+          setBusy(true); setErr('')
+          try { const r = await api.googleAuth(resp.credential, inviteRef.current.trim() || null); setSession(r); onLogin(r.user) }
+          catch (ex) { setErr(ex.message) } finally { setBusy(false) }
+        },
       })
-      gbtn.current.innerHTML = ''
-      window.google.accounts.id.renderButton(gbtn.current, { theme: 'filled_black', size: 'large', shape: 'pill', width: 330, text: 'continue_with' })
+      setGReady(true); return true
     }
-    if (window.google) { render(); return }
-    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true; s.onload = render; document.head.appendChild(s)
-  }, [info, view, invite, pending])
+    if (init()) return
+    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true; s.onload = init; document.head.appendChild(s)
+  }, [info])
+
+  // (Re)render the official Google button whenever it's ready and the container is shown.
+  useEffect(() => {
+    if (!gReady || !gbtn.current || !window.google) return
+    gbtn.current.innerHTML = ''
+    window.google.accounts.id.renderButton(gbtn.current, { theme: 'outline', size: 'large', shape: 'pill', width: 330, text: 'continue_with' })
+  }, [gReady, view, pending])
 
   const mode = info ? info.mode : 'invite_only'
   const inviteRequired = mode === 'invite_only'
@@ -441,16 +462,21 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-stats span{display:block;color:var(--mut);font-size:11.5px;margin-bottom:3px}.lp-stats b{font-size:14px;font-variant-numeric:tabular-nums}
 .lp-bubble{background:rgba(255,106,0,.08);border:1px solid rgba(255,106,0,.20);border-radius:16px;padding:14px 16px;font-size:14.5px;color:#3a4150;margin-top:14px}
 .lp-demoflag{color:#9aa3b2;font-style:italic}
-.lp-analysis{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:16px}
-.lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#b25a12;margin-bottom:9px}
+.lp-analysis{margin-top:14px;background:var(--soft);border:1px solid rgba(255,106,0,.28);border-radius:16px;padding:16px}
+.lp-an-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#b25a12}
+.lp-pro{font-size:11px;font-weight:800;letter-spacing:.4px;color:#fff;background:var(--grad);border-radius:999px;padding:3px 10px}
 .lp-an-p{color:#3a4150;font-size:14px;line-height:1.6;margin-bottom:13px}
 .lp-pills{display:grid;gap:8px}
-.lp-pillrow{display:grid;grid-template-columns:110px 1fr 28px;gap:10px;align-items:center;font-size:12.5px}
+.lp-pillrow{display:grid;grid-template-columns:104px 1fr 26px 64px;gap:10px;align-items:center;font-size:12.5px}
 .lp-pillrow>span{color:var(--mut);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lp-pbar{height:7px;background:#f2e4d6;border-radius:6px;overflow:hidden}
 .lp-pbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#FF8A3D,#F94C00)}
 .lp-pillrow b{text-align:right;font-variant-numeric:tabular-nums;color:#181d27}
-.lp-an-foot{color:#9aa3b2;font-size:11px;margin-top:11px}
+.lp-pl{font-style:normal;font-size:11px;font-weight:600;text-align:right}
+.lp-pl.g{color:#12a06b}.lp-pl.a{color:#c07d0a}.lp-pl.r{color:#e0503f}
+.lp-pro-note{margin-top:13px;background:rgba(255,106,0,.10);border:1px dashed rgba(255,106,0,.4);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#7a4a1e;line-height:1.5}
+.lp-pro-note b{color:#b25a12}
 .lp-sec{padding:56px 0}
 .lp-sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
 .lp-subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}
