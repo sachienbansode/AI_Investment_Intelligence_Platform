@@ -400,6 +400,51 @@ async def refresh_symbol_score(symbol: str, user: User = Depends(get_current_use
 
 
 # ── 3. News Summary API ──────────────────────────────────────────
+@router.get("/stock/{symbol}")
+async def stock_detail(symbol: str, user: User = Depends(get_current_user)):
+    """Everything for the stock detail page: latest NIYTRI score + pillars + rationale,
+    fundamentals/key stats, recent score history, and related news."""
+    symbol = symbol.upper()
+    db = SessionLocal()
+    try:
+        inst = db.query(Instrument).filter_by(symbol=symbol).first()
+        row = (db.query(StockScore).filter_by(symbol=symbol)
+               .order_by(StockScore.score_date.desc()).first())
+        hist = [{"date": r.score_date, "score": r.composite_score} for r in
+                (db.query(StockScore.score_date, StockScore.composite_score)
+                 .filter(StockScore.symbol == symbol)
+                 .order_by(StockScore.score_date.desc()).limit(60).all())][::-1]
+    finally:
+        db.close()
+    f = (row.fundamentals or {}) if row else {}
+    def pick(col, key):
+        v = getattr(row, col, None) if row else None
+        return v if v is not None else f.get(key)
+    detail = {
+        "symbol": symbol,
+        "name": inst.name if inst else symbol,
+        "sector": inst.sector if inst else "",
+        "score": row.composite_score if row else None,
+        "score_date": row.score_date if row else None,
+        "pillar_scores": row.pillar_scores if row else None,
+        "explanation": row.explanation if row else "",
+        "quality_status": row.quality_status if row else None,
+        "pe": pick("pe", "pe"), "market_cap": pick("market_cap", "market_cap"),
+        "last_price": pick("last_price", "last_price"),
+        "eps": f.get("eps"), "pb": f.get("pb"), "dividend_yield": f.get("dividend_yield"),
+        "roe": f.get("roe"), "beta": f.get("beta"), "volume": f.get("volume"),
+        "week52_high": f.get("week52_high"), "week52_low": f.get("week52_low"),
+        "change_pct": f.get("change_pct"),
+        "score_history": hist, "disclaimer": AI_DISCLAIMER,
+    }
+    try:
+        detail["news"] = [n for n in news_intel.latest_news(60)
+                          if symbol in (n.get("impacted_stocks") or [])][:8]
+    except Exception:
+        detail["news"] = []
+    return detail
+
+
 @router.get("/price-history/{symbol}")
 async def price_history(symbol: str, range: str = "1M", user: User = Depends(get_current_user)):
     """Delayed price history for charts (Yahoo ~15-min delayed). Provider-abstracted."""

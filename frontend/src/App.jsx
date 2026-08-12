@@ -17,6 +17,8 @@ import RunAudit from './components/RunAudit.jsx'
 import About from './components/About.jsx'
 import Profile from './components/Profile.jsx'
 import Login from './components/Login.jsx'
+import Landing from './components/Landing.jsx'
+import StockDetail, { StockSearch } from './components/StockDetail.jsx'
 import { api, getToken, getRefresh, clearSession, refreshSession, onUnauthorized } from './api.js'
 
 const UP = String.fromCharCode(0x25B2)
@@ -50,6 +52,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1')
   const [navOpen, setNavOpen] = useState(false)
   const [alertUnread, setAlertUnread] = useState(0)
+  const [stockSym, setStockSym] = useState(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -67,6 +70,7 @@ export default function App() {
   function askAI(question) { setChatSeed(question); setTab('AI Assistant') }
   function openScore(symbol) { setScoreSeed(symbol); setTab('Stock Scores'); setNavOpen(false) }
   function openSector(sec) { setSectorSeed(sec); setTab('Stock Scores'); setNavOpen(false) }
+  function openStock(sym) { setStockSym(sym); setTab('Stock'); setNavOpen(false) }
 
   useEffect(() => { api.branding().then(d => setBrand(d || { logo: '' })).catch(() => {}) }, [])
   useEffect(() => {
@@ -146,7 +150,7 @@ export default function App() {
   }, [user])
 
   if (!authChecked) return null
-  if (!user) return <Login onLogin={setUser} brand={brand} />
+  if (!user) return <Landing onLogin={setUser} />
 
   const nav = pages.map(name => ({ name, icon: ICONS[name] || String.fromCharCode(0x2022) }))
   const can = name => pages.includes(name)
@@ -223,6 +227,7 @@ export default function App() {
             })()}
           </div>
           <div className="topbar-right">
+            <StockSearch onPick={openStock} />
             {health && health.show_active_model && health.active_provider && (
               <div className="active-model" title="AI model currently answering">
                 {String.fromCharCode(0x26A1)} {health.active_provider}{health.active_model ? ' ' + DOT + ' ' + health.active_model : ''}
@@ -241,7 +246,7 @@ export default function App() {
         </header>
 
         <main>
-          <h2 className="page-title">{tab}</h2>
+          <h2 className="page-title">{tab === 'Stock' ? (stockSym || 'Stock') + ' Details' : tab}</h2>
           {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} openSector={openSector} scoreLabel={brand.score_label} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} go={setTab} />}
           {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} sectorSeed={sectorSeed} clearSectorSeed={() => setSectorSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}
@@ -252,6 +257,7 @@ export default function App() {
           {tab === 'Alerts' && can('Alerts') && <Alerts go={setTab} openScore={openScore} onSeen={() => api.alertsUnread().then(d => setAlertUnread(d.unread || 0)).catch(() => {})} />}
           {tab === 'About' && can('About') && <About />}
           {tab === 'Profile' && <Profile user={user} onUpdated={u => setUser(u)} />}
+          {tab === 'Stock' && <StockDetail symbol={stockSym} openStock={openStock} askAI={askAI} scoreLabel={brand.score_label} />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
           {tab === 'Admin' && can('Admin') && <Admin />}
