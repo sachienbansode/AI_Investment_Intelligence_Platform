@@ -173,6 +173,62 @@ def verify_email_token(token: str):
         db.close()
 
 
+def _gen_password(n: int = 10) -> str:
+    import string
+    alpha = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alpha) for _ in range(n))
+
+
+def _send_password_email(to: str, newpw: str, name: str) -> bool:
+    from app.config import get_settings
+    s = get_settings()
+    if not (s.smtp_host and s.smtp_from):
+        return False
+    base = (s.app_base_url or "").rstrip("/")
+    subject = "Your new NIYTRI AI password"
+    body = (f"Hi {name or ''},\n\nAs requested, your password has been reset. Use this "
+            f"temporary password to log in{(' at ' + base) if base else ''}:\n\n"
+            f"    {newpw}\n\nPlease change it from your profile after logging in.\n\n"
+            f"If you didn\u2019t request this, contact support immediately.\n\n\u2014 NIYTRI Technologies")
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        msg = MIMEText(body); msg["Subject"] = subject; msg["From"] = s.smtp_from; msg["To"] = to
+        srv = smtplib.SMTP(s.smtp_host, int(s.smtp_port or 587), timeout=12)
+        srv.starttls()
+        if s.smtp_user:
+            srv.login(s.smtp_user, s.smtp_password)
+        srv.sendmail(s.smtp_from, [to], msg.as_string()); srv.quit()
+        return True
+    except Exception as e:
+        log.warning("password-reset email to %s failed: %s", to, e)
+        return False
+
+
+def reset_password(email: str) -> dict:
+    """Forgot-password: generate a new temporary password, store it, and email it.
+    Silent about whether the account exists. For email/password accounts only."""
+    from app.config import get_settings
+    email = (email or "").strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(400, "Enter a valid email address.")
+    db = SessionLocal()
+    delivered = False
+    newpw = None
+    try:
+        user = db.query(User).filter(User.email == email).first()
+        if user and (user.auth_provider or "email") == "email":
+            newpw = _gen_password()
+            user.hashed_password = hash_password(newpw)
+            db.commit()
+            delivered = _send_password_email(email, newpw, user.full_name)
+    finally:
+        db.close()
+    is_prod = (get_settings().environment or "").lower() == "production"
+    return {"ok": True, "delivered": delivered,
+            "temp_password": (newpw if (newpw and not delivered and not is_prod) else None)}
+
+
 def resend_verification(email: str) -> dict:
     """Re-issue and send a verification link. Silent about whether the account exists."""
     email = (email or "").strip().lower()

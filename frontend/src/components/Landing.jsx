@@ -117,9 +117,19 @@ function TickerRow({ items, reverse }) {
   )
 }
 
+function fmtBold(text) {
+  return text.split('**').map((p, i) => i % 2 ? <b key={i}>{p}</b> : <span key={i}>{p}</span>)
+}
+function analysisBullets(text) {
+  if (!text) return []
+  return text.split(/\s*[-•]\s+/).map(s => s.trim()).filter(Boolean)
+    .filter(s => !/not investment advice|ai-generated|informational only/i.test(s))
+}
+
 function ScoreAnalysis({ explanation, pillars }) {
-  const rows = Object.entries(pillars || {}).sort((a, b) => b[1] - a[1])
-  if (!explanation && !rows.length) return null
+  const rows = Object.entries(pillars || {}).sort((a, b) => b[1] - a[1]).slice(0, 4)
+  const bullets = analysisBullets(explanation)
+  if (!bullets.length && !rows.length) return null
   const lbl = v => v >= 65 ? 'Strong' : v >= 45 ? 'Moderate' : 'Weak'
   const cls = v => v >= 65 ? 'g' : v >= 45 ? 'a' : 'r'
   return (
@@ -128,7 +138,9 @@ function ScoreAnalysis({ explanation, pillars }) {
         <div className="lp-an-h">Score Analysis</div>
         <span className="lp-pro">{String.fromCharCode(0x2605)} Pro</span>
       </div>
-      {explanation && <p className="lp-an-p">{explanation}</p>}
+      {bullets.length > 1
+        ? <ul className="lp-an-list">{bullets.map((b, i) => <li key={i}>{fmtBold(b)}</li>)}</ul>
+        : bullets.length === 1 && <p className="lp-an-p">{fmtBold(bullets[0])}</p>}
       {rows.length > 0 && (
         <div className="lp-pills">
           {rows.map(([k, v]) => (
@@ -161,6 +173,7 @@ export default function Landing({ onLogin }) {
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState(null)
+  const [forgot, setForgot] = useState(false)
   const gbtn = useRef(null)
 
   useEffect(() => {
@@ -238,6 +251,17 @@ export default function Landing({ onLogin }) {
     catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
   async function doResend() { setBusy(true); setErr(''); setOk(''); try { await api.resendVerification(pending.email); setOk('Verification email re-sent.') } catch (ex) { setErr(ex.message) } finally { setBusy(false) } }
+  async function doForgot(e) {
+    e.preventDefault(); setBusy(true); setErr(''); setOk('')
+    if (!email.trim()) { setErr('Enter your email first.'); setBusy(false); return }
+    try {
+      const r = await api.forgotPassword(email)
+      setOk(r && r.temp_password
+        ? 'Email delivery isn’t set up yet. Your temporary password is: ' + r.temp_password
+        : 'If an account exists for that email, a new password has been sent to it.')
+      setForgot(false)
+    } catch (ex) { setErr(ex.message) } finally { setBusy(false) }
+  }
   function goAuth(v) { setView(v); setPending(null); setTimeout(() => { const el = document.getElementById('lp-auth'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 0) }
 
   const sc = spot ? Math.round(spot.score) : 0
@@ -367,11 +391,20 @@ export default function Landing({ onLogin }) {
                     {waitlistOn && <button className={view === 'waitlist' ? 'on' : ''} onClick={() => setView('waitlist')}>Waitlist</button>}
                   </div>
                   {googleOn && view !== 'waitlist' && (<><div className="lp-google" ref={gbtn} /><div className="lp-or">— or —</div></>)}
-                  {view === 'signin' && (
+                  {view === 'signin' && !forgot && (
                     <form onSubmit={doLogin}>
                       <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
                       <input className="lp-field" type="password" placeholder="Password" value={password} required onChange={e => setPassword(e.target.value)} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Log In'}</button>
+                      <div className="lp-forgot"><a onClick={() => { setForgot(true); setErr(''); setOk('') }}>Forgot password?</a></div>
+                    </form>
+                  )}
+                  {view === 'signin' && forgot && (
+                    <form onSubmit={doForgot}>
+                      <p className="lp-vtext">Enter your email and we'll send a new password to it.</p>
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Send New Password'}</button>
+                      <div className="lp-forgot"><a onClick={() => { setForgot(false); setErr(''); setOk('') }}>← Back to log in</a></div>
                     </form>
                   )}
                   {view === 'signup' && !closed && (
@@ -409,7 +442,7 @@ export default function Landing({ onLogin }) {
 const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');" + `
 .lp{--bg:#ffffff;--soft:#fff7f0;--card:#ffffff;--line:#f0e6dc;--line2:#ecdfd2;--ink:#181d27;--mut:#6b7280;--faint:#9aa3b2;
   --or1:#FF8A3D;--or2:#FF6A00;--or3:#F94C00;--grad:linear-gradient(90deg,#FF8A3D,#FF6A00 55%,#F94C00);
-  position:fixed;inset:0;overflow-y:auto;z-index:50;color:var(--ink);line-height:1.6;
+  position:fixed;inset:0;overflow-y:auto;z-index:50;color:var(--ink);line-height:1.58;font-size:14px;
   font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;
   background:radial-gradient(900px 520px at 12% -8%,rgba(255,138,61,.12),transparent 60%),
              radial-gradient(820px 480px at 92% 4%,rgba(249,76,0,.08),transparent 60%),var(--bg)}
@@ -419,13 +452,13 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
 .lp-brand{display:flex;align-items:center;gap:10px}
 .lp-brand img{width:38px;height:38px;display:block}
-.lp-word{font-weight:800;font-size:23px;letter-spacing:1.5px}
+.lp-word{font-weight:800;font-size:20px;letter-spacing:1.4px}
 .lp-navbtns{display:flex;gap:11px}
-.lp-btn{border:none;border-radius:14px;padding:13px 22px;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit;transition:.15s}
+.lp-btn{border:none;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
 .lp-btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}
 .lp-btn-grad:hover{filter:brightness(1.05)}
 .lp-btn-google{background:#fff;color:#20242e;border:1px solid var(--line2);display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
-.lp-btn-login{background:#fff;border:1px solid var(--line2);color:#2a3140;padding:12px 20px}
+.lp-btn-login{background:#fff;border:1px solid var(--line2);color:#2a3140;padding:10px 16px}
 .lp-btn-login:hover{border-color:var(--or2);color:var(--or3)}
 .lp-full{width:100%;margin-top:6px}
 .lp-tickers{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -434,22 +467,23 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-track{display:inline-flex;gap:28px;padding:8px 26px;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
 .lp-track.rev{animation-direction:reverse}
 @keyframes lpmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.lp-tk{display:inline-flex;gap:8px;align-items:center;font-size:13px}
+.lp-tk{display:inline-flex;gap:7px;align-items:center;font-size:12px}
 .lp-tk .ex{font-size:10px;font-weight:700;color:#fff;background:var(--or2);border-radius:5px;padding:1px 6px}
 .lp-tk b{color:#181d27;font-weight:700}.lp-tk .val{color:var(--mut);font-variant-numeric:tabular-nums}
 .lp-tk .up{color:#12a06b;font-style:normal}.lp-tk .dn{color:#e0503f;font-style:normal}
-.lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:40px 0 30px}
-.lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(255,106,0,.10);border:1px solid rgba(255,106,0,.28);color:#c24a00;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
-.lp-hero h1{font-size:clamp(42px,5.8vw,64px);line-height:1.04;font-weight:900;letter-spacing:-1.4px}
-.lp-hero p{color:var(--mut);font-size:19px;margin:22px 0 30px;max-width:540px}
+.lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:start;padding:30px 0 24px}
+.lp-hero-l{padding-top:8px}
+.lp-ribbon{display:inline-flex;gap:8px;align-items:center;background:rgba(255,106,0,.10);border:1px solid rgba(255,106,0,.28);color:#c24a00;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;margin-bottom:18px}
+.lp-hero h1{font-size:clamp(34px,4.6vw,50px);line-height:1.05;font-weight:900;letter-spacing:-1.2px}
+.lp-hero p{color:var(--mut);font-size:15.5px;margin:16px 0 22px;max-width:520px}
 .lp-cta-row{display:flex;gap:13px;flex-wrap:wrap}
-.lp-chips{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;color:#8a93a4;font-size:14px}.lp-chips b{color:#3a4150;font-weight:600}
-.lp-preview{position:relative;background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 30px 70px rgba(24,29,39,.10)}
+.lp-chips{margin-top:20px;display:flex;gap:18px;flex-wrap:wrap;color:#8a93a4;font-size:13px}.lp-chips b{color:#3a4150;font-weight:600}
+.lp-preview{position:relative;background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 30px 70px rgba(24,29,39,.10)}
 .lp-pv-load{height:300px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
 .lp-pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#0f8f5f;background:rgba(18,160,107,.10);border:1px solid rgba(18,160,107,.25);border-radius:999px;padding:4px 11px;margin-bottom:14px}
 .lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.lp-nm{font-weight:800;font-size:20px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#12a06b;font-weight:600}.lp-dn{color:#e0503f;font-weight:600}
-.lp-score{color:#fff;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
+.lp-nm{font-weight:800;font-size:18px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#12a06b;font-weight:600}.lp-dn{color:#e0503f;font-weight:600}
+.lp-score{color:#fff;font-weight:800;border-radius:12px;padding:8px 14px;font-size:20px}
 .lp-pvtabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 12px}
 .lp-pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
 .lp-pvtabs button.on{background:var(--grad);color:#fff}
@@ -466,7 +500,12 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-an-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
 .lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#b25a12}
 .lp-pro{font-size:11px;font-weight:800;letter-spacing:.4px;color:#fff;background:var(--grad);border-radius:999px;padding:3px 10px}
-.lp-an-p{color:#3a4150;font-size:14px;line-height:1.6;margin-bottom:13px}
+.lp-an-p{color:#3a4150;font-size:13px;line-height:1.55;margin-bottom:11px}
+.lp-an-list{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:7px}
+.lp-an-list li{position:relative;padding-left:16px;color:#3a4150;font-size:13px;line-height:1.5}
+.lp-an-list li:before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:linear-gradient(90deg,#FF8A3D,#F94C00)}
+.lp-an-list li b{color:#181d27;font-weight:700}
+.lp-forgot{margin-top:10px;text-align:center}.lp-forgot a{color:var(--or3);font-size:12.5px;font-weight:600;cursor:pointer}
 .lp-pills{display:grid;gap:8px}
 .lp-pillrow{display:grid;grid-template-columns:104px 1fr 26px 64px;gap:10px;align-items:center;font-size:12.5px}
 .lp-pillrow>span{color:var(--mut);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -477,30 +516,30 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pl.g{color:#12a06b}.lp-pl.a{color:#c07d0a}.lp-pl.r{color:#e0503f}
 .lp-pro-note{margin-top:13px;background:rgba(255,106,0,.10);border:1px dashed rgba(255,106,0,.4);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#7a4a1e;line-height:1.5}
 .lp-pro-note b{color:#b25a12}
-.lp-sec{padding:56px 0}
-.lp-sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
-.lp-subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}
+.lp-sec{padding:44px 0}
+.lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
+.lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.lp-card{border-radius:20px;padding:28px;border:1px solid var(--line);background:#fff;transition:.18s;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+.lp-card{border-radius:18px;padding:24px;border:1px solid var(--line);background:#fff;transition:.18s;box-shadow:0 10px 30px rgba(24,29,39,.04)}
 .lp-card:hover{transform:translateY(-6px);border-color:var(--or1);box-shadow:0 18px 44px rgba(255,106,0,.12)}
-.lp-ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:rgba(255,106,0,.10);color:var(--or3)}
-.lp-ic svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.lp-card h3{font-size:20px;margin-bottom:10px;font-weight:700}
-.lp-card p{color:var(--mut);font-size:15px}
+.lp-ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:rgba(255,106,0,.10);color:var(--or3)}
+.lp-ic svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lp-card h3{font-size:17px;margin-bottom:8px;font-weight:700}
+.lp-card p{color:var(--mut);font-size:13.5px}
 .k1,.k2,.k3,.k4,.k5,.k6{background:rgba(255,106,0,.10);color:var(--or3)}
 .lp-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-.lp-step{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(24,29,39,.04)}
-.lp-num{width:48px;height:48px;border-radius:15px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:19px;background:var(--grad)}
-.lp-step h3{font-size:21px;font-weight:700;margin-bottom:10px}
-.lp-step p{color:var(--mut);font-size:15.5px;line-height:1.65;max-width:280px;margin:0 auto}
-.lp-join{background:linear-gradient(120deg,rgba(255,138,61,.14),rgba(255,106,0,.10) 55%,rgba(249,76,0,.12));border:1px solid var(--line2);border-radius:28px;padding:52px 24px;text-align:center}
+.lp-step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 30px rgba(24,29,39,.04)}
+.lp-num{width:42px;height:42px;border-radius:13px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:19px;background:var(--grad)}
+.lp-step h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.lp-step p{color:var(--mut);font-size:13.5px;line-height:1.6;max-width:280px;margin:0 auto}
+.lp-join{background:linear-gradient(120deg,rgba(255,138,61,.14),rgba(255,106,0,.10) 55%,rgba(249,76,0,.12));border:1px solid var(--line2);border-radius:24px;padding:40px 22px;text-align:center}
 .lp-join>p{color:var(--mut);margin-top:8px}
 .lp-auth{background:#fff;border:1px solid var(--line2);border-radius:20px;padding:26px;max-width:420px;margin:26px auto 0;text-align:center;box-shadow:0 20px 50px rgba(24,29,39,.10)}
 .lp-tabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
 .lp-tabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px}
 .lp-tabs button.on{background:var(--grad);color:#fff}
 .lp-google{display:flex;justify-content:center;min-height:44px}
-.lp-field{width:100%;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--ink);margin:6px 0;font-size:15px;font-family:inherit}
+.lp-field{width:100%;background:#fff;border:1px solid var(--line2);border-radius:11px;padding:12px 13px;color:var(--ink);margin:5px 0;font-size:14px;font-family:inherit}
 .lp-field:focus{outline:none;border-color:var(--or2);box-shadow:0 0 0 3px rgba(255,106,0,.15)}
 .lp-or{color:#9aa3b2;font-size:13px;margin:14px 0}
 .lp-invite{margin-top:16px;font-size:13px;color:var(--mut)}

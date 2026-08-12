@@ -61,7 +61,7 @@ async function _do(path, opts) {
 }
 
 async function http(path, opts = {}) {
-  const isAuthCall = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register') || path.startsWith('/auth/google') || path.startsWith('/auth/registration-info') || path.startsWith('/auth/waitlist') || path.startsWith('/auth/verify') || path.startsWith('/auth/resend-verification')
+  const isAuthCall = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register') || path.startsWith('/auth/google') || path.startsWith('/auth/registration-info') || path.startsWith('/auth/waitlist') || path.startsWith('/auth/verify') || path.startsWith('/auth/resend-verification') || path.startsWith('/auth/forgot-password')
   let res = await _do(path, opts)
   // Access token likely expired -> try one silent refresh, then retry once.
   if (res.status === 401 && !isAuthCall && _refresh) {
@@ -90,6 +90,7 @@ export const api = {
   waitlist: (email) => http('/auth/waitlist', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyEmail: (token) => http('/auth/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   resendVerification: (email) => http('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
+  forgotPassword: (email) => http('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   stockDetail: (sym) => http('/stock/' + encodeURIComponent(sym)),
   priceHistory: (sym, range) => http('/price-history/' + encodeURIComponent(sym) + '?range=' + encodeURIComponent(range || '1M')),
   me: () => http('/auth/me'),

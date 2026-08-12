@@ -206,6 +206,15 @@ def join_waitlist(req: WaitlistRequest):
     return {"ok": True, **res}
 
 
+class ForgotRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/forgot-password")
+def forgot_password(req: ForgotRequest):
+    return registration.reset_password(req.email)
+
+
 @router.get("/my-invites")
 def my_invites(user: User = Depends(get_current_user)):
     return registration.my_invites(user.id)
