@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, setSession } from '../api.js'
 
-// Public marketing landing + auth. Matches the approved mockup (v5): dark brand
-// gradient, Inter, hero SPOTLIGHT card (today's top NIYTRI-scored stock, live), icon
-// feature cards, steps, join auth card. The logged-in app is unchanged.
+// Public marketing landing + auth. Matches approved mockup (v5). Shows today's top
+// NIYTRI-scored stock LIVE (score + delayed price chart + key stats) and an animated
+// NSE/BSE indices ticker — all without login. The logged-in app is unchanged.
 
 const GoogleG = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -23,8 +23,6 @@ const FEATURES = [
     <><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>],
   ['k4', 'Portfolio X-Ray', 'Upload your holdings and instantly see a health score, concentration and sector risk, and estimated P&L — understand what you actually own, not just what you bought.',
     <path d="M21 12a9 9 0 1 1-9-9v9z" />],
-  ['k5', 'Delayed Price Charts', 'Clean price charts with the key stats — P/E, market cap, 52-week range — sitting right beside the AI score, so you get the full picture on one screen.',
-    <><path d="M3 17l5-5 4 3 5-7" /><path d="M15 8h5v5" /></>],
   ['k6', 'Market News AI', "The day's market news, summarised and sentiment-tagged, and automatically linked to the stocks and sectors each headline actually moves.",
     <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h8M7 12h8M7 16h5" /></>],
 ]
@@ -34,89 +32,93 @@ const STEPS = [
   ['Ask & Act', 'Let the AI explain any score, headline or risk in plain language — and ping you the moment things change.'],
 ]
 
-// Synthetic fallback when the public spotlight has no data yet (pre-first-run).
 function demoSpotlight() {
   let seed = 42
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
-  const hist = []
-  let v = 66
+  const hist = [], pts = []
+  let v = 66, price = 1180
   const today = new Date()
   for (let i = 29; i >= 0; i--) {
-    v += (rnd() - 0.45) * 3
-    v = Math.max(40, Math.min(88, v))
+    v = Math.max(40, Math.min(88, v + (rnd() - 0.45) * 3))
+    price += (rnd() - 0.46) * 22
     const dt = new Date(today); dt.setDate(today.getDate() - i)
     hist.push({ date: dt.toISOString().slice(0, 10), score: Math.round(v * 10) / 10 })
+    pts.push({ t: Math.floor(dt.getTime() / 1000), c: Math.round(price) })
   }
   hist[hist.length - 1].score = 72
   return { available: true, demo: true, symbol: 'RELIANCE', name: 'Reliance Industries Ltd',
-    score: 72, last_price: 1308, change_pct: 0.42, history: hist }
+    score: 72, last_price: pts[pts.length - 1].c, change_pct: 0.42, history: hist,
+    pe: 24.6, market_cap: 176500000000000, week52_high: 1370, week52_low: 1114,
+    explanation: 'Leads on value and price trend with steady institutional interest; earnings momentum is neutral and near-term volatility stays moderate. A balanced, broadly constructive profile across the eight pillars.',
+    pillars: { value: 78, price_trend: 74, institutions: 70, fundamentals: 66, momentum: 61, sentiment: 58, earnings: 54, risk: 52 },
+    price_history: { points: pts, prev_close: pts[0].c, last: pts[pts.length - 1].c, delayed: true, source: 'sample' } }
 }
 
-const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) } catch { return s } }
+const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) } catch { return String(s) } }
 const bandCol = (sc) => sc >= 65 ? '#12b981' : sc >= 45 ? '#d4920f' : '#e05252'
+const fmtCr = (v) => v == null ? '—' : (Number(v) >= 1e7 ? (Number(v) / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 0 }) + ' Cr' : Number(v).toLocaleString('en-IN'))
+const fmtNum = (v, d = 2) => v == null ? '—' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: d })
 
-// Interactive score chart — day-wise NIYTRI score, hover shows date + score.
-function ScoreChart({ history }) {
+// Interactive line chart — hover shows label + value. Works for score or price.
+function HoverChart({ series, prefix = '', round = 0 }) {
   const [hi, setHi] = useState(null)
-  const W = 360, H = 160, padT = 14, padB = 22, padL = 10, padR = 52
+  const W = 360, H = 160, padT = 14, padB = 22, padL = 10, padR = 56
   const g = useMemo(() => {
-    const scores = history.map(h => h.score)
-    const n = scores.length
-    const mn = Math.min(...scores), mx = Math.max(...scores)
-    const lo = Math.floor(mn - 2), hiV = Math.ceil(mx + 2), rng = (hiV - lo) || 1
+    const vals = series.map(s => s.value)
+    const n = vals.length
+    const mn = Math.min(...vals), mx = Math.max(...vals)
+    const pad = (mx - mn) * 0.1 || 1
+    const lo = mn - pad, hiV = mx + pad, rng = (hiV - lo) || 1
     const X = i => padL + (W - padL - padR) * (i / Math.max(1, n - 1))
     const Y = v => padT + (H - padT - padB) * (1 - (v - lo) / rng)
-    const up = scores[n - 1] >= scores[0]
-    let d = 'M' + X(0).toFixed(1) + ',' + Y(scores[0]).toFixed(1)
-    for (let i = 1; i < n; i++) { const cx = (X(i - 1) + X(i)) / 2; d += ' Q' + X(i - 1).toFixed(1) + ',' + Y(scores[i - 1]).toFixed(1) + ' ' + cx.toFixed(1) + ',' + ((Y(scores[i - 1]) + Y(scores[i])) / 2).toFixed(1) }
-    d += ' T' + X(n - 1).toFixed(1) + ',' + Y(scores[n - 1]).toFixed(1)
-    return { scores, n, mn, mx, lo, hiV, X, Y, up, d }
-  }, [history])
+    const up = vals[n - 1] >= vals[0]
+    let d = 'M' + X(0).toFixed(1) + ',' + Y(vals[0]).toFixed(1)
+    for (let i = 1; i < n; i++) { const cx = (X(i - 1) + X(i)) / 2; d += ' Q' + X(i - 1).toFixed(1) + ',' + Y(vals[i - 1]).toFixed(1) + ' ' + cx.toFixed(1) + ',' + ((Y(vals[i - 1]) + Y(vals[i])) / 2).toFixed(1) }
+    d += ' T' + X(n - 1).toFixed(1) + ',' + Y(vals[n - 1]).toFixed(1)
+    return { vals, n, mn, mx, lo, hiV, X, Y, up, d }
+  }, [series])
   const col = g.up ? '#22D3EE' : '#ff5d8f'
   const gy = [0.15, 0.4, 0.65, 0.9].map(f => padT + (H - padT - padB) * f)
-
-  function move(e) {
-    const r = e.currentTarget.getBoundingClientRect()
-    const frac = (e.clientX - r.left) / r.width
-    setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1)))))
-  }
-  const cur = hi != null ? history[hi] : null
-
+  const lbl = v => prefix + Number(v).toLocaleString('en-IN', { maximumFractionDigits: round })
+  function move(e) { const r = e.currentTarget.getBoundingClientRect(); const frac = (e.clientX - r.left) / r.width; setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1))))) }
+  const cur = hi != null ? series[hi] : null
   return (
     <div className="lp-chartbox">
-      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }}
-           onMouseMove={move} onMouseLeave={() => setHi(null)}>
-        <defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
+      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }} onMouseMove={move} onMouseLeave={() => setHi(null)}>
+        <defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
         {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#1b2340" strokeWidth="1" />)}
         <path d={g.d + ' L' + (W - padR) + ',' + (H - padB) + ' L' + padL + ',' + (H - padB) + ' Z'} fill="url(#lpfl)" />
         <path d={g.d} fill="none" stroke={col} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        {/* y labels: max / mid / min score */}
-        {[g.hiV, Math.round((g.hiV + g.lo) / 2), g.lo].map((val, i) => (
-          <text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#6f7c9c" fontSize="10">{val}</text>
-        ))}
-        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (
-          <text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#6f7c9c" fontSize="10"
-                textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{fmtDate(history[i].date)}</text>
-        ))}
-        {/* last marker */}
-        <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.scores[g.n - 1]).toFixed(1)} r="3.5" fill={col} />
-        {/* hover marker */}
-        {cur && <>
-          <line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#5b6790" strokeWidth="1" strokeDasharray="3 3" />
-          <circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.score).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" />
-        </>}
+        {[g.mx, (g.mx + g.mn) / 2, g.mn].map((val, i) => (<text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#6f7c9c" fontSize="10">{lbl(val)}</text>))}
+        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (<text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#6f7c9c" fontSize="10" textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{series[i].label}</text>))}
+        <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.vals[g.n - 1]).toFixed(1)} r="3.5" fill={col} />
+        {cur && <><line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#5b6790" strokeWidth="1" strokeDasharray="3 3" /><circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.value).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" /></>}
       </svg>
-      {cur && (
-        <div className="lp-tip" style={{ left: (g.X(hi) / W * 100) + '%' }}>
-          <b>{Math.round(cur.score)}</b> <span>{fmtDate(cur.date)}</span>
+      {cur && <div className="lp-tip" style={{ left: (g.X(hi) / W * 100) + '%' }}><b>{lbl(cur.value)}</b> <span>{cur.label}</span></div>}
+      <div className="lp-chart-meta"><span>Low <b>{lbl(g.mn)}</b></span><span>High <b>{lbl(g.mx)}</b></span><span>Hover for any day</span></div>
+    </div>
+  )
+}
+
+function ScoreAnalysis({ explanation, pillars }) {
+  const top = Object.entries(pillars || {}).sort((a, b) => b[1] - a[1]).slice(0, 4)
+  if (!explanation && !top.length) return null
+  return (
+    <div className="lp-analysis">
+      <div className="lp-an-h">Score Analysis</div>
+      {explanation && <p className="lp-an-p">{explanation}</p>}
+      {top.length > 0 && (
+        <div className="lp-pills">
+          {top.map(([k, v]) => (
+            <div className="lp-pillrow" key={k}>
+              <span>{k.replace(/_/g, ' ')}</span>
+              <div className="lp-pbar"><i style={{ width: Math.max(3, Math.min(100, v)) + '%', background: bandCol(v) }} /></div>
+              <b>{Math.round(v)}</b>
+            </div>
+          ))}
         </div>
       )}
-      <div className="lp-chart-meta">
-        <span>Low <b>{Math.round(g.mn)}</b></span>
-        <span>High <b>{Math.round(g.mx)}</b></span>
-        <span>Hover the line for day-wise score</span>
-      </div>
+      <div className="lp-an-foot">AI-generated · informational, not investment advice</div>
     </div>
   )
 }
@@ -124,6 +126,8 @@ function ScoreChart({ history }) {
 export default function Landing({ onLogin }) {
   const [info, setInfo] = useState(null)
   const [spot, setSpot] = useState(null)
+  const [indices, setIndices] = useState([])
+  const [pvTab, setPvTab] = useState('score')
   const [view, setView] = useState('signin')
   const [full_name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -136,19 +140,24 @@ export default function Landing({ onLogin }) {
   const [pending, setPending] = useState(null)
   const gbtn = useRef(null)
 
+  useEffect(() => {
+    if (!document.getElementById('lp-inter-font')) {
+      const l = document.createElement('link'); l.id = 'lp-inter-font'; l.rel = 'stylesheet'
+      l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'
+      document.head.appendChild(l)
+    }
+  }, [])
   useEffect(() => { api.registrationInfo().then(setInfo).catch(() => setInfo({ mode: 'invite_only' })) }, [])
   useEffect(() => {
-    api.publicSpotlight()
-      .then(d => setSpot(d && d.available && (d.history || []).length >= 2 ? d : demoSpotlight()))
-      .catch(() => setSpot(demoSpotlight()))
+    api.publicSpotlight().then(d => setSpot(d && d.available && (d.history || []).length >= 2 ? d : demoSpotlight())).catch(() => setSpot(demoSpotlight()))
+    api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
   }, [])
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     const token = p.get('verify')
     if (!token) { if (p.get('invite')) setInvite(p.get('invite')); return }
-    api.verifyEmail(token)
-      .then(r => { setSession(r); onLogin(r.user) })
+    api.verifyEmail(token).then(r => { setSession(r); onLogin(r.user) })
       .catch(() => { setErr('This verification link is invalid or has already been used.'); setView('signin') })
       .finally(() => window.history.replaceState({}, '', window.location.pathname))
   }, [])
@@ -159,20 +168,13 @@ export default function Landing({ onLogin }) {
       if (!window.google || !gbtn.current) return
       window.google.accounts.id.initialize({
         client_id: info.google_client_id,
-        callback: async (resp) => {
-          setBusy(true); setErr('')
-          try { const r = await api.googleAuth(resp.credential, invite.trim() || null); setSession(r); onLogin(r.user) }
-          catch (ex) { setErr(ex.message) } finally { setBusy(false) }
-        },
+        callback: async (resp) => { setBusy(true); setErr(''); try { const r = await api.googleAuth(resp.credential, invite.trim() || null); setSession(r); onLogin(r.user) } catch (ex) { setErr(ex.message) } finally { setBusy(false) } },
       })
       gbtn.current.innerHTML = ''
-      window.google.accounts.id.renderButton(gbtn.current,
-        { theme: 'filled_black', size: 'large', shape: 'pill', width: 330, text: 'continue_with' })
+      window.google.accounts.id.renderButton(gbtn.current, { theme: 'filled_black', size: 'large', shape: 'pill', width: 330, text: 'continue_with' })
     }
     if (window.google) { render(); return }
-    const s = document.createElement('script')
-    s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true
-    s.onload = render; document.head.appendChild(s)
+    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true; s.onload = render; document.head.appendChild(s)
   }, [info, view, invite, pending])
 
   const mode = info ? info.mode : 'invite_only'
@@ -181,11 +183,7 @@ export default function Landing({ onLogin }) {
   const googleOn = info && info.google_enabled
   const waitlistOn = closed || (info && info.waitlist_enabled)
 
-  async function doLogin(e) {
-    e.preventDefault(); setBusy(true); setErr(''); setOk('')
-    try { const r = await api.login(email, password); setSession(r); onLogin(r.user) }
-    catch (ex) { setErr(ex.message) } finally { setBusy(false) }
-  }
+  async function doLogin(e) { e.preventDefault(); setBusy(true); setErr(''); setOk(''); try { const r = await api.login(email, password); setSession(r); onLogin(r.user) } catch (ex) { setErr(ex.message) } finally { setBusy(false) } }
   async function doRegister(e) {
     e.preventDefault(); setErr(''); setOk('')
     if (!full_name.trim()) return setErr('Please enter your full name.')
@@ -193,35 +191,31 @@ export default function Landing({ onLogin }) {
     if (password !== confirm) return setErr('Passwords do not match.')
     if (inviteRequired && !invite.trim()) return setErr('An invite code is required to join the beta.')
     setBusy(true)
-    try {
-      const r = await api.register({ email, password, full_name, invite_code: invite.trim() || null })
-      if (r && r.needs_verification) setPending({ email, delivered: r.delivered, verify_link: r.verify_link, resent: r.resent })
-      else { setSession(r); onLogin(r.user) }
-    } catch (ex) { setErr(ex.message) } finally { setBusy(false) }
+    try { const r = await api.register({ email, password, full_name, invite_code: invite.trim() || null }); if (r && r.needs_verification) setPending({ email, delivered: r.delivered, verify_link: r.verify_link, resent: r.resent }); else { setSession(r); onLogin(r.user) } }
+    catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
   async function doWaitlist(e) {
     e.preventDefault(); setBusy(true); setErr(''); setOk('')
-    try {
-      const r = await api.waitlist(email)
-      setOk(r && r.status === 'exists'
-        ? "You're already on the waitlist — currently #" + r.position + " of " + r.total + "."
-        : "You're on the list! You're #" + (r?.position || '?') + " in line — we'll email you when a seat opens.")
-    } catch (ex) { setErr(ex.message) } finally { setBusy(false) }
-  }
-  async function doResend() {
-    setBusy(true); setErr(''); setOk('')
-    try { await api.resendVerification(pending.email); setOk('Verification email re-sent.') }
+    try { const r = await api.waitlist(email); setOk(r && r.status === 'exists' ? "You're already on the waitlist — currently #" + r.position + " of " + r.total + "." : "You're on the list! You're #" + (r?.position || '?') + " in line — we'll email you when a seat opens.") }
     catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
+  async function doResend() { setBusy(true); setErr(''); setOk(''); try { await api.resendVerification(pending.email); setOk('Verification email re-sent.') } catch (ex) { setErr(ex.message) } finally { setBusy(false) } }
   function goAuth(v) { setView(v); setPending(null); setTimeout(() => { const el = document.getElementById('lp-auth'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 0) }
 
   const sc = spot ? Math.round(spot.score) : 0
+  const scoreSeries = spot ? spot.history.map(h => ({ label: fmtDate(h.date), value: h.score })) : []
+  const pricePts = spot && spot.price_history ? (spot.price_history.points || []) : []
+  const priceSeries = pricePts.map(p => ({ label: fmtDate(new Date(p.t * 1000)), value: p.c }))
+  const hasPrice = priceSeries.length >= 2
+
+  const ticker = useMemo(() => indices
+    .map(i => ({ ...i, exch: i.index.includes('(BSE)') ? 'BSE' : i.index.includes('(GL)') ? 'GL' : 'NSE' }))
+    .filter(i => i.exch !== 'GL'), [indices])
 
   return (
     <div className="lp">
       <style>{CSS}</style>
       <div className="lp-wrap">
-
         <nav className="lp-nav">
           <div className="lp-brand">
             <img src="/niytri-mark.svg" alt="NIYTRI" onError={e => { e.currentTarget.style.display = 'none' }} />
@@ -232,7 +226,24 @@ export default function Landing({ onLogin }) {
             <button className="lp-btn lp-btn-grad" onClick={() => goAuth(closed ? 'waitlist' : 'signup')}>{closed ? 'Join Waitlist' : 'Get Started'}</button>
           </div>
         </nav>
+      </div>
 
+      {ticker.length > 0 && (
+        <div className="lp-ticker">
+          <div className="lp-track" style={{ animationDuration: Math.max(28, ticker.length * 3.6) + 's' }}>
+            {[...ticker, ...ticker].map((i, idx) => (
+              <span className="lp-tk" key={idx} aria-hidden={idx >= ticker.length}>
+                <span className="ex">{i.exch}</span>
+                <b>{i.index.replace(' (BSE)', '')}</b>
+                <span className="val">{i.last?.toLocaleString('en-IN')}</span>
+                <em className={i.pct_change >= 0 ? 'up' : 'dn'}>{(i.pct_change >= 0 ? String.fromCharCode(0x25B2) : String.fromCharCode(0x25BC))} {Math.abs(i.pct_change)}%</em>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="lp-wrap">
         <section className="lp-hero">
           <div className="lp-hero-l">
             <span className="lp-ribbon">{String.fromCharCode(0x2726)} {inviteRequired ? 'Invite-Only Beta — Grab Your Seat' : 'Now In Beta'}</span>
@@ -262,9 +273,25 @@ export default function Landing({ onLogin }) {
                 </div>
                 <div className="lp-score" style={{ background: 'linear-gradient(135deg,' + bandCol(sc) + ',' + bandCol(sc) + 'cc)' }}>{sc}</div>
               </div>
-              <ScoreChart history={spot.history} />
-              <div className="lp-bubble">NIYTRI Score for <b>{spot.symbol}</b> over the last {spot.history.length} days — hover to see any day.
-                {spot.demo && <span className="lp-demoflag"> Sample preview.</span>}</div>
+
+              <div className="lp-pvtabs">
+                <button className={pvTab === 'score' ? 'on' : ''} onClick={() => setPvTab('score')}>NIYTRI Score</button>
+                <button className={pvTab === 'price' ? 'on' : ''} onClick={() => setPvTab('price')}>Delayed Price</button>
+              </div>
+
+              {pvTab === 'score' && (<>
+                <HoverChart series={scoreSeries} prefix="" round={0} />
+                <ScoreAnalysis explanation={spot.explanation} pillars={spot.pillars} />
+              </>)}
+              {pvTab === 'price' && (hasPrice
+                ? <><HoverChart series={priceSeries} prefix={String.fromCharCode(0x20B9)} round={0} />
+                    <div className="lp-stats">
+                      <div><span>P/E</span><b>{fmtNum(spot.pe)}</b></div>
+                      <div><span>Mkt Cap</span><b>{fmtCr(spot.market_cap)}</b></div>
+                      <div><span>52W Range</span><b>{spot.week52_low != null ? String.fromCharCode(0x20B9) + fmtNum(spot.week52_low, 0) + ' – ' + String.fromCharCode(0x20B9) + fmtNum(spot.week52_high, 0) : '—'}</b></div>
+                    </div>
+                    <div className="lp-bubble"><b>{String.fromCharCode(0x23F1)} ~15-min delayed</b> price for {spot.symbol}, shown beside its AI score.{spot.demo && <span className="lp-demoflag"> Sample preview.</span>}</div></>
+                : <div className="lp-pv-load" style={{ height: 160 }}>Delayed price chart unavailable right now.</div>)}
             </>)}
           </div>
         </section>
@@ -274,10 +301,7 @@ export default function Landing({ onLogin }) {
           <div className="lp-subh">A quick look at what you get. Sign in to explore the full platform.</div>
           <div className="lp-cards">
             {FEATURES.map(([k, t, d, icon]) => (
-              <div className="lp-card" key={t}>
-                <div className={'lp-ic ' + k}><svg viewBox="0 0 24 24">{icon}</svg></div>
-                <h3>{t}</h3><p>{d}</p>
-              </div>
+              <div className="lp-card" key={t}><div className={'lp-ic ' + k}><svg viewBox="0 0 24 24">{icon}</svg></div><h3>{t}</h3><p>{d}</p></div>
             ))}
           </div>
         </section>
@@ -285,9 +309,7 @@ export default function Landing({ onLogin }) {
         <section className="lp-sec">
           <h2>Start In <span className="lp-grad">30 Seconds</span></h2>
           <div className="lp-steps">
-            {STEPS.map(([t, d], i) => (
-              <div className="lp-step" key={t}><div className="lp-num">{i + 1}</div><h3>{t}</h3><p>{d}</p></div>
-            ))}
+            {STEPS.map(([t, d], i) => (<div className="lp-step" key={t}><div className="lp-num">{i + 1}</div><h3>{t}</h3><p>{d}</p></div>))}
           </div>
         </section>
 
@@ -295,23 +317,17 @@ export default function Landing({ onLogin }) {
           <div className="lp-join">
             <h2>Ready To <span className="lp-grad">Invest Smarter?</span></h2>
             <p>{inviteRequired ? 'Join the invite-only beta today.' : 'Create your free account today.'}</p>
-
             <div className="lp-auth" id="lp-auth">
               {pending ? (
                 <div className="lp-verify">
                   <div className="lp-verify-ic">{String.fromCharCode(0x2709)}</div>
                   <h3>{pending.resent ? 'Check your inbox again' : 'Confirm your email'}</h3>
                   <p className="lp-vtext">We sent a verification link to <b>{pending.email}</b>. Click it to activate your account and log in.</p>
-                  {!pending.delivered && pending.verify_link && (
-                    <p className="lp-invite">Email delivery isn't set up yet. <a className="lp-grad" href={pending.verify_link}>Click here to verify →</a></p>
-                  )}
-                  {!pending.delivered && !pending.verify_link && (
-                    <p className="lp-invite">We couldn't send the email right now — try resend or contact support.</p>
-                  )}
+                  {!pending.delivered && pending.verify_link && (<p className="lp-invite">Email delivery isn't set up yet. <a className="lp-grad" href={pending.verify_link}>Click here to verify →</a></p>)}
+                  {!pending.delivered && !pending.verify_link && (<p className="lp-invite">We couldn't send the email right now — try resend or contact support.</p>)}
                   <button className="lp-btn lp-btn-grad lp-full" disabled={busy} onClick={doResend}>{busy ? 'Please wait…' : 'Resend Email'}</button>
                   <p className="lp-invite"><a className="lp-grad" onClick={() => { setPending(null); setView('signin') }}>← Back to log in</a></p>
-                  {err && <p className="lp-err">{err}</p>}
-                  {ok && <p className="lp-ok">{ok}</p>}
+                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
                 </div>
               ) : (
                 <>
@@ -320,11 +336,7 @@ export default function Landing({ onLogin }) {
                     {!closed && <button className={view === 'signup' ? 'on' : ''} onClick={() => setView('signup')}>Sign Up</button>}
                     {waitlistOn && <button className={view === 'waitlist' ? 'on' : ''} onClick={() => setView('waitlist')}>Waitlist</button>}
                   </div>
-
-                  {googleOn && view !== 'waitlist' && (
-                    <><div className="lp-google" ref={gbtn} /><div className="lp-or">— or —</div></>
-                  )}
-
+                  {googleOn && view !== 'waitlist' && (<><div className="lp-google" ref={gbtn} /><div className="lp-or">— or —</div></>)}
                   {view === 'signin' && (
                     <form onSubmit={doLogin}>
                       <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
@@ -332,7 +344,6 @@ export default function Landing({ onLogin }) {
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Log In'}</button>
                     </form>
                   )}
-
                   {view === 'signup' && !closed && (
                     <form onSubmit={doRegister}>
                       <input className="lp-field" placeholder="Full name" value={full_name} required onChange={e => setName(e.target.value)} />
@@ -341,11 +352,9 @@ export default function Landing({ onLogin }) {
                       <input className="lp-field" type="password" placeholder="Confirm password" value={confirm} required onChange={e => setConfirm(e.target.value)} />
                       <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired} onChange={e => setInvite(e.target.value)} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
-                      {inviteRequired && waitlistOn &&
-                        <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
+                      {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
                     </form>
                   )}
-
                   {view === 'waitlist' && (
                     <form onSubmit={doWaitlist}>
                       <p className="lp-vtext">Beta is invite-only right now. Leave your email and we'll reach out when a seat opens.</p>
@@ -353,9 +362,7 @@ export default function Landing({ onLogin }) {
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Join Waitlist'}</button>
                     </form>
                   )}
-
-                  {err && <p className="lp-err">{err}</p>}
-                  {ok && <p className="lp-ok">{ok}</p>}
+                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
                   <div className="lp-invite">Members invite up to <b style={{ color: '#cfd6ea' }}>5 friends</b>.</div>
                 </>
               )}
@@ -391,9 +398,15 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-btn-login{background:transparent;border:1px solid var(--line);color:#dbe2f2;padding:12px 20px}
 .lp-btn-login:hover{border-color:#33406a;color:#fff}
 .lp-full{width:100%;margin-top:6px}
+.lp-ticker{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(11,17,32,.55)}
+.lp-track{display:inline-flex;gap:28px;padding:9px 0;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+@keyframes lpmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.lp-tk{display:inline-flex;gap:8px;align-items:center;font-size:13px}
+.lp-tk .ex{font-size:10px;font-weight:700;color:#08101f;background:var(--cy);border-radius:5px;padding:1px 6px}
+.lp-tk b{color:#fff;font-weight:700}.lp-tk .val{color:var(--mut);font-variant-numeric:tabular-nums}
+.lp-tk .up{color:#5fe3ad;font-style:normal}.lp-tk .dn{color:#ff8080;font-style:normal}
 .lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding:40px 0 30px}
-.lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(124,92,252,.14);border:1px solid rgba(124,92,252,.35);
-  color:#ccc2ff;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
+.lp-ribbon{display:inline-flex;gap:9px;align-items:center;background:rgba(124,92,252,.14);border:1px solid rgba(124,92,252,.35);color:#ccc2ff;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;margin-bottom:24px}
 .lp-hero h1{font-size:clamp(42px,5.8vw,66px);line-height:1.03;font-weight:900;letter-spacing:-1.5px}
 .lp-hero p{color:var(--mut);font-size:19px;margin:22px 0 30px;max-width:540px}
 .lp-cta-row{display:flex;gap:13px;flex-wrap:wrap}
@@ -404,13 +417,28 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .lp-nm{font-weight:700;font-size:19px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#5fe3ad;font-weight:600}.lp-dn{color:#ff8080;font-weight:600}
 .lp-score{color:#052a20;font-weight:800;border-radius:14px;padding:10px 16px;font-size:22px}
+.lp-pvtabs{display:flex;gap:6px;background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 10px}
+.lp-pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
+.lp-pvtabs button.on{background:var(--grad);color:#08101f}
 .lp-chartbox{position:relative}
 .lp-tip{position:absolute;top:2px;transform:translateX(-50%);background:#0b1120;border:1px solid var(--line);border-radius:9px;padding:4px 9px;font-size:12px;color:var(--ink);pointer-events:none;white-space:nowrap}
 .lp-tip b{color:var(--cy)}.lp-tip span{color:var(--mut);margin-left:4px}
-.lp-chart-meta{display:flex;gap:16px;color:#7f8bab;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#cfd6ea}
-.lp-chart-meta span:last-child{margin-left:auto}
+.lp-chart-meta{display:flex;gap:16px;color:#7f8bab;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#cfd6ea}.lp-chart-meta span:last-child{margin-left:auto}
+.lp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.lp-stats div{background:#0b1120;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.lp-stats span{display:block;color:var(--mut);font-size:11.5px;margin-bottom:3px}.lp-stats b{font-size:14px;font-variant-numeric:tabular-nums}
 .lp-bubble{background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.28);border-radius:16px;padding:14px 16px;font-size:14.5px;color:#e6e9f7;margin-top:14px}
 .lp-demoflag{color:#9aa6c2;font-style:italic}
+.lp-analysis{margin-top:14px;background:#0b1120;border:1px solid var(--line);border-radius:16px;padding:16px}
+.lp-an-h{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#9fb0d6;margin-bottom:9px}
+.lp-an-p{color:#dbe2f2;font-size:14px;line-height:1.6;margin-bottom:13px}
+.lp-pills{display:grid;gap:8px}
+.lp-pillrow{display:grid;grid-template-columns:110px 1fr 28px;gap:10px;align-items:center;font-size:12.5px}
+.lp-pillrow>span{color:var(--mut);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-pbar{height:7px;background:#141b2e;border-radius:6px;overflow:hidden}
+.lp-pbar i{display:block;height:100%;border-radius:6px}
+.lp-pillrow b{text-align:right;font-variant-numeric:tabular-nums;color:#eef2fb}
+.lp-an-foot{color:#6f7c9c;font-size:11px;margin-top:11px}
 .lp-sec{padding:56px 0}
 .lp-sec h2{font-size:clamp(30px,3.8vw,44px);font-weight:800;text-align:center;letter-spacing:-.5px}
 .lp-subh{color:var(--mut);text-align:center;margin:14px auto 38px;max-width:640px;font-size:18px}

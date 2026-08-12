@@ -472,11 +472,27 @@ async def public_spotlight():
     finally:
         db.close()
     f = (row.fundamentals or {})
+    price = {}
+    try:
+        from app.data import price_history as ph
+        price = await ph.get_price_history(sym, "1M")
+    except Exception:
+        price = {}
     return {"available": True, "symbol": sym, "name": inst.name if inst else sym,
             "sector": inst.sector if inst else "",
             "score": row.composite_score, "score_date": latest_date,
+            "explanation": row.explanation or "",
+            "pillars": row.pillar_scores or {},
             "last_price": (getattr(row, "last_price", None) or f.get("last_price")),
             "change_pct": f.get("change_pct"), "history": hist,
+            "pe": (getattr(row, "pe", None) or f.get("pe")),
+            "market_cap": (getattr(row, "market_cap", None) or f.get("market_cap")),
+            "week52_high": f.get("week52_high"), "week52_low": f.get("week52_low"),
+            "price_history": {"points": price.get("points", []),
+                              "prev_close": price.get("prev_close"),
+                              "last": price.get("last"),
+                              "delayed": price.get("delayed", True),
+                              "source": price.get("source", "")},
             "disclaimer": AI_DISCLAIMER}
 
 
