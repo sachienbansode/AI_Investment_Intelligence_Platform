@@ -1,0 +1,140 @@
+<!-- NIYTRI AI — animated intro. Open in a browser, click "Play with sound",
+     then screen-record the window to produce a shareable intro video.
+     Background music is synthesized live (Tone.js) — royalty-free, safe to ship. -->
+<meta charset="utf-8" />
+<title>NIYTRI AI — Intro</title>
+<style>
+  :root{
+    --bg:#0a0d13; --bg2:#0e1424; --text:#eaedf4; --muted:#9aa6bd;
+    --accent:#7c5cfc; --accent2:#4f8ef7; --green:#28c76f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 50% -10%,#141a2e 0%,var(--bg) 60%);
+    color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;overflow:hidden}
+  #stage{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+  .grain{position:absolute;inset:0;background:
+    radial-gradient(600px 300px at 20% 20%,rgba(124,92,252,.18),transparent 60%),
+    radial-gradient(600px 300px at 80% 80%,rgba(79,142,247,.16),transparent 60%);
+    filter:blur(10px);opacity:.9}
+  .scene{position:absolute;text-align:center;opacity:0;transform:translateY(14px);width:min(920px,92vw);padding:0 20px}
+  .brand{font-size:clamp(40px,8vw,96px);font-weight:800;letter-spacing:2px;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 40px rgba(124,92,252,.35)}
+  .tag{margin-top:14px;font-size:clamp(16px,2.4vw,26px);color:var(--muted);font-weight:500}
+  .sub{margin-top:8px;font-size:clamp(12px,1.6vw,15px);color:#6f7c95;letter-spacing:.08em;text-transform:uppercase}
+  .feat{display:flex;flex-direction:column;gap:14px;align-items:center}
+  .feat h2{font-size:clamp(22px,3.4vw,40px);margin:0 0 6px;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:760px}
+  .chip{opacity:0;transform:translateY(10px);padding:10px 16px;border-radius:999px;font-size:clamp(13px,1.6vw,17px);
+    background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.35);color:#dfe4f2;white-space:nowrap}
+  .pillars{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+  .pillar{font-size:clamp(15px,2vw,22px);color:#cfd6e6}
+  .pillar b{color:var(--green)}
+  .cta{font-size:clamp(24px,4vw,48px);font-weight:800}
+  .cta small{display:block;margin-top:12px;font-size:clamp(13px,1.7vw,18px);color:var(--muted);font-weight:500}
+  .disc{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:11px;color:#5a6478;padding:0 16px}
+  /* play/replay controls */
+  #controls{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5}
+  .btn{cursor:pointer;border:none;border-radius:14px;padding:16px 30px;font-size:18px;font-weight:700;color:#fff;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));box-shadow:0 10px 40px rgba(124,92,252,.5)}
+  #replay{position:absolute;bottom:16px;right:18px;z-index:6;display:none;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.2);color:#cfd6e6;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px}
+  /* timeline (starts when body.play is set) — total ~30s */
+  body.play .s1{animation:show 1s .3s forwards, hide 1s 5s forwards}
+  body.play .s2{animation:show 1s 5.4s forwards, hide 1s 12.5s forwards}
+  body.play .s2 .chip:nth-child(1){animation:pop .6s 6.0s forwards}
+  body.play .s2 .chip:nth-child(2){animation:pop .6s 6.5s forwards}
+  body.play .s2 .chip:nth-child(3){animation:pop .6s 7.0s forwards}
+  body.play .s2 .chip:nth-child(4){animation:pop .6s 7.5s forwards}
+  body.play .s2 .chip:nth-child(5){animation:pop .6s 8.0s forwards}
+  body.play .s2 .chip:nth-child(6){animation:pop .6s 8.5s forwards}
+  body.play .s3{animation:show 1s 12.9s forwards, hide 1s 19.5s forwards}
+  body.play .s4{animation:show 1.2s 19.9s forwards}
+  @keyframes show{to{opacity:1;transform:translateY(0)}}
+  @keyframes hide{to{opacity:0;transform:translateY(-14px)}}
+  @keyframes pop{to{opacity:1;transform:translateY(0)}}
+</style>
+
+<div id="stage">
+  <div class="grain"></div>
+
+  <div class="scene s1">
+    <div class="brand">NIYTRI&nbsp;AI</div>
+    <div class="tag">Explainable AI investment intelligence for Indian markets</div>
+    <div class="sub">NSE &amp; BSE · Real-time · SEBI-compliant</div>
+  </div>
+
+  <div class="scene s2">
+    <div class="feat">
+      <h2>One platform. Every edge.</h2>
+      <div class="chips">
+        <span class="chip">◆ Conversational AI Assistant</span>
+        <span class="chip">▤ Agentic daily stock scoring</span>
+        <span class="chip">⚑ Score-crossing alerts</span>
+        <span class="chip">◐ Portfolio intelligence</span>
+        <span class="chip">◈ News intelligence</span>
+        <span class="chip">⇲ Open Partner API</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene s3">
+    <div class="feat">
+      <h2>Built to be trusted</h2>
+      <div class="pillars">
+        <div class="pillar"><b>Explainable</b> scores</div>
+        <div class="pillar"><b>Maker-checker</b> governance</div>
+        <div class="pillar"><b>Multi-LLM</b> failover</div>
+        <div class="pillar"><b>Advice-free</b> by design</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene s4">
+    <div class="cta">Invest with intelligence.
+      <small>NIYTRI AI · powered by NIYTRI Technologies</small>
+    </div>
+  </div>
+
+  <div id="controls"><button class="btn" id="play">▶ Play with sound</button></div>
+  <button id="replay">↻ Replay</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>
+  const playBtn = document.getElementById('play');
+  const replay  = document.getElementById('replay');
+  let synth, bass, loop, started = false;
+
+  function buildMusic(){
+    const reverb = new Tone.Reverb({decay:6, wet:.35}).toDestination();
+    synth = new Tone.PolySynth(Tone.Synth, {oscillator:{type:'sine'}, volume:-16,
+      envelope:{attack:1.2, decay:0.4, sustain:0.7, release:3}}).connect(reverb);
+    bass  = new Tone.Synth({oscillator:{type:'triangle'}, volume:-20,
+      envelope:{attack:.8, decay:.3, sustain:.6, release:2}}).connect(reverb);
+    // gentle, uplifting Am–F–C–G style pad progression
+    const chords = [['A3','C4','E4'],['F3','A3','C4'],['C4','E4','G4'],['G3','B3','D4']];
+    const roots  = ['A1','F1','C2','G1'];
+    let i = 0;
+    loop = new Tone.Loop(time=>{
+      synth.triggerAttackRelease(chords[i%4], '2n', time);
+      bass.triggerAttackRelease(roots[i%4], '1n', time);
+      i++;
+    }, '2n');
+    Tone.Transport.bpm.value = 70;
+  }
+
+  async function start(){
+    if (started) return; started = true;
+    document.getElementById('controls').style.display = 'none';
+    document.body.classList.add('play');
+    try{
+      await Tone.start();
+      buildMusic();
+      loop.start(0); Tone.Transport.start();
+    }catch(e){ /* music optional — animation still plays */ }
+    setTimeout(()=>{ replay.style.display='inline-block'; }, 21000);
+  }
+  playBtn.addEventListener('click', start);
+  replay.addEventListener('click', ()=>{ location.reload(); });
+</script>

@@ -113,9 +113,27 @@ class GroqProvider(OpenAIProvider):
                 base_url=(_llm_base("groq") or "https://api.groq.com/openai/v1"))
 
     async def complete(self, system, prompt, max_tokens=1024, temperature=0.3, cache=False):
-        # Groq doesn't accept OpenAI's prompt_cache_key extra_body -> force cache off.
-        return await super().complete(system, prompt, max_tokens=max_tokens,
-                                      temperature=temperature, cache=False)
+        # gpt-oss models on Groq are REASONING models: reasoning tokens count
+        # against the budget, so a small max_tokens leaves the answer empty. Keep
+        # reasoning short, give a floor, and fall back to the reasoning field if
+        # the content channel comes back empty.
+        is_oss = "gpt-oss" in (self._model or "")
+        kwargs = dict(
+            model=self._model, temperature=temperature,
+            max_tokens=max(max_tokens, 512) if is_oss else max_tokens,
+            messages=[{"role": "system", "content": system},
+                      {"role": "user", "content": prompt}],
+        )
+        if is_oss:
+            kwargs["extra_body"] = {"reasoning_effort": "low"}
+        resp = await self._client.chat.completions.create(**kwargs)
+        msg = resp.choices[0].message
+        text = (getattr(msg, "content", None) or "").strip()
+        if not text:  # reasoning models sometimes put the answer here
+            text = (getattr(msg, "reasoning", None)
+                    or (getattr(msg, "model_extra", {}) or {}).get("reasoning_content") or "").strip()
+        return LLMResponse(text=text, provider=self.name, model=self._model,
+                           usage=(dict(resp.usage) if resp.usage else {}))
 
 
 class GeminiProvider(LLMProvider):

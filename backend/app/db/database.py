@@ -39,6 +39,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     role_id = Column(Integer, nullable=True)   # FK -> roles.id (RBAC)
     avatar = Column(Text, nullable=True)       # profile photo as data:image/... URI
+    referral_code = Column(String, unique=True, index=True, nullable=True)  # this user's invite code
+    invited_by_code = Column(String, nullable=True)   # code they signed up with (referral graph)
+    auth_provider = Column(String, default="email")  # email | google
+    email_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -269,6 +273,29 @@ class PartnerKey(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class InviteCode(Base):
+    """An invite code. Member codes have owner_user_id set (max_uses=invites_per_user);
+    admin seed codes have owner_user_id NULL. used_count tracks redemptions so the
+    referral cap is enforced and the referral graph stays intact."""
+    __tablename__ = "invite_codes"
+    id = Column(Integer, primary_key=True)
+    code = Column(String, unique=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
+    max_uses = Column(Integer, default=5)
+    used_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_by = Column(String, default="")
+    created_at = Column(DateTime, default=utcnow)
+
+
+class Waitlist(Base):
+    """Emails captured from visitors without an invite code."""
+    __tablename__ = "waitlist"
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, index=True)
+    created_at = Column(DateTime, default=utcnow)
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(Integer, primary_key=True)
@@ -292,6 +319,10 @@ _MIGRATIONS = [
     ("instruments", "indices", "JSON"),
     ("users", "role_id", "INTEGER"),
     ("users", "avatar", "TEXT"),
+    ("users", "referral_code", "VARCHAR"),
+    ("users", "invited_by_code", "VARCHAR"),
+    ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
+    ("users", "email_verified", "BOOLEAN DEFAULT 0"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -372,6 +403,10 @@ def init_db():
             ("instruments", "indices", "JSONB"),
             ("users", "role_id", "INTEGER"),
             ("users", "avatar", "TEXT"),
+            ("users", "referral_code", "VARCHAR"),
+            ("users", "invited_by_code", "VARCHAR"),
+            ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
+            ("users", "email_verified", "BOOLEAN DEFAULT FALSE"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:

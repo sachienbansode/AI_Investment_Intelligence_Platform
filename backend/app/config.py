@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = ""   # set to a compatible host (Groq/OpenRouter/Together) to use open models
     google_api_key: str = ""
+    google_oauth_client_id: str = ""   # for verifying Google Sign-In id tokens
     groq_api_key: str = ""            # open-model fallback via Groq (OpenAI-compatible)
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "openai/gpt-oss-120b"

@@ -400,6 +400,14 @@ async def refresh_symbol_score(symbol: str, user: User = Depends(get_current_use
 
 
 # ── 3. News Summary API ──────────────────────────────────────────
+@router.get("/price-history/{symbol}")
+async def price_history(symbol: str, range: str = "1M", user: User = Depends(get_current_user)):
+    """Delayed price history for charts (Yahoo ~15-min delayed). Provider-abstracted."""
+    from app.data import price_history as ph
+    data = await ph.get_price_history(symbol, range)
+    return {**data, "ranges": ph.ranges(), "disclaimer": AI_DISCLAIMER}
+
+
 @router.get("/news")
 async def news_summary(limit: int = 20, refresh: bool = False):
     if refresh:
@@ -770,10 +778,15 @@ async def branding():
 @router.get("/health")
 async def health():
     from app.services.app_settings import get_setting
+    from app.llm.router import last_used
     providers = get_llm_router().active_providers
-    active_provider = providers[0] if providers else None
     models = get_setting("llm_models") or {}
-    active_model = models.get(active_provider) if active_provider else None
+    lu = last_used()
+    if lu and lu.get("provider") in providers:
+        active_provider, active_model = lu["provider"], lu.get("model")
+    else:
+        active_provider = providers[0] if providers else None
+        active_model = models.get(active_provider) if active_provider else None
     return {
         "status": "ok",
         "llm_providers": providers,

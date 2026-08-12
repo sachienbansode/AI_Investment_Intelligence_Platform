@@ -13,8 +13,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
-from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, PartnerKey,
-                             PipelineRun, Role, SessionLocal, StockScore, User)
+from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, InviteCode, PartnerKey,
+                             PipelineRun, Role, SessionLocal, StockScore, User, Waitlist)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -791,9 +791,11 @@ async def llm_test():
         try:
             p = cls(model)
             resp = await p.complete("You are a test.", "Reply with the single word OK.",
-                                    max_tokens=5, temperature=0)
+                                    max_tokens=64, temperature=0)   # >5 so reasoning models (gpt-oss) still emit content
+            txt = (resp.text or "").strip()
             results.append({"provider": name, "model": model, "configured": True,
-                            "ok": True, "detail": (resp.text or "").strip()[:40]})
+                            "ok": bool(txt),
+                            "detail": txt[:40] if txt else "connected but returned empty output"})
         except Exception as e:
             results.append({"provider": name, "model": model, "configured": True,
                             "ok": False, "detail": f"{type(e).__name__}: {str(e)[:200]}"})
@@ -1177,3 +1179,62 @@ def set_llm_key(req: LlmKeyReq, admin: User = Depends(require_admin)):
     audit_log("llm_key_set", provider=req.provider, by=admin.email,
               has_key=bool((req.key or "").strip()))
     return {"ok": True}
+
+
+# ── Invite-code management (admin) ───────────────────────────────
+class InviteCreate(BaseModel):
+    label: str = "admin"
+    max_uses: int = 25
+    count: int = 1
+
+
+@router.get("/invite-codes")
+def list_invite_codes():
+    db = SessionLocal()
+    try:
+        rows = db.query(InviteCode).order_by(InviteCode.created_at.desc()).limit(500).all()
+        owners = {u.id: u.email for u in db.query(User.id, User.email).all()}
+        wl = db.query(Waitlist).count()
+        return {"codes": [{
+            "id": r.id, "code": r.code,
+            "owner": owners.get(r.owner_user_id) if r.owner_user_id else "admin",
+            "max_uses": r.max_uses, "used_count": r.used_count or 0,
+            "is_active": r.is_active, "created_by": r.created_by,
+            "created_at": fmt_ist(r.created_at)} for r in rows],
+            "waitlist_count": wl}
+    finally:
+        db.close()
+
+
+@router.post("/invite-codes")
+def create_invite_codes(req: InviteCreate, admin: User = Depends(require_admin)):
+    from app.core.registration import _gen_code
+    n = max(1, min(int(req.count), 100))
+    db = SessionLocal()
+    created = []
+    try:
+        for _ in range(n):
+            code = _gen_code(db)
+            db.add(InviteCode(code=code, owner_user_id=None,
+                              max_uses=max(1, int(req.max_uses)), used_count=0,
+                              is_active=True, created_by=req.label or "admin"))
+            created.append(code)
+        db.commit()
+    finally:
+        db.close()
+    audit_log("invite_codes_created", by=admin.email, count=n)
+    return {"created": created}
+
+
+@router.post("/invite-codes/{code_id}/toggle")
+def toggle_invite_code(code_id: int, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        row = db.get(InviteCode, code_id)
+        if not row:
+            raise HTTPException(404, "Code not found")
+        row.is_active = not row.is_active
+        db.commit()
+        return {"id": row.id, "is_active": row.is_active}
+    finally:
+        db.close()

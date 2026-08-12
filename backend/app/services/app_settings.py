@@ -75,6 +75,11 @@ DEFAULTS: dict = {
     "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "show_active_model": True,        # show the currently active AI model in the top bar
+    # Self-service registration (public landing). Modes: invite_only | open | closed.
+    "registration_mode": "invite_only",
+    "invites_per_user": 5,            # invite codes each member can share
+    "waitlist_enabled": True,
+    "require_email_verification": False,
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
                    "gemini": "gemini-1.5-pro", "groq": "openai/gpt-oss-120b"},
     "llm_pricing": {
@@ -238,6 +243,15 @@ def _validate(key: str, value) -> None:
     elif key == "alert_score_jump":
         if not (isinstance(value, (int, float)) and 0 < value <= 100):
             raise ValueError("alert_score_jump must be a number between 0 and 100")
+    elif key == "registration_mode":
+        if value not in ("invite_only", "open", "closed"):
+            raise ValueError("registration_mode must be invite_only, open or closed")
+    elif key == "invites_per_user":
+        if not (isinstance(value, int) and 0 <= value <= 100):
+            raise ValueError("invites_per_user must be an integer 0-100")
+    elif key in ("waitlist_enabled", "require_email_verification"):
+        if not isinstance(value, bool):
+            raise ValueError(f"{key} must be true or false")
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")

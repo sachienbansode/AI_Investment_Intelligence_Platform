@@ -84,6 +84,8 @@ class LLMRouter:
                 resp = await self._call(provider, system, prompt, max_tokens, temperature, cache)
                 audit_log("llm_call", task=task, provider=provider.name,
                           model=resp.model, usage=resp.usage)
+                global _last_used
+                _last_used = {"provider": provider.name, "model": resp.model, "task": task}
                 return resp
             except Exception as e:
                 msg = (str(e).splitlines() or [""])[0][:180]
@@ -103,6 +105,7 @@ class LLMRouter:
 
 
 _router: LLMRouter | None = None
+_last_used: dict | None = None   # provider+model of the most recent successful call
 
 
 def get_llm_router() -> LLMRouter:
@@ -110,3 +113,8 @@ def get_llm_router() -> LLMRouter:
     if _router is None:
         _router = LLMRouter()
     return _router
+
+
+def last_used() -> dict | None:
+    """Provider+model that actually answered the most recent successful LLM call."""
+    return _last_used
