@@ -178,3 +178,14 @@ def join_waitlist(req: WaitlistRequest):
 @router.get("/my-invites")
 def my_invites(user: User = Depends(get_current_user)):
     return registration.my_invites(user.id)
+
+
+class SendInvitesRequest(BaseModel):
+    emails: list[str]
+
+
+@router.post("/send-invites")
+def send_invites(req: SendInvitesRequest, user: User = Depends(get_current_user)):
+    res = registration.send_invites(user.id, req.emails)
+    audit_log("invites_sent", user=user.email, count=len(res.get("sent", [])))
+    return res

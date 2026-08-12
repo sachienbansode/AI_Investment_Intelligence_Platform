@@ -195,6 +195,8 @@ export const api = {
   muteAlertSymbol: (symbol, mute = true) => http('/alerts/mute', { method: 'POST', body: JSON.stringify({ symbol, mute }) }),
   updateProfile: (body) => http('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
   changePassword: (body) => http('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
+  myInvites: () => http('/auth/my-invites'),
+  sendInvites: (emails) => http('/auth/send-invites', { method: 'POST', body: JSON.stringify({ emails }) }),
   // instruments + watchlist + agents
   instruments: () => http('/instruments'),
   watchlist: () => http('/watchlist'),

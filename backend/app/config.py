@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     openai_base_url: str = ""   # set to a compatible host (Groq/OpenRouter/Together) to use open models
     google_api_key: str = ""
     google_oauth_client_id: str = ""   # for verifying Google Sign-In id tokens
+    # Outbound email for invites (optional; if unset, invites are recorded + a
+    # shareable link is returned instead of emailed).
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    app_base_url: str = "https://dev-invest.niytri.com"
     groq_api_key: str = ""            # open-model fallback via Groq (OpenAI-compatible)
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "openai/gpt-oss-120b"

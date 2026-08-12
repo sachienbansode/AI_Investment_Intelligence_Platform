@@ -296,6 +296,20 @@ class Waitlist(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class Invitation(Base):
+    """A specific email a member invited (up to invites_per_user). Tracks who was
+    invited and whether they've joined. Separate from the reusable referral code."""
+    __tablename__ = "invitations"
+    id = Column(Integer, primary_key=True)
+    inviter_user_id = Column(Integer, index=True)
+    email = Column(String, index=True)
+    code = Column(String)                       # the inviter's referral code shared
+    status = Column(String, default="sent")     # sent | accepted
+    delivered = Column(Boolean, default=False)  # True if the email was actually sent
+    created_at = Column(DateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("inviter_user_id", "email", name="uq_invite_once"),)
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(Integer, primary_key=True)

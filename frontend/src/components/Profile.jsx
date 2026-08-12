@@ -9,8 +9,11 @@ export default function Profile({ user, onUpdated }) {
   const [cur, setCur] = useState(''); const [nw, setNw] = useState(''); const [cf, setCf] = useState('')
   const [pwBusy, setPwBusy] = useState(false)
   const [prefs, setPrefs] = useState(null); const [prefBusy, setPrefBusy] = useState(false)
+  const [inv, setInv] = useState(null); const [emails, setEmails] = useState(['','','','','']); const [invBusy, setInvBusy] = useState(false)
 
   useEffect(() => { api.alertPrefs().then(setPrefs).catch(() => {}) }, [])
+  const loadInv = () => api.myInvites().then(setInv).catch(() => {})
+  useEffect(() => { loadInv() }, [])
 
   function pickFile(e) {
     const f = e.target.files?.[0]; if (!f) return
@@ -44,6 +47,21 @@ export default function Profile({ user, onUpdated }) {
   }
   async function unmute(sym) { try { const p = await api.muteAlertSymbol(sym, false); setPrefs(p) } catch {} }
 
+  async function sendInv() {
+    const re = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+    const list = emails.map(e => e.trim()).filter(Boolean)
+    if (!list.length) { toast('Enter at least one email'); return }
+    if (list.some(e => !re.test(e))) { toast('One or more emails look invalid'); return }
+    setInvBusy(true)
+    try {
+      const r = await api.sendInvites(list)
+      const okN = (r.sent || []).length
+      const skip = (r.skipped || []).length
+      toast(okN ? (r.emailed ? `Sent ${okN} invite(s)` : `Recorded ${okN} invite(s) — share your code`)
+                : (skip ? 'Nothing sent — see below' : 'No invites sent'))
+      setEmails(['', '', '', '', '']); await loadInv()
+    } catch (e) { toast('Failed: ' + (e.message || e)) } finally { setInvBusy(false) }
+  }
   const initial = (name || user?.email || '?')[0].toUpperCase()
   return (
     <div className="profile-wrap">
@@ -77,6 +95,44 @@ export default function Profile({ user, onUpdated }) {
         </div>
         <button onClick={savePw} disabled={pwBusy || !cur || !nw}>{pwBusy ? 'Updating…' : 'Update password'}</button>
       </div>
+
+      {inv && (
+        <div className="panel">
+          <h3>Invite Friends</h3>
+          <p className="hint" style={{ marginTop: 2 }}>
+            You have <b style={{ color: 'var(--text)' }}>{inv.remaining}</b> of {inv.max} invites left.
+            Enter up to {inv.remaining} email{inv.remaining === 1 ? '' : 's'} and we’ll send them an invite.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px' }}>
+            <span className="hint">Your code</span>
+            <code>{inv.code}</code>
+            <button className="ghost sm" onClick={() => { navigator.clipboard?.writeText(inv.code); toast('Code copied') }}>Copy code</button>
+          </div>
+          {inv.remaining > 0 ? (
+            <div>
+              {emails.slice(0, inv.remaining).map((v, i) => {
+                const bad = v.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())
+                return (
+                  <input key={i} className="field" type="email" placeholder={"friend" + (i + 1) + "@email.com"}
+                    value={v} style={{ borderColor: bad ? 'var(--red)' : undefined }}
+                    onChange={e => setEmails(a => a.map((x, j) => j === i ? e.target.value : x))} />
+                )
+              })}
+              <button onClick={sendInv} disabled={invBusy} style={{ marginTop: 8 }}>{invBusy ? 'Sending…' : 'Send invites'}</button>
+            </div>
+          ) : <p className="hint">You’ve used all your invites. Thanks for spreading the word!</p>}
+          {(inv.invitations || []).length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div className="hint" style={{ marginBottom: 6 }}>Invited</div>
+              {inv.invitations.map(it => (
+                <span key={it.email} className="tag" style={{ marginRight: 6, marginBottom: 6, display: 'inline-block' }}>
+                  {it.email} · <b style={{ color: it.status === 'joined' ? 'var(--green)' : 'var(--muted)' }}>{it.status}</b>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {prefs && (
         <div className="panel">
