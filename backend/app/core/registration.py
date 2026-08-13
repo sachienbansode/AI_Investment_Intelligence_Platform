@@ -455,7 +455,6 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
                 f'<div style="font-size:13px;color:#2a3140;margin:0 0 4px">The NIYTRI Score blends <b>8 pillars</b> by importance. '
                 f'<b>{_esc(sd["symbol"])}</b> leads on <b>{_esc(strengths)}</b>.</div>'
                 + table +
-                '<div style="font-size:11px;color:#9aa3b2;margin-top:8px">AI-generated · informational, not investment advice.</div>'
                 '</div></div>')
     except Exception:
         spot_html = ""
