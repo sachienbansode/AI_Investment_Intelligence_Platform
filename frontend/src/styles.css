@@ -21,6 +21,16 @@
   --shadow: 0 1px 10px rgba(22,32,60,.07);
   --login-glow: rgba(79,142,247,.16);
 }
+:root[data-theme="orange"] {
+  --bg: #fbf7f3; --bg2: #ffffff; --panel: #ffffff; --panel2: #fff3ea;
+  --border: #f0e6dc; --border2: #ecdfd2;
+  --text: #181d27; --muted: #6b7280; --faint: #9aa3b2;
+  --accent: #f94c00; --accent2: #ff8a3d;
+  --green: #12a06b; --amber: #c07d0a; --red: #e0503f;
+  --topbar-bg: rgba(255,255,255,.9); --track: #f0e6dc; --tag-bg: #fff0e3;
+  --shadow: 0 1px 10px rgba(24,29,39,.06);
+  --login-glow: rgba(255,106,0,.16);
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--text); font-size: 14.5px; line-height: 1.5;

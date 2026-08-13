@@ -283,9 +283,9 @@ export default function App() {
                 <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
               </div>
             )}
-            <button className="icon-btn" title="Toggle theme"
-                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? String.fromCharCode(0x2600) : String.fromCharCode(0x263E)}
+            <button className="icon-btn" title={'Theme: ' + theme + ' (click to switch)'}
+                    onClick={() => setTheme(t => t === 'light' ? 'dark' : t === 'dark' ? 'orange' : 'light')}>
+              {theme === 'dark' ? String.fromCharCode(0x263E) : theme === 'orange' ? String.fromCharCode(0x25D0) : String.fromCharCode(0x2600)}
             </button>
           </div>
         </header>
