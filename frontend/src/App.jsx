@@ -194,7 +194,7 @@ export default function App() {
     return <Maintenance message={health.maintenance_message} brand={brand}
                         onSignOut={() => { clearSession(); setUser(null) }} />
   if (user.tos_ok === false)
-    return <Consent brand={brand}
+    return <Consent brand={brand.platform_label || 'NIYTRI AI'}
                     onAccept={async () => { await api.acceptTerms(); try { setUser(await api.me()) } catch {} }}
                     onSignOut={() => { clearSession(); setUser(null) }} />
 
