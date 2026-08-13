@@ -585,9 +585,12 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-err{color:#d23b3b;font-size:13.5px;margin-top:12px}
 .lp-ok{color:#0f8f5f;font-size:13.5px;margin-top:12px}
 .lp-foot{color:#9aa3b2;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
-.lp-modal{position:fixed;inset:0;z-index:70;background:rgba(24,29,39,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 24px;overflow-y:auto}
-.lp-modal-card{position:relative;width:100%;max-width:440px}
-.lp-modal-card .lp-auth{margin-top:0}
-.lp-modal-x{position:absolute;top:-12px;right:-12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);background:#fff;color:var(--ink);font-size:15px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:1}
+.lp-modal{position:fixed;inset:0;z-index:70;background:rgba(24,29,39,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:lpfade .18s ease}
+@keyframes lpfade{from{opacity:0}to{opacity:1}}
+.lp-modal-card{position:relative;width:100%;max-width:430px;max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 30px 80px rgba(24,29,39,.35);animation:lppop .26s cubic-bezier(.18,.79,.28,1.09)}
+@keyframes lppop{from{opacity:0;transform:translateY(18px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.lp-modal-card .lp-auth{margin:0;padding-top:48px;border-radius:20px;box-shadow:none}
+.lp-modal-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;border:none;background:var(--soft);color:#7a4a1e;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2}
+.lp-modal-x:hover{background:#ffe6d3;color:var(--or3)}
 @media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
 `
