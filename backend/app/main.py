@@ -125,6 +125,49 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 
+# ── Maintenance mode ────────────────────────────────────────────────────────
+# When app_settings.maintenance_mode is ON, non-admin users are blocked with a
+# 503 (admins pass through). A short allowlist keeps auth + health + branding up
+# so admins can still sign in and the client can detect maintenance.
+_MAINT_ALLOW = ("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
+                "/api/v1/auth/registration-info", "/api/v1/health", "/api/v1/branding")
+
+
+def _request_is_admin(request) -> bool:
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return False
+    try:
+        from app.core.auth import _decode, effective_access
+        from app.db.database import SessionLocal, User
+        payload = _decode(auth.split(" ", 1)[1])
+        if payload.get("typ") == "refresh":
+            return False
+        db = SessionLocal()
+        try:
+            u = db.get(User, int(payload["sub"]))
+        finally:
+            db.close()
+        if not u or not u.is_active:
+            return False
+        return effective_access(u)[1]
+    except Exception:
+        return False
+
+
+@app.middleware("http")
+async def maintenance_gate(request, call_next):
+    from starlette.responses import JSONResponse
+    path = request.url.path
+    if (path.startswith("/api/v1") and not path.startswith("/api/v1/admin")
+            and not any(path.startswith(p) for p in _MAINT_ALLOW)):
+        from app.services.app_settings import get_setting
+        if get_setting("maintenance_mode") and not _request_is_admin(request):
+            msg = get_setting("maintenance_message") or "The app is temporarily down for maintenance."
+            return JSONResponse(status_code=503, content={"detail": msg, "maintenance": True})
+    return await call_next(request)
+
+
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(admin_router)

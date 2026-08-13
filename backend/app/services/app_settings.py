@@ -82,6 +82,9 @@ DEFAULTS: dict = {
     "require_email_verification": True,
     # Outbound email. provider: graph (Microsoft 365 Graph) | smtp | off.
     # Graph creds are DB-backed (admin UI), NOT .env. graph_client_secret is redacted.
+    # Maintenance mode: when ON, non-admin users are blocked (admins unaffected).
+    "maintenance_mode": False,
+    "maintenance_message": "We're doing some quick maintenance and will be back shortly. Thanks for your patience.",
     "email_provider": "smtp",
     "graph_tenant_id": "",
     "graph_client_id": "",
@@ -259,6 +262,12 @@ def _validate(key: str, value) -> None:
     elif key in ("waitlist_enabled", "require_email_verification"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
+    elif key == "maintenance_mode":
+        if not isinstance(value, bool):
+            raise ValueError("maintenance_mode must be true or false")
+    elif key == "maintenance_message":
+        if not (isinstance(value, str) and len(value) <= 500):
+            raise ValueError("maintenance_message must be a string up to 500 chars")
     elif key == "email_provider":
         if value not in ("graph", "smtp", "off"):
             raise ValueError("email_provider must be graph, smtp or off")

@@ -60,6 +60,11 @@ def login(req: LoginRequest, request: Request):
         raise HTTPException(401, "Invalid email or password")
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
+    if bool(get_setting("maintenance_mode")):
+        from app.core.auth import effective_access
+        if not effective_access(user)[1]:
+            raise HTTPException(503, get_setting("maintenance_message")
+                                or "The app is under maintenance. Please try again later.")
     if (getattr(user, "auth_provider", "email") == "email" and not user.email_verified
             and bool(get_setting("require_email_verification"))):
         raise HTTPException(403,

@@ -593,10 +593,11 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-err{color:#d23b3b;font-size:13.5px;margin-top:12px}
 .lp-ok{color:#0f8f5f;font-size:13.5px;margin-top:12px}
 .lp-foot{color:#9aa3b2;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
-.lp-modal{position:fixed;inset:0;z-index:70;background:rgba(24,29,39,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:lpfade .18s ease}
+.lp-modal{position:fixed;inset:0;z-index:70;background:rgba(24,29,39,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:lpfade .28s ease both}
 @keyframes lpfade{from{opacity:0}to{opacity:1}}
-.lp-modal-card{position:relative;width:100%;max-width:430px;max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 30px 80px rgba(24,29,39,.35);animation:lppop .3s cubic-bezier(.18,.79,.28,1.12)}
-@keyframes lppop{0%{opacity:0;transform:translateY(24px) scale(.92)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+.lp-modal-card{position:relative;width:100%;max-width:430px;max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 40px 90px rgba(24,29,39,.4);transform-origin:center;animation:lppop .5s cubic-bezier(.22,1.3,.36,1) both}
+@keyframes lppop{0%{opacity:0;transform:translateY(46px) scale(.9)}55%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.lp-modal,.lp-modal-card{animation-duration:.01ms}}
 .lp-modal-card .lp-auth{margin:0;padding-top:52px;border-radius:20px;box-shadow:none}
 .lp-modal-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#6b7280;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2;box-shadow:0 2px 6px rgba(24,29,39,.08)}
 .lp-modal-x:hover{background:var(--or2);color:#fff;border-color:var(--or2);transform:rotate(90deg)}

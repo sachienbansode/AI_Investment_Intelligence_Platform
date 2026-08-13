@@ -890,6 +890,8 @@ async def health():
         "active_provider": active_provider,
         "active_model": active_model,
         "show_active_model": bool(get_setting("show_active_model")),
+        "maintenance_mode": bool(get_setting("maintenance_mode")),
+        "maintenance_message": get_setting("maintenance_message") or "",
     }
 
 

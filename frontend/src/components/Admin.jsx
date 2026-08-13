@@ -11,6 +11,7 @@ export default function Admin() {
   const [view, setView] = useState('stats')
   return (
     <div>
+      <MaintenanceControl />
       <div className="toolbar">
         {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'partner', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
@@ -1605,6 +1606,50 @@ function EmailConfig() {
       </div>
       {testMsg && <p style={{ marginTop: 10, color: testMsg.ok ? 'var(--green)' : 'var(--red)' }}>{testMsg.text}</p>}
       <p className="hint" style={{ marginTop: 8 }}>The test uses whatever is currently saved. Save first, then test.</p>
+    </div>
+  )
+}
+
+function MaintenanceControl() {
+  const [on, setOn] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    api.settings().then(d => { setOn(!!d.settings.maintenance_mode); setMsg(d.settings.maintenance_message || '') }).catch(() => {})
+  }, [])
+  if (on === null) return null
+  async function toggle() {
+    const next = !on
+    if (next && !confirm('Turn ON maintenance mode? All non-admin users will be signed out and blocked until you turn it off.')) return
+    setBusy(true)
+    try { await api.updateSetting('maintenance_mode', next); setOn(next); toast(next ? 'Maintenance mode ON' : 'Maintenance mode OFF') }
+    catch (e) { toast('Failed: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  async function saveMsg() {
+    setBusy(true)
+    try { await api.updateSetting('maintenance_message', msg); toast('Message saved') }
+    catch (e) { toast('Failed: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  return (
+    <div className="panel" style={{ borderColor: on ? 'var(--amber)' : undefined, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <h3 style={{ margin: 0 }}>Maintenance mode {on && <span style={{ color: 'var(--amber)', fontSize: '.8rem' }}>● ON</span>}</h3>
+          <p className="hint" style={{ margin: '4px 0 0' }}>When ON, all non-admin users are signed out and see a maintenance screen. Admins are unaffected.</p>
+        </div>
+        <button onClick={toggle} disabled={busy}
+          style={on ? { background: 'var(--amber)', color: '#1a1200' } : undefined}>
+          {busy ? 'Working…' : (on ? 'Turn OFF' : 'Take app down')}
+        </button>
+      </div>
+      <div style={{ marginTop: 10 }}>
+        <label className="hint" style={{ display: 'block', marginBottom: 4 }}>Message shown to users</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={msg} maxLength={500} onChange={e => setMsg(e.target.value)} style={{ flex: 1 }}
+            placeholder="We'll be back shortly…" />
+          <button className="ghost" onClick={saveMsg} disabled={busy}>Save message</button>
+        </div>
+      </div>
     </div>
   )
 }

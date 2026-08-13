@@ -37,6 +37,23 @@ const MOBILE_TABS = ['Dashboard', 'Stock Scores', 'AI Assistant', 'Compare']
 const SHORT_LABEL = { 'AI Assistant': 'Assistant', 'Stock Scores': 'Scores', 'Market News': 'News' }
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
 
+function Maintenance({ message, brand, onSignOut }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg)', color: 'var(--text)', padding: 24, textAlign: 'center', zIndex: 100 }}>
+      <div style={{ maxWidth: 440 }}>
+        {brand?.logo
+          ? <img src={brand.logo} alt="" style={{ maxHeight: 64, marginBottom: 18, objectFit: 'contain' }} />
+          : <div style={{ fontSize: 46, marginBottom: 12 }}>{String.fromCharCode(0x1F6E0)}</div>}
+        <h2 style={{ margin: '0 0 10px', fontSize: 24 }}>We'll be right back</h2>
+        <p style={{ color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
+          {message || 'The app is temporarily down for maintenance. Please check back shortly.'}</p>
+        <button className="ghost" onClick={onSignOut}>Sign out</button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
@@ -103,10 +120,10 @@ export default function App() {
   useEffect(() => {
     if (!user) return
     const loadIndices = () => api.indices().then(d => setIndices(d.indices || [])).catch(() => {})
-    loadIndices()
-    api.health().then(setHealth).catch(() => {})
+    const loadHealth = () => api.health().then(setHealth).catch(() => {})
+    loadIndices(); loadHealth()
     registerPush(t => api.registerDevice(t, 'native').catch(() => {}))  // native only; no-op on web
-    const t = setInterval(loadIndices, 45000)   // live NSE/BSE ticker refresh
+    const t = setInterval(() => { loadIndices(); loadHealth() }, 45000)   // live ticker + maintenance status
     return () => clearInterval(t)
   }, [user])
 
@@ -152,6 +169,9 @@ export default function App() {
 
   if (!authChecked) return null
   if (!user) return <Landing onLogin={setUser} />
+  if (health && health.maintenance_mode && !user.is_admin)
+    return <Maintenance message={health.maintenance_message} brand={brand}
+                        onSignOut={() => { clearSession(); setUser(null) }} />
 
   const nav = pages.map(name => ({ name, icon: ICONS[name] || String.fromCharCode(0x2022) }))
   const can = name => pages.includes(name)
@@ -244,6 +264,13 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {health && health.maintenance_mode && user.is_admin && (
+          <div style={{ background: 'var(--amber)', color: '#1a1200', padding: '8px 26px', fontSize: '.85rem', fontWeight: 600 }}>
+            {String.fromCharCode(0x26A0)} Maintenance mode is ON — non-admin users are blocked from the app.{' '}
+            <a style={{ color: '#1a1200', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => selectTab('Admin')}>Manage in Admin</a>
+          </div>
+        )}
 
         <main>
           <h2 className="page-title">{tab === 'Stock' ? (stockSym || 'Stock') + ' Details' : tab}</h2>
