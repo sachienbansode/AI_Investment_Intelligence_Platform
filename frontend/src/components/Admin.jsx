@@ -13,12 +13,12 @@ export default function Admin() {
     <div>
       <MaintenanceControl />
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'partner', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'emaillog', 'terms', 'partner', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
                feedback: 'Assistant quality', review: 'Score review', research: 'Research (RAG)', users: 'Users',
                roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations', email: 'Email',
-               partner: 'Partner API', settings: 'Settings' }[v]}
+               emaillog: 'Email log', terms: 'Terms', partner: 'Partner API', settings: 'Settings' }[v]}
           </button>
         ))}
       </div>
@@ -34,6 +34,8 @@ export default function Admin() {
       {view === 'instruments' && <Instruments />}
       {view === 'integrations' && <Integrations />}
       {view === 'email' && <EmailConfig />}
+      {view === 'emaillog' && <EmailLogs />}
+      {view === 'terms' && <TermsAdmin />}
       {view === 'partner' && <PartnerKeys />}
       {view === 'settings' && <Settings />}
     </div>
@@ -1554,7 +1556,8 @@ function EmailConfig() {
     setBusy(true)
     try {
       const body = { provider: cfg.provider, graph_tenant_id: cfg.graph_tenant_id,
-        graph_client_id: cfg.graph_client_id, graph_sender: cfg.graph_sender }
+        graph_client_id: cfg.graph_client_id, graph_sender: cfg.graph_sender,
+        support_email: cfg.support_email }
       if (secret.trim()) body.graph_client_secret = secret.trim()
       await api.setEmailConfig(body); setSecret(''); await load(); toast('Email settings saved')
     } catch (e) { toast('Save failed: ' + (e.message || e)) } finally { setBusy(false) }
@@ -1595,7 +1598,11 @@ function EmailConfig() {
       )}
 
       <div style={{ marginTop: 14 }}>
-        <button onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save email settings'}</button>
+        <div style={{ marginTop: 14 }}>
+          <label>Support email (shown in emails & Terms)<br />
+            <input value={cfg.support_email || ''} onChange={e => set('support_email', e.target.value)} placeholder="admin@niytri.com" style={{ minWidth: 280 }} /></label>
+        </div>
+        <button style={{ marginTop: 14 }} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save email settings'}</button>
       </div>
 
       <hr style={{ margin: '18px 0', border: 0, borderTop: '1px solid var(--border)' }} />
@@ -1650,6 +1657,91 @@ function MaintenanceControl() {
           <button className="ghost" onClick={saveMsg} disabled={busy}>Save message</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TermsAdmin() {
+  const [t, setT] = useState(null)
+  const [html, setHtml] = useState('')
+  const [version, setVersion] = useState('')
+  const [target, setTarget] = useState('new')
+  const [busy, setBusy] = useState(false)
+  const [acc, setAcc] = useState([])
+  const load = () => api.adminTerms().then(d => { setT(d); setHtml(d.html); setVersion(d.version) }).catch(e => toast('Failed: ' + (e.message || e)))
+  useEffect(() => { load(); api.termsAcceptances().then(d => setAcc(d.acceptances || [])).catch(() => {}) }, [])
+  if (!t) return <p className="hint">Loading…</p>
+  async function publish() {
+    const msg = target === 'new'
+      ? 'Publish new Terms for NEW registrations only? Existing users are not prompted.'
+      : 'Publish new Terms and require ALL existing users to re-accept on next login?'
+    if (!confirm(msg)) return
+    setBusy(true)
+    try { await api.publishTerms({ html, version: version.trim(), target }); toast('Terms published'); load(); api.termsAcceptances().then(d => setAcc(d.acceptances || [])) }
+    catch (e) { toast('Failed: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  return (
+    <div className="panel">
+      <h3>Terms &amp; Conditions</h3>
+      <p className="hint">Edit the T&amp;C in HTML. Current version <b>v{t.version}</b> (seq {t.seq}); existing users must have accepted seq ≥ {t.min_seq}. Publishing bumps the version.</p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '10px 0' }}>
+        <label>Version <input value={version} onChange={e => setVersion(e.target.value)} placeholder="e.g. 1.1" style={{ width: 100 }} /></label>
+        <label>Apply to
+          <select value={target} onChange={e => setTarget(e.target.value)} style={{ marginLeft: 6 }}>
+            <option value="new">New registrations only</option>
+            <option value="existing">Existing users (re-consent)</option>
+            <option value="all">All users (re-consent)</option>
+          </select>
+        </label>
+        <button onClick={publish} disabled={busy}>{busy ? 'Publishing…' : 'Publish new version'}</button>
+      </div>
+      <textarea value={html} onChange={e => setHtml(e.target.value)} rows={16}
+        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12.5 }} />
+      <div style={{ marginTop: 12 }}>
+        <div className="hint" style={{ marginBottom: 6 }}>Preview</div>
+        <div className="panel" style={{ background: 'var(--panel2)' }} dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
+      {(t.versions || []).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="hint" style={{ marginBottom: 6 }}>Version history</div>
+          <table className="data-table"><thead><tr><th>Seq</th><th>Version</th><th>By</th><th>When</th></tr></thead>
+            <tbody>{t.versions.map(v => <tr key={v.seq}><td>{v.seq}</td><td>{v.version}</td><td>{v.created_by}</td><td>{v.created_at}</td></tr>)}</tbody></table>
+        </div>
+      )}
+      {acc.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="hint" style={{ marginBottom: 6 }}>Recent acceptances (all versions, all users)</div>
+          <table className="data-table"><thead><tr><th>User</th><th>Version</th><th>Seq</th><th>IP</th><th>When</th></tr></thead>
+            <tbody>{acc.map((a, i) => <tr key={i}><td>{a.email}</td><td>{a.version}</td><td>{a.seq}</td><td>{a.ip || '—'}</td><td>{a.accepted_at}</td></tr>)}</tbody></table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EmailLogs() {
+  const [data, setData] = useState(null)
+  const [kind, setKind] = useState('')
+  const load = k => api.emailLogs(k).then(setData).catch(e => toast('Failed: ' + (e.message || e)))
+  useEffect(() => { load('') }, [])
+  if (!data) return <p className="hint">Loading…</p>
+  return (
+    <div className="panel">
+      <h3>Email log</h3>
+      <p className="hint">Every email the app sends — verification, invites, password resets, tests — with delivery status.</p>
+      <div style={{ margin: '10px 0' }}>
+        <select value={kind} onChange={e => { setKind(e.target.value); load(e.target.value) }}>
+          <option value="">All kinds</option>
+          {data.kinds.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+      {data.logs.length ? (
+        <table className="data-table"><thead><tr><th>When</th><th>To</th><th>Kind</th><th>Subject</th><th>Provider</th><th>Status</th></tr></thead>
+          <tbody>{data.logs.map((l, i) => (
+            <tr key={i}><td style={{ whiteSpace: 'nowrap' }}>{l.created_at}</td><td>{l.to}</td><td>{l.kind}</td>
+              <td>{l.subject}</td><td>{l.provider}</td>
+              <td>{l.delivered ? <span className="up">✓ sent</span> : <span className="down" title={l.error}>✗ failed</span>}</td></tr>))}</tbody></table>
+      ) : <div className="hint">No emails logged yet.</div>}
     </div>
   )
 }

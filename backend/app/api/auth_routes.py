@@ -45,7 +45,7 @@ def _user_dict(u: User) -> dict:
     return {"id": u.id, "email": u.email, "full_name": u.full_name,
             "is_admin": is_admin, "pages": pages, "role_id": u.role_id,
             "avatar": getattr(u, "avatar", None),
-            "tos_ok": bool(getattr(u, "tos_accepted", False)) and (getattr(u, "tos_version", None) == (get_setting("tos_version") or "1.0")),
+            "tos_ok": bool(getattr(u, "tos_accepted", False)) and (getattr(u, "tos_seq", None) or 0) >= (get_setting("tos_min_seq") or 1),
             "created_at": u.created_at.isoformat() if u.created_at else None}
 
 
@@ -108,10 +108,18 @@ def me(user: User = Depends(get_current_user)):
 
 
 @router.post("/accept-terms")
-def accept_terms(user: User = Depends(get_current_user)):
-    res = registration.accept_terms(user.id)
+def accept_terms(request: Request, user: User = Depends(get_current_user)):
+    res = registration.accept_terms(user.id, ip=_client_ip(request))
     audit_log("tos_accepted", user=user.email, version=res.get("tos_version"))
     return res
+
+
+@router.get("/terms")
+def public_terms():
+    """Public: current Terms & Conditions content + version for the site + consent."""
+    return {"version": get_setting("tos_version") or "1.0",
+            "html": get_setting("tos_html") or "",
+            "support_email": get_setting("support_email") or ""}
 
 
 class ProfileUpdate(BaseModel):

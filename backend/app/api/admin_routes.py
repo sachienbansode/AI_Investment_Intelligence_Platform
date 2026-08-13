@@ -15,7 +15,7 @@ from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
 from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, InviteCode, PartnerKey,
                              PipelineRun, Role, SessionLocal, StockScore, User, Waitlist,
-                             Invitation)
+                             Invitation, EmailLog, TosAcceptance, TermsVersion)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -1399,6 +1399,7 @@ class EmailConfigReq(BaseModel):
     graph_client_id: str | None = None
     graph_client_secret: str | None = None   # send blank to keep existing
     graph_sender: str | None = None
+    support_email: str | None = None
 
 
 @router.get("/email-config")
@@ -1412,7 +1413,8 @@ def email_config():
             "graph_sender": a.get("graph_sender") or "",
             "graph_secret_set": bool((a.get("graph_client_secret") or "").strip()),
             "smtp_configured": bool((s.smtp_host or "") and (s.smtp_from or "")),
-            "smtp_from": s.smtp_from or ""}
+            "smtp_from": s.smtp_from or "",
+            "support_email": a.get("support_email") or ""}
 
 
 @router.post("/email-config")
@@ -1426,6 +1428,8 @@ def set_email_config(req: EmailConfigReq, admin: User = Depends(require_admin)):
                 set_setting(k, v.strip())
         if req.graph_client_secret is not None and req.graph_client_secret.strip():
             set_setting("graph_client_secret", req.graph_client_secret.strip())
+        if req.support_email is not None and req.support_email.strip():
+            set_setting("support_email", req.support_email.strip())
     except (KeyError, ValueError) as e:
         raise HTTPException(400, str(e))
     audit_log("email_config_update", provider=req.provider or get_setting("email_provider"))
@@ -1443,7 +1447,7 @@ def email_test(req: EmailTestReq, admin: User = Depends(require_admin)):
     delivered, err = emailer.send_email(
         str(req.to), f"{plat} - test email",
         f"This is a test email from your {plat} admin console.\n\n"
-        "If you received it, outbound email is configured correctly.")
+        "If you received it, outbound email is configured correctly.", kind="test")
     audit_log("email_test", to=str(req.to), delivered=delivered)
     return {"delivered": delivered, "error": err}
 
@@ -1491,3 +1495,72 @@ def referral_tree():
                          key=lambda x: (x["direct"], x["network"]), reverse=True)[:25]
     return {"nodes": nodes, "roots": roots, "leaderboard": leaderboard,
             "total_users": len(users)}
+
+
+@router.get("/terms")
+def admin_terms():
+    a = all_settings()
+    db = SessionLocal()
+    try:
+        versions = [{"seq": v.seq, "version": v.version, "created_by": v.created_by,
+                     "created_at": fmt_ist(v.created_at)}
+                    for v in db.query(TermsVersion).order_by(TermsVersion.seq.desc()).limit(50).all()]
+    finally:
+        db.close()
+    return {"html": a.get("tos_html") or "", "version": a.get("tos_version") or "1.0",
+            "seq": a.get("tos_seq") or 1, "min_seq": a.get("tos_min_seq") or 1,
+            "support_email": a.get("support_email") or "", "versions": versions}
+
+
+class TermsPublishReq(BaseModel):
+    html: str
+    version: str
+    target: str = "new"   # new | existing | all
+
+
+@router.post("/terms/publish")
+def publish_terms(req: TermsPublishReq, admin: User = Depends(require_admin)):
+    if req.target not in ("new", "existing", "all"):
+        raise HTTPException(400, "target must be new, existing or all")
+    new_seq = int(get_setting("tos_seq") or 1) + 1
+    label = req.version.strip() or str(new_seq)
+    set_setting("tos_html", req.html)
+    set_setting("tos_version", label)
+    set_setting("tos_seq", new_seq)
+    if req.target in ("existing", "all"):
+        set_setting("tos_min_seq", new_seq)   # forces everyone below to re-accept
+    db = SessionLocal()
+    try:
+        db.add(TermsVersion(seq=new_seq, version=label, html=req.html, created_by=admin.email))
+        db.commit()
+    finally:
+        db.close()
+    audit_log("terms_publish", version=label, seq=new_seq, target=req.target, by=admin.email)
+    return {"ok": True, "seq": new_seq, "version": label, "target": req.target}
+
+
+@router.get("/terms/acceptances")
+def terms_acceptances(limit: int = 300):
+    db = SessionLocal()
+    try:
+        rows = db.query(TosAcceptance).order_by(TosAcceptance.accepted_at.desc()).limit(limit).all()
+        return {"acceptances": [{"email": r.email, "version": r.version, "seq": r.seq,
+                                 "ip": r.ip, "accepted_at": fmt_ist(r.accepted_at)} for r in rows]}
+    finally:
+        db.close()
+
+
+@router.get("/email-logs")
+def email_logs(kind: str = "", limit: int = 300):
+    db = SessionLocal()
+    try:
+        q = db.query(EmailLog)
+        if kind:
+            q = q.filter(EmailLog.kind == kind)
+        rows = q.order_by(EmailLog.created_at.desc()).limit(limit).all()
+        kinds = sorted({k[0] for k in db.query(EmailLog.kind).distinct().all() if k[0]})
+        return {"kinds": kinds, "logs": [{"to": r.to_addr, "subject": r.subject, "kind": r.kind,
+                "provider": r.provider, "delivered": r.delivered, "error": r.error,
+                "created_at": fmt_ist(r.created_at)} for r in rows]}
+    finally:
+        db.close()

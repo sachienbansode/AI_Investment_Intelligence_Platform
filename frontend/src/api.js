@@ -61,7 +61,7 @@ async function _do(path, opts) {
 }
 
 async function http(path, opts = {}) {
-  const isAuthCall = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register') || path.startsWith('/auth/google') || path.startsWith('/auth/registration-info') || path.startsWith('/auth/invite-info') || path.startsWith('/auth/waitlist') || path.startsWith('/auth/verify') || path.startsWith('/auth/resend-verification') || path.startsWith('/auth/forgot-password')
+  const isAuthCall = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register') || path.startsWith('/auth/google') || path.startsWith('/auth/registration-info') || path.startsWith('/auth/invite-info') || path.startsWith('/auth/terms') || path.startsWith('/auth/waitlist') || path.startsWith('/auth/verify') || path.startsWith('/auth/resend-verification') || path.startsWith('/auth/forgot-password')
   let res = await _do(path, opts)
   // Access token likely expired -> try one silent refresh, then retry once.
   if (res.status === 401 && !isAuthCall && _refresh) {
@@ -85,6 +85,11 @@ export const api = {
     http('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   registrationInfo: () => http('/auth/registration-info'),
   acceptTerms: () => http('/auth/accept-terms', { method: 'POST' }),
+  publicTerms: () => http('/auth/terms'),
+  adminTerms: () => http('/admin/terms'),
+  publishTerms: (body) => http('/admin/terms/publish', { method: 'POST', body: JSON.stringify(body) }),
+  termsAcceptances: () => http('/admin/terms/acceptances'),
+  emailLogs: (kind) => http('/admin/email-logs' + (kind ? ('?kind=' + encodeURIComponent(kind)) : '')),
   inviteInfo: (code) => http('/auth/invite-info?code=' + encodeURIComponent(code)),
   publicSpotlight: () => http('/public/spotlight'),
   register: (body) => http('/auth/register', { method: 'POST', body: JSON.stringify(body) }),

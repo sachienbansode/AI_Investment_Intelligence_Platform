@@ -16,7 +16,7 @@ import secrets
 from fastapi import HTTPException, status
 
 from app.core.auth import hash_password, password_error
-from app.db.database import InviteCode, Invitation, SessionLocal, User, Waitlist, utcnow
+from app.db.database import InviteCode, Invitation, SessionLocal, TosAcceptance, User, Waitlist, utcnow
 from app.services.app_settings import get_setting
 
 log = logging.getLogger(__name__)
@@ -90,20 +90,24 @@ def _redeem(db, code: str, email: str | None = None):
     return row
 
 
-def accept_terms(user_id: int) -> dict:
+def accept_terms(user_id: int, ip: str | None = None) -> dict:
     """Record that a user accepted the current Terms & Conditions version."""
     import datetime as _dt
+    ver = get_setting("tos_version") or "1.0"
+    seq = int(get_setting("tos_seq") or 1)
     db = SessionLocal()
     try:
         u = db.get(User, user_id)
         if u:
             u.tos_accepted = True
-            u.tos_version = get_setting("tos_version") or "1.0"
+            u.tos_version = ver
+            u.tos_seq = seq
             u.tos_accepted_at = _dt.datetime.now(_dt.timezone.utc)
+            db.add(TosAcceptance(user_id=user_id, email=u.email, version=ver, seq=seq, ip=ip))
             db.commit()
     finally:
         db.close()
-    return {"ok": True, "tos_version": get_setting("tos_version") or "1.0"}
+    return {"ok": True, "tos_version": ver, "tos_seq": seq}
 
 
 def invite_info(code: str) -> dict:
@@ -174,9 +178,12 @@ def register_email(email: str, password: str, full_name: str, invite_code: str |
                     hashed_password=hash_password(password), is_admin=False, is_active=True,
                     auth_provider="email", email_verified=not require_verify, signup_ip=signup_ip,
                     tos_accepted=True, tos_version=(get_setting("tos_version") or "1.0"),
+                    tos_seq=int(get_setting("tos_seq") or 1),
                     tos_accepted_at=_dt.datetime.now(_dt.timezone.utc))
         db.add(user)
         _finalize_new_user(db, user, code_row)
+        db.add(TosAcceptance(user_id=user.id, email=email, version=(get_setting("tos_version") or "1.0"),
+                             seq=int(get_setting("tos_seq") or 1), ip=signup_ip))
         token = _new_verify_token(db, user) if require_verify else None
         db.commit()
         db.refresh(user)
@@ -218,7 +225,7 @@ def _send_verification_email(to: str, token: str, name: str) -> bool:
         f'<p style="margin:0 0 24px">{emailer.button(link, "Verify My Email")}</p>'
         f'<p style="font-size:13px;color:#8a93a4;margin:0">Or paste this link into your browser:<br>'
         f'<a href="{link}" style="color:#F94C00;word-break:break-all">{link}</a></p>')
-    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner, kind="verification")
     return delivered
 
 
@@ -273,7 +280,7 @@ def _send_password_email(to: str, newpw: str, name: str) -> bool:
         + (f'<p style="margin:0 0 22px">{emailer.button(base, "Log In")}</p>' if base else '')
         + f'<p style="font-size:13px;color:#8a93a4;margin:0">Please change it from your profile after logging in. '
           f'If you didn\u2019t request this, contact support immediately.</p>')
-    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner, kind="password_reset")
     return delivered
 
 
@@ -369,9 +376,12 @@ def login_or_register_google(id_token: str, invite_code: str | None, signup_ip: 
                     is_admin=False, is_active=True, auth_provider="google",
                     email_verified=info["email_verified"], signup_ip=signup_ip,
                     tos_accepted=True, tos_version=(get_setting("tos_version") or "1.0"),
+                    tos_seq=int(get_setting("tos_seq") or 1),
                     tos_accepted_at=_dt.datetime.now(_dt.timezone.utc))
         db.add(user)
         _finalize_new_user(db, user, code_row)
+        db.add(TosAcceptance(user_id=user.id, email=email, version=(get_setting("tos_version") or "1.0"),
+                             seq=int(get_setting("tos_seq") or 1), ip=signup_ip))
         db.commit()
         db.refresh(user)
         db.expunge(user)
@@ -497,7 +507,7 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
         f'{spot_html}'
         f'<p style="font-size:12.5px;color:#8a93a4;margin:22px 0 0">Or paste this link:<br>'
         f'<a href="{link}" style="color:#F94C00;word-break:break-all">{link}</a></p>')
-    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner, kind="invite")
     return delivered
 
 

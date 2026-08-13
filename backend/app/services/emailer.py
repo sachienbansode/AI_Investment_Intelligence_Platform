@@ -29,6 +29,11 @@ def platform_name() -> str:
     return (get_setting("platform_label") or "NIYTRI AI").strip()
 
 
+def support_email() -> str:
+    from app.services.app_settings import get_setting
+    return (get_setting("support_email") or "").strip()
+
+
 def app_url() -> str:
     from app.config import get_settings
     return (get_settings().app_base_url or "").rstrip("/")
@@ -53,6 +58,9 @@ def _footer_text() -> str:
     if url:
         lines.append(f"{plat} · {url}")
     lines.append(f"© {year} {plat}. All rights reserved.")
+    se = support_email()
+    if se:
+        lines.append(f"Contact: {se}")
     lines.append("Information & analytics only — not investment advice. Investments are subject to market risks.")
     return "\n".join(lines)
 
@@ -74,7 +82,8 @@ def _layout(inner_html: str) -> str:
         '<tr><td style="padding:18px 28px;background:#fafbfe;border-top:1px solid #f2f3f7;'
         'font-size:12px;color:#8a93a4;line-height:1.6;font-family:Arial,Helvetica,sans-serif">'
         f'<a href="{url}" style="color:#F94C00;text-decoration:none">{_html.escape(plat)}</a> · {url}<br>'
-        f'© {year} {_html.escape(plat)}. All rights reserved.<br>'
+        f'© {year} {_html.escape(plat)}. All rights reserved.'
+        + (f'<br>Contact: {_html.escape(support_email())}' if support_email() else '') + '<br>'
         'Information &amp; analytics only — not investment advice. Investments are subject to market risks.'
         '</td></tr></table></td></tr></table></body></html>'
     )
@@ -141,22 +150,40 @@ def _send_smtp(to: str, subject: str, text_body: str, html_body: str) -> None:
     srv.sendmail(s.smtp_from, [to], msg.as_string()); srv.quit()
 
 
-def send_email(to: str, subject: str, text_body: str, html_inner: str | None = None) -> tuple[bool, str]:
-    """Send via the configured provider as branded HTML (+ plain-text fallback)."""
+def _log_email(to: str, subject: str, kind: str, provider: str, delivered: bool, error: str) -> None:
+    try:
+        from app.db.database import EmailLog, SessionLocal
+        db = SessionLocal()
+        try:
+            db.add(EmailLog(to_addr=to, subject=subject[:300], kind=kind, provider=provider,
+                            delivered=delivered, error=(error or "")[:300]))
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        log.warning("email log write failed: %s", e)
+
+
+def send_email(to: str, subject: str, text_body: str, html_inner: str | None = None,
+               kind: str = "general") -> tuple[bool, str]:
+    """Send via the configured provider as branded HTML (+ plain-text fallback).
+    Every attempt is recorded in the email_logs table."""
     provider = _s("email_provider") or "smtp"
     text = (text_body or "").rstrip() + "\n\n" + _footer_text()
     html = _layout(html_inner if html_inner is not None else _auto_inner(text_body or ""))
+    delivered, error = False, ""
     try:
         if provider == "off":
-            return False, "Email is turned off in settings."
-        if provider == "graph":
+            error = "Email is turned off in settings."
+        elif provider == "graph":
             if not graph_configured():
-                return False, "Microsoft 365 (Graph) email is not fully configured."
-            _send_graph(to, subject, html)
-            return True, ""
-        _send_smtp(to, subject, text, html)
-        return True, ""
+                error = "Microsoft 365 (Graph) email is not fully configured."
+            else:
+                _send_graph(to, subject, html); delivered = True
+        else:
+            _send_smtp(to, subject, text, html); delivered = True
     except Exception as e:
-        msg = (str(e).splitlines() or [""])[0][:300]
-        log.warning("email to %s failed via %s: %s", to, provider, msg)
-        return False, msg
+        error = (str(e).splitlines() or [""])[0][:300]
+        log.warning("email to %s failed via %s: %s", to, provider, error)
+    _log_email(to, subject, kind, provider, delivered, error)
+    return delivered, error

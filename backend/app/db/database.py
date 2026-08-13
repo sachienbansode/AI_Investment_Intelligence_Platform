@@ -49,7 +49,8 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)   # last successful login (UTC)
     session_id = Column(String, nullable=True)        # current active session; new login invalidates old
     tos_accepted = Column(Boolean, default=False)      # accepted Terms & Conditions
-    tos_version = Column(String, nullable=True)        # version of T&C accepted
+    tos_version = Column(String, nullable=True)        # version label of T&C accepted
+    tos_seq = Column(Integer, nullable=True)           # numeric T&C sequence accepted
     tos_accepted_at = Column(DateTime, nullable=True)  # when T&C were accepted (UTC)
     created_at = Column(DateTime, default=utcnow)
 
@@ -329,6 +330,39 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+    id = Column(Integer, primary_key=True)
+    to_addr = Column(String, index=True)
+    subject = Column(String)
+    kind = Column(String, index=True)           # verification | invite | password_reset | test | general
+    provider = Column(String, default="")
+    delivered = Column(Boolean, default=False)
+    error = Column(String, default="")
+    created_at = Column(DateTime, default=utcnow, index=True)
+
+
+class TosAcceptance(Base):
+    __tablename__ = "tos_acceptances"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    email = Column(String, index=True)
+    version = Column(String)
+    seq = Column(Integer)
+    ip = Column(String, nullable=True)
+    accepted_at = Column(DateTime, default=utcnow, index=True)
+
+
+class TermsVersion(Base):
+    __tablename__ = "terms_versions"
+    id = Column(Integer, primary_key=True)
+    seq = Column(Integer, index=True)
+    version = Column(String)
+    html = Column(Text)
+    created_by = Column(String, default="")
+    created_at = Column(DateTime, default=utcnow)
+
+
 _MIGRATIONS = [
     ("chat_messages", "user_id", "INTEGER"),
     ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
@@ -352,6 +386,7 @@ _MIGRATIONS = [
     ("users", "session_id", "VARCHAR"),
     ("users", "tos_accepted", "BOOLEAN DEFAULT 0"),
     ("users", "tos_version", "VARCHAR"),
+    ("users", "tos_seq", "INTEGER"),
     ("users", "tos_accepted_at", "TIMESTAMP"),
 ]
 
@@ -444,6 +479,7 @@ def init_db():
             ("users", "session_id", "VARCHAR"),
             ("users", "tos_accepted", "BOOLEAN DEFAULT FALSE"),
             ("users", "tos_version", "VARCHAR"),
+            ("users", "tos_seq", "INTEGER"),
             ("users", "tos_accepted_at", "TIMESTAMPTZ"),
         ]
         with engine.connect() as conn:
