@@ -26,6 +26,7 @@ export default function Profile({ user, onUpdated }) {
   const [pwBusy, setPwBusy] = useState(false)
   const [prefs, setPrefs] = useState(null); const [prefBusy, setPrefBusy] = useState(false)
   const [inv, setInv] = useState(null); const [emails, setEmails] = useState(['']); const [invBusy, setInvBusy] = useState(false)
+  const [shareCode, setShareCode] = useState('')
 
   useEffect(() => { api.alertPrefs().then(setPrefs).catch(() => {}) }, [])
   const loadInv = () => api.myInvites().then(setInv).catch(() => {})
@@ -78,6 +79,10 @@ export default function Profile({ user, onUpdated }) {
                 : (skip ? 'Nothing sent — see below' : 'No invites sent'))
       setEmails(['']); await loadInv()
     } catch (e) { toast('Failed: ' + (e.message || e)) } finally { setInvBusy(false) }
+  }
+  async function genCode() {
+    try { const r = await api.createInviteCode(); setShareCode(r.code); await loadInv(); toast('New one-time code created') }
+    catch (e) { toast('Failed: ' + (e.message || e)) }
   }
   async function resendInv(email) {
     try {
@@ -137,10 +142,13 @@ export default function Profile({ user, onUpdated }) {
             <b style={{ color: 'var(--text)' }}>{inv.remaining}</b> remaining.
             Add one at a time, or up to {inv.remaining} at once.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px' }}>
-            <span className="hint">Your code</span>
-            <code>{inv.code}</code>
-            <button className="ghost sm" onClick={() => { navigator.clipboard?.writeText(inv.code); toast('Code copied') }}>Copy code</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '8px 0 12px' }}>
+            <button className="ghost sm" onClick={genCode} disabled={inv.remaining <= 0}>Create a shareable code</button>
+            {shareCode && <>
+              <code>{shareCode}</code>
+              <button className="ghost sm" onClick={() => { navigator.clipboard?.writeText(shareCode); toast('Code copied') }}>Copy</button>
+              <span className="hint">one-time — works once</span>
+            </>}
           </div>
           {inv.remaining > 0 ? (
             <div>
@@ -176,7 +184,9 @@ export default function Profile({ user, onUpdated }) {
               <div style={{ display: 'grid', gap: 6 }}>
                 {inv.invitations.map(it => (
                   <div key={it.email} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {it.email}{it.code && <code style={{ marginLeft: 8, fontSize: '.72rem', color: 'var(--muted)' }}>{it.code}</code>}
+                    </span>
                     <b style={{ color: it.status === 'joined' ? 'var(--green)' : 'var(--muted)', fontSize: '.82rem', minWidth: 52, textAlign: 'right' }}>{it.status}</b>
                     {it.status !== 'joined' && <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>}
                   </div>

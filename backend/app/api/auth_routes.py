@@ -248,6 +248,13 @@ def forgot_password(req: ForgotRequest):
     return registration.reset_password(req.email)
 
 
+@router.post("/create-invite-code")
+def create_invite_code(user: User = Depends(get_current_user)):
+    res = registration.create_share_code(user.id)
+    audit_log("invite_code_created", user=user.email)
+    return res
+
+
 @router.get("/my-invites")
 def my_invites(user: User = Depends(get_current_user)):
     return registration.my_invites(user.id)

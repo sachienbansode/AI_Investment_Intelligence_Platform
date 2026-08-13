@@ -3,7 +3,7 @@ import asyncio
 from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from app.agents.pipeline import PIPELINE_STATE, live_snapshot, run_daily_pipeline
@@ -494,6 +494,18 @@ async def public_spotlight():
                               "delayed": price.get("delayed", True),
                               "source": price.get("source", "")},
             "disclaimer": AI_DISCLAIMER}
+
+
+@router.get("/public/spotlight-chart.png")
+async def spotlight_chart():
+    """Public PNG sparkline of today's top stock's score history (for emails)."""
+    from app.services import spotlight as sp
+    data = sp.get_spotlight()
+    png = sp.render_sparkline_png(data.get("history") or [],
+                                  date_key=str(data.get("score_date") or ""),
+                                  symbol=str(data.get("symbol") or ""))
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=1800"})
 
 
 @router.get("/price-history/{symbol}")

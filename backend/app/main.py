@@ -130,7 +130,8 @@ app.add_middleware(
 # 503 (admins pass through). A short allowlist keeps auth + health + branding up
 # so admins can still sign in and the client can detect maintenance.
 _MAINT_ALLOW = ("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
-                "/api/v1/auth/registration-info", "/api/v1/health", "/api/v1/branding")
+                "/api/v1/auth/registration-info", "/api/v1/health", "/api/v1/branding",
+                "/api/v1/public/spotlight-chart.png")
 
 
 def _request_is_admin(request) -> bool:

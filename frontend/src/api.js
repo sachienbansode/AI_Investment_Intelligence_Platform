@@ -92,6 +92,7 @@ export const api = {
   resendVerification: (email) => http('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email) => http('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resendInvite: (email) => http('/auth/resend-invite', { method: 'POST', body: JSON.stringify({ email }) }),
+  createInviteCode: () => http('/auth/create-invite-code', { method: 'POST' }),
   userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),
   waitlistRemove: (email) => http('/admin/waitlist/remove', { method: 'POST', body: JSON.stringify({ email }) }),
   waitlistInvite: (email) => http('/admin/waitlist/invite', { method: 'POST', body: JSON.stringify({ email }) }),

@@ -45,6 +45,15 @@ def _issue_member_code(db, user_id: int) -> str:
     return code
 
 
+def _mint_code(db, owner_user_id: int, created_by: str = "member") -> str:
+    """Create a UNIQUE, single-use invite code owned by a member. Each recipient
+    gets their own code so it can't be reused or forwarded to extra people."""
+    code = _gen_code(db)
+    db.add(InviteCode(code=code, owner_user_id=owner_user_id, max_uses=1,
+                      used_count=0, is_active=True, created_by=created_by))
+    return code
+
+
 def _redeem(db, code: str):
     """Validate + consume an invite code. Returns the InviteCode row or raises."""
     row = db.query(InviteCode).filter(InviteCode.code == code.strip().upper()).first()
@@ -61,7 +70,6 @@ def _finalize_new_user(db, user: User, code_row):
         code_row.used_count = (code_row.used_count or 0) + 1
         user.invited_by_code = code_row.code
     db.flush()  # ensure user.id
-    user.referral_code = _issue_member_code(db, user.id)
     db.query(Waitlist).filter(Waitlist.email == user.email).delete()  # they joined; drop from waitlist
 
 
@@ -358,6 +366,33 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
         f'<td style="padding:8px 0"><b style="color:#181d27">{t}</b>'
         f'<div style="color:#6b7280;font-size:13.5px;line-height:1.5">{d}</div></td></tr>'
         for t, d in feats)
+    # Today's top-scored stock (with a chart image) to spark interest.
+    spot_html = ""
+    try:
+        base = (get_settings().app_base_url or "").rstrip("/")
+        from app.services import spotlight as sp
+        sd = sp.get_spotlight()
+        if sd.get("available") and base:
+            sc = round(sd.get("score") or 0)
+            pillars = sorted((sd.get("pillars") or {}).items(), key=lambda x: x[1], reverse=True)[:3]
+            drivers = ", ".join(f'{k.replace("_", " ")} {round(v)}' for k, v in pillars)
+            expl = _esc((sd.get("explanation") or "").strip())
+            spot_html = (
+                '<div style="margin:26px 0 0;border:1px solid #f0f0f5;border-radius:12px;overflow:hidden">'
+                '<div style="background:#fff7f0;padding:12px 16px;font-size:12px;font-weight:700;'
+                'text-transform:uppercase;letter-spacing:.5px;color:#b25a12">Today’s top NIYTRI score</div>'
+                '<div style="padding:14px 16px">'
+                f'<div style="font-size:17px;font-weight:800;color:#181d27">{_esc(sd["symbol"])} '
+                f'<span style="color:#12a06b">{sc}/100</span> '
+                f'<span style="color:#6b7280;font-weight:400;font-size:13px">{_esc(sd.get("name") or "")}</span></div>'
+                f'<img src="{base}/api/v1/public/spotlight-chart.png" width="536" alt="Score trend" '
+                'style="display:block;width:100%;max-width:536px;border-radius:8px;margin:12px 0;border:1px solid #f2f3f7">'
+                + (f'<div style="font-size:13px;color:#6b7280;margin:0 0 4px"><b>Key strengths:</b> {drivers}</div>' if drivers else '')
+                + (f'<div style="font-size:13px;color:#2a3140;line-height:1.55">{expl}</div>' if expl else '')
+                + '<div style="font-size:11px;color:#9aa3b2;margin-top:8px">AI-generated · informational, not investment advice.</div>'
+                '</div></div>')
+    except Exception:
+        spot_html = ""
     inner = (
         f'<h1 style="margin:0 0 12px;font-size:24px;color:#181d27">You\u2019re invited to {_esc(plat)} <span style="color:#F94C00">Pro</span></h1>'
         f'<p style="font-size:15px;line-height:1.7;color:#2a3140;margin:0 0 20px">'
@@ -368,6 +403,7 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
         f'Your invite code: <b style="letter-spacing:1px;font-size:16px;color:#F94C00">{code}</b></div>'
         f'<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b25a12;margin:0 0 6px">What you get</div>'
         f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%">{rows}</table>'
+        f'{spot_html}'
         f'<p style="font-size:12.5px;color:#8a93a4;margin:22px 0 0">Or paste this link:<br>'
         f'<a href="{link}" style="color:#F94C00;word-break:break-all">{link}</a></p>')
     delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
@@ -375,20 +411,14 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
 
 
 def send_invites(user_id: int, emails: list[str]) -> dict:
-    """Send up to invites_per_user email invites. Validates format, dedupes, skips
-    existing members / already-invited, enforces the max, and emails (or records
-    for manual sharing if SMTP isn't configured)."""
+    """Send email invites, each with its OWN unique single-use code. Validates
+    format, dedupes, skips existing members / already-invited, enforces the cap."""
     max_n = int(get_setting("invites_per_user") or 5)
     db = SessionLocal()
     try:
         me = db.get(User, user_id)
-        if not me.referral_code:
-            me.referral_code = _issue_member_code(db, user_id)
-            db.commit(); db.refresh(me)
-        code = me.referral_code
-        already = db.query(Invitation).filter_by(inviter_user_id=user_id).count()
-        remaining = max(0, max_n - already)
-
+        used = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        remaining = max(0, max_n - used)
         clean, seen = [], set()
         for e in (emails or [])[:max_n]:
             e = (e or "").strip().lower()
@@ -404,28 +434,27 @@ def send_invites(user_id: int, emails: list[str]) -> dict:
             raise HTTPException(400, "Enter at least one email address.")
         if len(clean) > remaining:
             raise HTTPException(400, f"You can send {remaining} more invite(s).")
-
         sent, skipped = [], []
         for e in clean:
             if db.query(User.id).filter(User.email == e).first():
                 skipped.append({"email": e, "reason": "already a member"}); continue
             if db.query(Invitation.id).filter_by(inviter_user_id=user_id, email=e).first():
                 skipped.append({"email": e, "reason": "already invited"}); continue
+            code = _mint_code(db, user_id); db.flush()
             delivered = _send_invite_email(e, code, me.full_name or "")
             db.add(Invitation(inviter_user_id=user_id, email=e, code=code,
                               status="sent", delivered=delivered))
             sent.append({"email": e, "delivered": delivered})
         db.commit()
-        new_total = db.query(Invitation).filter_by(inviter_user_id=user_id).count()
-        return {"sent": sent, "skipped": skipped, "code": code,
-                "remaining": max(0, max_n - new_total),
+        used2 = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        return {"sent": sent, "skipped": skipped, "remaining": max(0, max_n - used2),
                 "emailed": all(x["delivered"] for x in sent) if sent else True}
     finally:
         db.close()
 
 
 def resend_invite(user_id: int, email: str) -> dict:
-    """Re-send an existing invitation email (spam/deleted). Returns delivered flag."""
+    """Re-send an existing invitation using its OWN unique code (spam/deleted)."""
     email = (email or "").strip().lower()
     db = SessionLocal()
     try:
@@ -434,7 +463,9 @@ def resend_invite(user_id: int, email: str) -> dict:
         if not inv:
             raise HTTPException(404, "No invitation found for that email.")
         already = bool(db.query(User.id).filter(User.email == email).first())
-        code = me.referral_code or _issue_member_code(db, user_id)
+        code = inv.code or _mint_code(db, user_id)
+        if not inv.code:
+            inv.code = code
         db.commit()
         name = me.full_name or ""
     finally:
@@ -453,25 +484,52 @@ def resend_invite(user_id: int, email: str) -> dict:
     return {"delivered": delivered, "already_member": False}
 
 
-def my_invites(user_id: int) -> dict:
-    """The member's referral code, invites remaining, and who they've invited."""
+def create_share_code(user_id: int) -> dict:
+    """Mint one unique single-use code the member can share manually (counts
+    against their invite limit)."""
     max_n = int(get_setting("invites_per_user") or 5)
     db = SessionLocal()
     try:
-        row = db.query(InviteCode).filter_by(owner_user_id=user_id).first()
-        if not row:
-            _issue_member_code(db, user_id); db.commit()
-            row = db.query(InviteCode).filter_by(owner_user_id=user_id).first()
+        used = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        if used >= max_n:
+            raise HTTPException(400, "You\u2019ve used all your invites.")
+        code = _mint_code(db, user_id, created_by="member-share")
+        db.commit()
+        return {"code": code, "remaining": max(0, max_n - (used + 1))}
+    finally:
+        db.close()
+    if already:
+        return {"delivered": False, "already_member": True}
+    delivered = _send_invite_email(email, code, name)
+    db = SessionLocal()
+    try:
+        inv = db.query(Invitation).filter_by(inviter_user_id=user_id, email=email).first()
+        if inv and delivered and not inv.delivered:
+            inv.delivered = True
+            db.commit()
+    finally:
+        db.close()
+    return {"delivered": delivered, "already_member": False}
+
+
+def my_invites(user_id: int) -> dict:
+    """Invites remaining and who they've invited (each invite has its own code)."""
+    max_n = int(get_setting("invites_per_user") or 5)
+    db = SessionLocal()
+    try:
+        codes = [c.code for c in db.query(InviteCode).filter_by(owner_user_id=user_id).all()]
+        used = len(codes)
         invs = db.query(Invitation).filter_by(inviter_user_id=user_id).order_by(
             Invitation.created_at.desc()).all()
-        joined = {u.email for u in db.query(User.email)
-                  .filter(User.invited_by_code == row.code).all()}
-        items = [{"email": i.email,
+        joined = set()
+        redeemed = 0
+        if codes:
+            joined = {u.email for u in db.query(User.email).filter(User.invited_by_code.in_(codes)).all()}
+            redeemed = db.query(User.id).filter(User.invited_by_code.in_(codes)).count()
+        items = [{"email": i.email, "code": i.code,
                   "status": "joined" if i.email in joined else ("sent" if i.delivered else "shared"),
                   "created_at": i.created_at.isoformat() if i.created_at else None} for i in invs]
-        sent_count = len(invs)
-        return {"code": row.code, "max": max_n, "sent": sent_count,
-                "remaining": max(0, max_n - sent_count),
-                "redeemed": row.used_count or 0, "invitations": items}
+        return {"max": max_n, "sent": len(invs), "remaining": max(0, max_n - used),
+                "redeemed": redeemed, "invitations": items}
     finally:
         db.close()
