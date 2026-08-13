@@ -105,8 +105,8 @@ export default function Agents() {
         </div>
         <div className="hint">
           {s.running && run
-            ? `Run ${run.run_id} · ${run.symbols.length} scripts · started ${fmtTime(run.started)}`
-            : s.last ? `Last run ${s.last.run_id} (${s.last.status}) · ${s.last.symbols.length} scripts` : 'No runs yet'}
+            ? `Run ${run.run_id} · ${run.symbols?.length ?? run.symbols_count ?? 0} scripts · started ${fmtTime(run.started)}`
+            : s.last ? `Last run ${s.last.run_id} (${s.last.status}) · ${s.last.symbols?.length ?? s.last.symbols_count ?? 0} scripts` : 'No runs yet'}
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export default function Agents() {
           demand, or pull the latest market news now. Scoring is disabled while a run is in progress.</p>
       </div>
 
-      {run && (
+      {run && run.agents && (
         <div className="agent-grid">
           {run.agents.map(a => (
             <div key={a.name} className={`agent-card ${a.status}`} title={CARD_TIPS[a.name]}>

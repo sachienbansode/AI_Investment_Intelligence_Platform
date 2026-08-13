@@ -858,7 +858,7 @@ async def agents_status(user: User = Depends(get_current_user)):
         "active_agents": ([a["name"] for a in running["agents"]
                            if a["status"] == "running"] if running else []),
         "current": running,
-        "last": PIPELINE_STATE["last"] or (history[0] if history else None),
+        "last": PIPELINE_STATE["last"],
         "history": history,
         "scheduled_jobs": jobs,
         "llm_providers": get_llm_router().active_providers,
