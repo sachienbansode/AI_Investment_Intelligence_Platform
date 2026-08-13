@@ -1,0 +1,130 @@
+<!-- NIYTRI post-login app — Orange & White theme mockup (static, review only) -->
+<meta charset="utf-8"><title>NIYTRI App — Orange/White theme</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#fbf7f3;--card:#fff;--line:#f0e6dc;--ink:#181d27;--mut:#6b7280;--faint:#9aa3b2;
+    --or1:#FF8A3D;--or2:#FF6A00;--or3:#F94C00;--grad:linear-gradient(90deg,#FF8A3D,#FF6A00 55%,#F94C00);
+    --green:#12a06b;--amber:#d4920f;--red:#e0503f}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif}
+  body{background:#eef1f7;color:var(--ink);padding:16px}
+  .app{display:flex;min-height:760px;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;max-width:1280px;margin:0 auto}
+  .side{width:212px;background:#fff;border-right:1px solid var(--line);padding:16px 12px;flex:0 0 auto}
+  .brand{font-weight:800;font-size:16px;letter-spacing:1px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding:6px 8px 16px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;color:#5b6473;font-size:13.5px;text-decoration:none;margin-bottom:3px}
+  .nav a.on{background:var(--grad);color:#fff;font-weight:600}
+  .nav a i{width:18px;text-align:center}
+  .side-foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px}
+  .ava{width:30px;height:30px;border-radius:50%;background:#fff0e6;color:var(--or3);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .main{flex:1;min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:11px 20px;background:#fff;border-bottom:1px solid var(--line)}
+  .chip{display:inline-flex;gap:6px;align-items:center;font-size:12px;background:#fff7f0;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .chip .ex{font-size:10px;font-weight:700;color:#fff;background:var(--or2);border-radius:5px;padding:1px 5px}
+  .up{color:var(--green)}.dn{color:var(--red)}
+  .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;color:#5b6473;cursor:pointer}
+  .body{padding:20px}
+  h1.pt{font-size:20px;font-weight:800;margin-bottom:16px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:#fff;border:1px solid var(--line);border-top:3px solid var(--or2);border-radius:12px;padding:14px}
+  .kpi .l{color:var(--faint);font-size:12px}.kpi .v{font-size:26px;font-weight:800}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel h3{font-size:15px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:6px 8px}
+  td{padding:9px 8px;border-top:1px solid #f4ece3}
+  .score{color:#fff;border-radius:8px;padding:3px 10px;font-weight:700}
+  .btn{background:var(--grad);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:#2a3140;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .heat{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
+  .heat div{color:#fff;border-radius:9px;padding:12px}
+  .insight{margin-top:14px;background:#fff7f0;border:1px solid #ffe0c7;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#7a4a1e}
+  .row{display:flex;gap:16px;margin-top:16px}
+  .bubble{max-width:70%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.5}
+  .bubble.u{background:var(--grad);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+  .bubble.a{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .field{width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:14px}
+  .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .callout{background:#fff7f0;border:1px solid #ffd9bd;border-radius:12px;padding:12px 14px;color:#7a4a1e;font-size:13.5px}
+  h2.sec{font-size:14px;margin:22px 0 10px;color:var(--ink)}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">NIYTRI</div>
+    <nav class="nav">
+      <a class="on"><i>◆</i> Dashboard</a>
+      <a><i>▤</i> Stock Scores</a>
+      <a><i>✦</i> AI Assistant</a>
+      <a><i>⇄</i> Compare</a>
+      <a><i>◈</i> Market News</a>
+      <a><i>☆</i> Watchlist</a>
+      <a><i>◐</i> Portfolio</a>
+      <a><i>⚑</i> Alerts</a>
+      <a><i>♟</i> Users</a>
+      <a><i>⛨</i> Admin</a>
+    </nav>
+    <div class="side-foot"><div class="ava">S</div><div style="font-size:12.5px"><div style="font-weight:600">Sachin B</div><div style="color:var(--faint);font-size:11px">Administrator</div></div></div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div style="flex:1;display:flex;gap:8px;overflow:hidden">
+        <span class="chip"><span class="ex">NSE</span> <b>NIFTY 50</b> <span style="color:var(--mut)">24,395</span> <span class="dn">▼0.16%</span></span>
+        <span class="chip"><span class="ex">BSE</span> <b>SENSEX</b> <span style="color:var(--mut)">78,079</span> <span class="up">▲0.09%</span></span>
+        <span class="chip"><span class="ex">NSE</span> <b>BANK NIFTY</b> <span style="color:var(--mut)">51,840</span> <span class="up">▲0.31%</span></span>
+      </div>
+      <button class="icon-btn">☾</button>
+    </header>
+
+    <div class="body">
+      <h1 class="pt">Dashboard</h1>
+      <div class="kpis">
+        <div class="kpi"><div class="l">Avg NIYTRI Score</div><div class="v" style="color:var(--green)">64.8</div></div>
+        <div class="kpi" style="border-top-color:var(--or1)"><div class="l">Scripts scored</div><div class="v">487</div></div>
+        <div class="kpi" style="border-top-color:var(--green)"><div class="l">Up today</div><div class="v" style="color:var(--green)">312</div></div>
+        <div class="kpi" style="border-top-color:var(--amber)"><div class="l">Strong (65+)</div><div class="v">126</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Top NIYTRI Scores</h3>
+          <table>
+            <thead><tr><th>Script</th><th style="text-align:right">Price</th><th style="text-align:right">Day%</th><th style="text-align:right">Score</th></tr></thead>
+            <tbody>
+              <tr><td><b>PFC</b> <span style="color:var(--faint)">Financial</span></td><td style="text-align:right">₹378.5</td><td style="text-align:right" class="up">▲0.53%</td><td style="text-align:right"><span class="score" style="background:var(--green)">69.6</span></td></tr>
+              <tr><td><b>IDEA</b> <span style="color:var(--faint)">Telecom</span></td><td style="text-align:right">₹13.7</td><td style="text-align:right" class="up">▲1.2%</td><td style="text-align:right"><span class="score" style="background:var(--green)">68.1</span></td></tr>
+              <tr><td><b>UNIONBANK</b> <span style="color:var(--faint)">Financial</span></td><td style="text-align:right">₹188.2</td><td style="text-align:right" class="dn">▼0.3%</td><td style="text-align:right"><span class="score" style="background:var(--green)">67.7</span></td></tr>
+              <tr><td><b>TATASTEEL</b> <span style="color:var(--faint)">Metals</span></td><td style="text-align:right">₹162.3</td><td style="text-align:right" class="up">▲0.4%</td><td style="text-align:right"><span class="score" style="background:var(--amber)">58.2</span></td></tr>
+              <tr><td><b>ZEEL</b> <span style="color:var(--faint)">Media</span></td><td style="text-align:right">₹138.9</td><td style="text-align:right" class="dn">▼1.1%</td><td style="text-align:right"><span class="score" style="background:var(--red)">41.0</span></td></tr>
+            </tbody>
+          </table>
+          <button class="btn" style="margin-top:12px">View all scores</button>
+        </div>
+        <div class="panel">
+          <h3>Sector strength</h3>
+          <div class="heat">
+            <div style="background:var(--green)"><div style="opacity:.85">Financials</div><b style="font-size:18px">66</b></div>
+            <div style="background:#3f9e6b"><div style="opacity:.85">IT</div><b style="font-size:18px">61</b></div>
+            <div style="background:var(--amber)"><div style="opacity:.85">Energy</div><b style="font-size:18px">54</b></div>
+            <div style="background:#d98a3f"><div style="opacity:.85">Metals</div><b style="font-size:18px">49</b></div>
+            <div style="background:var(--red)"><div style="opacity:.85">Realty</div><b style="font-size:18px">42</b></div>
+            <div style="background:#3f9e6b"><div style="opacity:.85">FMCG</div><b style="font-size:18px">60</b></div>
+          </div>
+          <div class="insight"><b>AI insight:</b> Financials lead today; Realty stays weak on rate concerns.</div>
+        </div>
+      </div>
+
+      <h2 class="sec">AI Assistant (same theme)</h2>
+      <div class="panel">
+        <div class="row" style="flex-direction:column;gap:10px;margin-top:0">
+          <div class="bubble u">Which financial stocks are strong today?</div>
+          <div class="bubble a"><div class="callout" style="margin-bottom:8px"><b>Bottom line:</b> 3 financials score 65+ today — PFC (69.6), UNIONBANK (67.7), BANKINDIA (67.2).</div>Scores are AI-generated analytics, not investment advice.</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <input class="field" placeholder="Ask about a stock, your portfolio or the market…">
+          <button class="btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
