@@ -2,6 +2,22 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { toast } from '../dialog.jsx'
 
+// Password policy (mirrors the backend): 8+ chars with a letter, number and special char.
+export function pwError(pw) {
+  pw = pw || ''
+  if (pw.length < 8) return 'Password must be at least 8 characters.'
+  if (!/[A-Za-z]/.test(pw)) return 'Password must include a letter.'
+  if (!/\d/.test(pw)) return 'Password must include a number.'
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include a special character (e.g. ! @ # $ %).'
+  return null
+}
+const PW_RULES = [
+  ['At least 8 characters', p => (p || '').length >= 8],
+  ['A letter', p => /[A-Za-z]/.test(p || '')],
+  ['A number', p => /\d/.test(p || '')],
+  ['A special character (! @ # $ %)', p => /[^A-Za-z0-9]/.test(p || '')],
+]
+
 export default function Profile({ user, onUpdated }) {
   const [name, setName] = useState(user?.full_name || '')
   const [avatar, setAvatar] = useState(user?.avatar || '')
@@ -30,7 +46,8 @@ export default function Profile({ user, onUpdated }) {
     try { const u = await api.updateProfile({ avatar: '' }); onUpdated && onUpdated(u) } catch {}
   }
   async function savePw() {
-    if (nw.length < 6) { toast('New password must be at least 6 characters'); return }
+    const perr = pwError(nw)
+    if (perr) { toast(perr); return }
     if (nw !== cf) { toast('New passwords do not match'); return }
     setPwBusy(true)
     try { await api.changePassword({ current_password: cur, new_password: nw }); toast('Password changed'); setCur(''); setNw(''); setCf('') }
@@ -88,11 +105,19 @@ export default function Profile({ user, onUpdated }) {
 
       <div className="panel">
         <h3>Change password</h3>
-        <div className="profile-fields">
-          <label>Current password<input type="password" value={cur} onChange={e => setCur(e.target.value)} autoComplete="current-password" /></label>
+        <div className="profile-fields" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <label style={{ gridColumn: '1 / -1' }}>Current password<input type="password" value={cur} onChange={e => setCur(e.target.value)} autoComplete="current-password" /></label>
           <label>New password<input type="password" value={nw} onChange={e => setNw(e.target.value)} autoComplete="new-password" /></label>
-          <label>Confirm new password<input type="password" value={cf} onChange={e => setCf(e.target.value)} autoComplete="new-password" /></label>
+          <label>Confirm new password<input type="password" value={cf} onChange={e => setCf(e.target.value)} autoComplete="new-password"
+            style={{ borderColor: cf && cf !== nw ? 'var(--red)' : undefined }} /></label>
         </div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '2px 0 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
+          {PW_RULES.map(([label, test]) => {
+            const okr = test(nw)
+            return <li key={label} style={{ fontSize: 12.5, color: !nw ? 'var(--muted)' : (okr ? 'var(--green)' : 'var(--muted)') }}>{okr ? '✓' : '○'} {label}</li>
+          })}
+          {cf && cf !== nw && <li style={{ fontSize: 12.5, color: 'var(--red)', gridColumn: '1 / -1' }}>✗ Passwords don’t match</li>}
+        </ul>
         <button onClick={savePw} disabled={pwBusy || !cur || !nw}>{pwBusy ? 'Updating…' : 'Update password'}</button>
       </div>
 

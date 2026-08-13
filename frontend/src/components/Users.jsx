@@ -1,34 +1,56 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
+import { toast } from '../dialog.jsx'
 
 const iso = d => d.toISOString().slice(0, 10)
 function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return iso(d) }
-const fmtDT = s => { if (!s) return '—'; try { return new Date(s).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch { return s } }
-const fmtD = s => { if (!s) return '—'; try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) } catch { return s } }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// dd-MMM-yyyy everywhere.
+const fmtD = s => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return String(s); return String(d.getDate()).padStart(2, '0') + '-' + MON[d.getMonth()] + '-' + d.getFullYear() }
+const fmtDT = s => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return String(s); const hh = String(d.getHours()).padStart(2, '0'); const mm = String(d.getMinutes()).padStart(2, '0'); return fmtD(s) + ' ' + hh + ':' + mm }
 
 function Stat({ label, value, sub }) {
   return <div className="ua-stat"><div className="ua-stat-v">{value}</div><div className="ua-stat-l">{label}</div>{sub && <div className="ua-stat-s">{sub}</div>}</div>
 }
 
-// Compact SVG bar chart for daily new-user growth.
+// SVG bar chart for new-user growth. Long ranges auto-aggregate to weekly buckets
+// so bars stay readable; labels use dd-MMM-yyyy.
 function Growth({ data }) {
-  if (!data || !data.length) return <div className="hint">No data in range.</div>
-  const W = 720, H = 150, pad = 22
-  const max = Math.max(1, ...data.map(d => d.count))
-  const bw = (W - pad * 2) / data.length
+  const { bars, weekly } = useMemo(() => {
+    if (!data || !data.length) return { bars: [], weekly: false }
+    if (data.length <= 45) return { bars: data.map(d => ({ label: d.date, count: d.count })), weekly: false }
+    const out = []
+    for (let i = 0; i < data.length; i += 7) {
+      const chunk = data.slice(i, i + 7)
+      out.push({ label: chunk[0].date, count: chunk.reduce((s, d) => s + d.count, 0) })
+    }
+    return { bars: out, weekly: true }
+  }, [data])
+  if (!bars.length) return <div className="hint">No data in range.</div>
+  const W = 720, H = 160, padL = 30, padR = 12, padT = 16, padB = 26
+  const plotW = W - padL - padR, plotH = H - padT - padB
+  const max = Math.max(1, ...bars.map(b => b.count))
+  const bw = plotW / bars.length
+  const ticks = [0, Math.ceil(max / 2), max]
   return (
-    <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="150" style={{ display: 'block' }}>
-      {[0.5, 1].map((f, i) => <line key={i} x1={pad} x2={W - pad} y1={pad + (H - pad * 2) * (1 - f)} y2={pad + (H - pad * 2) * (1 - f)} stroke="var(--border)" />)}
-      {data.map((d, i) => {
-        const h = (H - pad * 2) * (d.count / max)
-        return <rect key={i} x={pad + i * bw + 1} y={H - pad - h} width={Math.max(1, bw - 2)} height={h} rx="2" fill="var(--accent)">
-          <title>{d.date}: {d.count}</title>
-        </rect>
-      })}
-      <text x={pad} y={H - 4} fill="var(--muted)" fontSize="10">{data[0].date}</text>
-      <text x={W - pad} y={H - 4} fill="var(--muted)" fontSize="10" textAnchor="end">{data[data.length - 1].date}</text>
-      <text x={pad} y={pad - 6} fill="var(--muted)" fontSize="10">peak {max}/day</text>
-    </svg>
+    <div>
+      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }}>
+        <defs><linearGradient id="uag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--accent)" /><stop offset="1" stopColor="var(--accent2)" /></linearGradient></defs>
+        {ticks.map((t, i) => {
+          const y = padT + plotH * (1 - t / max)
+          return <g key={i}><line x1={padL} x2={W - padR} y1={y} y2={y} stroke="var(--border)" /><text x={padL - 6} y={y + 3} fill="var(--muted)" fontSize="10" textAnchor="end">{t}</text></g>
+        })}
+        {bars.map((b, i) => {
+          const h = plotH * (b.count / max)
+          return <rect key={i} x={padL + i * bw + Math.max(1, bw * 0.15)} y={padT + plotH - h}
+            width={Math.max(2, bw * 0.7)} height={h} rx="2" fill="url(#uag)">
+            <title>{fmtD(b.label)}{weekly ? ' (week)' : ''}: {b.count}</title></rect>
+        })}
+        <text x={padL} y={H - 8} fill="var(--muted)" fontSize="10">{fmtD(bars[0].label)}</text>
+        <text x={W - padR} y={H - 8} fill="var(--muted)" fontSize="10" textAnchor="end">{fmtD(bars[bars.length - 1].label)}</text>
+      </svg>
+      <div className="hint" style={{ marginTop: 2 }}>Peak {max} {weekly ? 'per week' : 'per day'}{weekly ? ' · weekly buckets' : ''}</div>
+    </div>
   )
 }
 
@@ -58,6 +80,18 @@ export default function Users() {
   }
   useEffect(() => { load() }, [])
 
+  async function wlRemove(email) {
+    try { await api.waitlistRemove(email); toast('Removed from waitlist'); load() } catch (e) { toast('Failed: ' + e.message) }
+  }
+  async function wlInvite(email) {
+    try { const r = await api.waitlistInvite(email); toast(r.delivered ? 'Invite emailed to ' + email : 'Invite created — code ' + r.code + ' (email not sent)'); load() }
+    catch (e) { toast('Failed: ' + e.message) }
+  }
+  async function wlClear() {
+    if (!confirm('Clear the entire waitlist? This cannot be undone.')) return
+    try { const r = await api.waitlistClearAll(); toast('Cleared ' + r.removed + ' entries'); load() } catch (e) { toast('Failed: ' + e.message) }
+  }
+
   const rows = useMemo(() => {
     if (!data) return []
     const term = q.trim().toLowerCase()
@@ -79,7 +113,7 @@ export default function Users() {
           <button onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Apply'}</button>
           <div className="ua-quick">{quick.map(([l, n]) => <button key={l} className="ghost sm" onClick={() => { setFrom(daysAgo(n)); setTo(iso(new Date())); setTimeout(load, 0) }}>{l}</button>)}</div>
         </div>
-        {data && <div className="hint">Range: {data.range.from} → {data.range.to}</div>}
+        {data && <div className="hint">Range: {fmtD(data.range.from)} → {fmtD(data.range.to)}</div>}
       </div>
 
       {err && <div className="panel"><p className="note">{err}</p></div>}
@@ -87,7 +121,7 @@ export default function Users() {
       {data && (<>
         <div className="ua-stats">
           <Stat label="Total users" value={data.totals.users} />
-          <Stat label={'New (' + data.range.from.slice(5) + '–' + data.range.to.slice(5) + ')'} value={data.totals.new_in_range} />
+          <Stat label="New in range" value={data.totals.new_in_range} sub={fmtD(data.range.from) + ' – ' + fmtD(data.range.to)} />
           <Stat label="Verified" value={data.totals.verified} sub={data.totals.unverified + ' unverified'} />
           <Stat label="Admins" value={data.totals.admins} />
           <Stat label="Invites sent" value={data.invites.sent} sub={data.invites.sent_in_range + ' in range'} />
@@ -118,10 +152,22 @@ export default function Users() {
             ) : <div className="hint">No invites yet.</div>}
           </div>
           <div className="panel">
-            <div className="ua-h">Waitlist ({data.waitlist.count})</div>
+            <div className="ua-h ua-users-h">
+              <span>Waitlist ({data.waitlist.count})</span>
+              {data.waitlist.count > 0 && <button className="ghost sm" onClick={wlClear}>Clear all</button>}
+            </div>
             {data.waitlist.recent.length ? (
-              <div className="ua-wl">{data.waitlist.recent.map((w, i) => <div key={i} className="ua-wl-row"><span>{w.email}</span><span className="hint">{fmtD(w.created_at)}</span></div>)}</div>
+              <div className="ua-wl">{data.waitlist.recent.map((w, i) => (
+                <div key={i} className="ua-wl-row">
+                  <span>{w.email}<span className="hint" style={{ marginLeft: 8 }}>{fmtD(w.created_at)}</span></span>
+                  <span className="ua-wl-act">
+                    <button className="sm" title="Send an invite code and remove from waitlist" onClick={() => wlInvite(w.email)}>Invite</button>
+                    <button className="ghost sm" title="Remove from waitlist" onClick={() => wlRemove(w.email)}>Remove</button>
+                  </span>
+                </div>
+              ))}</div>
             ) : <div className="hint">Waitlist is empty.</div>}
+            <div className="hint" style={{ marginTop: 8 }}>Entries auto-clear when the person signs up. Showing latest {data.waitlist.recent.length} of {data.waitlist.count}.</div>
           </div>
         </div>
 
@@ -197,6 +243,8 @@ const CSS = `
 .ua-adm{margin-left:6px;font-size:10px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:5px;padding:0 5px}
 .ua-yes{color:var(--green);font-weight:700}.ua-no{color:var(--faint)}
 .ua-wl{display:grid;gap:6px;max-height:260px;overflow:auto}
-.ua-wl-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.ua-wl-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.ua-wl-act{display:flex;gap:6px;flex:0 0 auto}
+.ua-wl-act button{padding:4px 10px;font-size:12px}
 @media(max-width:900px){.ua-stats{grid-template-columns:repeat(3,1fr)}.ua-grid2{grid-template-columns:1fr}}
 `

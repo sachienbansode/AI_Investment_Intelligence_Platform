@@ -1337,3 +1337,51 @@ def user_activity(from_: str = Query(None, alias="from"), to: str = Query(None))
                      "recent": [{"email": w.email, "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:25]]},
         "users": user_rows,
     }
+
+
+class WaitlistAction(BaseModel):
+    email: EmailStr
+
+
+@router.post("/waitlist/remove")
+def waitlist_remove(req: WaitlistAction):
+    db = SessionLocal()
+    try:
+        n = db.query(Waitlist).filter(Waitlist.email == req.email.lower()).delete()
+        db.commit()
+    finally:
+        db.close()
+    audit_log("waitlist_remove", email=req.email.lower())
+    return {"removed": n}
+
+
+@router.post("/waitlist/invite")
+def waitlist_invite(req: WaitlistAction):
+    """Create a one-time invite code, email it to the waitlisted address, and
+    remove them from the waitlist. Returns the code (share manually if no SMTP)."""
+    from app.core import registration as reg
+    email = req.email.lower()
+    db = SessionLocal()
+    try:
+        code = reg._gen_code(db)
+        db.add(InviteCode(code=code, owner_user_id=None, max_uses=1, used_count=0,
+                          is_active=True, created_by="admin"))
+        db.query(Waitlist).filter(Waitlist.email == email).delete()
+        db.commit()
+    finally:
+        db.close()
+    delivered = reg._send_invite_email(email, code, "The NIYTRI Team")
+    audit_log("waitlist_invite", email=email, delivered=delivered)
+    return {"ok": True, "code": code, "delivered": delivered}
+
+
+@router.post("/waitlist/clear-all")
+def waitlist_clear_all():
+    db = SessionLocal()
+    try:
+        n = db.query(Waitlist).delete()
+        db.commit()
+    finally:
+        db.close()
+    audit_log("waitlist_clear_all", count=n)
+    return {"removed": n}

@@ -3,6 +3,7 @@
 Swap `get_current_user` for your trading app's SSO validation later — the rest
 of the codebase only depends on the returned User.
 """
+import re
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -14,6 +15,25 @@ from app.config import get_settings
 from app.db.database import ALL_PAGES, Role, SessionLocal, USER_PAGES, User
 
 JWT_SECRET = get_settings().jwt_secret
+
+PASSWORD_MIN = 8
+PASSWORD_HELP = ("At least 8 characters, including a letter, a number and a "
+                 "special character (e.g. ! @ # $ %).")
+
+
+def password_error(pw: str) -> str | None:
+    """Return an error message if the password fails policy, else None.
+    Policy: >= 8 chars with a letter, a digit and a special character."""
+    pw = pw or ""
+    if len(pw) < PASSWORD_MIN:
+        return f"Password must be at least {PASSWORD_MIN} characters."
+    if not re.search(r"[A-Za-z]", pw):
+        return "Password must include a letter."
+    if not re.search(r"\d", pw):
+        return "Password must include a number."
+    if not re.search(r"[^A-Za-z0-9]", pw):
+        return "Password must include a special character (e.g. ! @ # $ %)."
+    return None
 JWT_ALGO = "HS256"
 
 # Hard server-side session policy:

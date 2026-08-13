@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from app.core.auth import (get_current_user, hash_password, issue_tokens,
-                           rotate_refresh, verify_password)
+                           password_error, rotate_refresh, verify_password)
 from app.core.compliance import audit_log
 from app.db.database import SessionLocal, User
 from app.core import registration
@@ -135,8 +135,9 @@ def update_profile(req: ProfileUpdate, user: User = Depends(get_current_user)):
 
 @router.post("/change-password")
 def change_password(req: PasswordChange, user: User = Depends(get_current_user)):
-    if len(req.new_password) < 6:
-        raise HTTPException(400, "New password must be at least 6 characters")
+    perr = password_error(req.new_password)
+    if perr:
+        raise HTTPException(400, perr)
     db = SessionLocal()
     try:
         u = db.get(User, user.id)

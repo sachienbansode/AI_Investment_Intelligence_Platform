@@ -15,7 +15,7 @@ import secrets
 
 from fastapi import HTTPException, status
 
-from app.core.auth import hash_password
+from app.core.auth import hash_password, password_error
 from app.db.database import InviteCode, Invitation, SessionLocal, User, Waitlist, utcnow
 from app.services.app_settings import get_setting
 
@@ -62,6 +62,7 @@ def _finalize_new_user(db, user: User, code_row):
         user.invited_by_code = code_row.code
     db.flush()  # ensure user.id
     user.referral_code = _issue_member_code(db, user.id)
+    db.query(Waitlist).filter(Waitlist.email == user.email).delete()  # they joined; drop from waitlist
 
 
 def register_email(email: str, password: str, full_name: str, invite_code: str | None, signup_ip: str | None = None):
@@ -72,8 +73,9 @@ def register_email(email: str, password: str, full_name: str, invite_code: str |
     email = (email or "").strip().lower()
     if not _EMAIL_RE.match(email):
         raise HTTPException(400, "Enter a valid email address.")
-    if len(password or "") < 6:
-        raise HTTPException(400, "Password must be at least 6 characters.")
+    perr = password_error(password)
+    if perr:
+        raise HTTPException(400, perr)
     mode = get_setting("registration_mode") or "invite_only"
     if mode == "closed":
         raise HTTPException(403, "Sign-ups are closed. Please contact your administrator.")
@@ -173,10 +175,15 @@ def verify_email_token(token: str):
         db.close()
 
 
-def _gen_password(n: int = 10) -> str:
+def _gen_password(n: int = 12) -> str:
     import string
-    alpha = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alpha) for _ in range(n))
+    specials = "!@#$%^&*"
+    pools = [string.ascii_uppercase, string.ascii_lowercase, string.digits, specials]
+    pw = [secrets.choice(pool) for pool in pools]  # guarantee one of each
+    allc = string.ascii_letters + string.digits + specials
+    pw += [secrets.choice(allc) for _ in range(max(0, n - len(pw)))]
+    secrets.SystemRandom().shuffle(pw)
+    return "".join(pw)
 
 
 def _send_password_email(to: str, newpw: str, name: str) -> bool:

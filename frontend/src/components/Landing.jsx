@@ -55,6 +55,20 @@ function demoSpotlight() {
 }
 
 const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) } catch { return String(s) } }
+function pwError(pw) {
+  pw = pw || ''
+  if (pw.length < 8) return 'Password must be at least 8 characters.'
+  if (!/[A-Za-z]/.test(pw)) return 'Password must include a letter.'
+  if (!/\d/.test(pw)) return 'Password must include a number.'
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include a special character (e.g. ! @ # $ %).'
+  return null
+}
+const PW_RULES = [
+  ['8+ characters', p => (p || '').length >= 8],
+  ['A letter', p => /[A-Za-z]/.test(p || '')],
+  ['A number', p => /\d/.test(p || '')],
+  ['A special character', p => /[^A-Za-z0-9]/.test(p || '')],
+]
 const bandCol = (sc) => sc >= 65 ? '#12b981' : sc >= 45 ? '#d4920f' : '#e05252'
 const fmtCr = (v) => v == null ? '—' : (Number(v) >= 1e7 ? (Number(v) / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 0 }) + ' Cr' : Number(v).toLocaleString('en-IN'))
 const fmtNum = (v, d = 2) => v == null ? '—' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: d })
@@ -238,7 +252,8 @@ export default function Landing({ onLogin }) {
   async function doRegister(e) {
     e.preventDefault(); setErr(''); setOk('')
     if (!full_name.trim()) return setErr('Please enter your full name.')
-    if (password.length < 6) return setErr('Password must be at least 6 characters.')
+    const perr = pwError(password)
+    if (perr) return setErr(perr)
     if (password !== confirm) return setErr('Passwords do not match.')
     if (inviteRequired && !invite.trim()) return setErr('An invite code is required to join the beta.')
     setBusy(true)
@@ -411,8 +426,11 @@ export default function Landing({ onLogin }) {
                     <form onSubmit={doRegister}>
                       <input className="lp-field" placeholder="Full name" value={full_name} required onChange={e => setName(e.target.value)} />
                       <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <input className="lp-field" type="password" placeholder="Create a password (min 6 chars)" value={password} required minLength={6} onChange={e => setPassword(e.target.value)} />
+                      <input className="lp-field" type="password" placeholder="Create a password" value={password} required minLength={8} onChange={e => setPassword(e.target.value)} />
                       <input className="lp-field" type="password" placeholder="Confirm password" value={confirm} required onChange={e => setConfirm(e.target.value)} />
+                      <ul className="lp-pwrules">
+                        {PW_RULES.map(([label, test]) => { const okr = test(password); return <li key={label} className={password ? (okr ? 'ok' : '') : ''}>{okr ? '✓' : '○'} {label}</li> })}
+                      </ul>
                       <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired} onChange={e => setInvite(e.target.value)} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
                       {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
@@ -545,6 +563,9 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-invite{margin-top:16px;font-size:13px;color:var(--mut)}
 .lp-invite a{cursor:pointer;font-weight:600;text-decoration:none;color:var(--or3)}
 .lp-vtext{color:var(--mut);font-size:14.5px;margin-bottom:8px}
+.lp-pwrules{list-style:none;margin:6px 2px 2px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;text-align:left}
+.lp-pwrules li{font-size:11.5px;color:var(--mut)}
+.lp-pwrules li.ok{color:#0f8f5f}
 .lp-verify-ic{font-size:34px;margin-bottom:6px}
 .lp-verify h3{font-size:20px;font-weight:700;margin-bottom:8px}
 .lp-err{color:#d23b3b;font-size:13.5px;margin-top:12px}
