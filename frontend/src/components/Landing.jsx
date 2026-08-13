@@ -188,6 +188,68 @@ function ScoreAnalysis({ explanation, pillars }) {
   )
 }
 
+const PILLARS_ABOUT = [
+  ['Fundamentals', 'Financial health — profitability, balance sheet, cash flows.'],
+  ['Valuation', 'Is the price reasonable versus earnings, book and peers.'],
+  ['Technicals', 'Trend and chart structure from price action.'],
+  ['Momentum', 'Strength and direction of recent moves.'],
+  ['Earnings', 'Growth and quality of the latest results.'],
+  ['News sentiment', 'Tone of recent news impacting the stock.'],
+  ['Institutional', 'Positioning and interest from large investors.'],
+  ['Risk', 'Volatility and downside considerations.'],
+]
+
+function AboutView({ brand, onStart }) {
+  return (
+    <div>
+      <section className="lp-sec" style={{ paddingTop: 34, paddingBottom: 20 }}>
+        <span className="lp-ribbon">{String.fromCharCode(0x2726)} About</span>
+        <h1 className="lp-about-h1">Meet <span className="lp-grad">{brand}</span></h1>
+        <p className="lp-about-lead">{brand} is an AI investment-intelligence platform for Indian markets. It scores
+          every NSE stock daily, explains the “why” in plain language, watches your portfolio and answers your
+          questions — in English or your language. It is an <b>information &amp; analytics</b> product, never a
+          buy/sell advice engine.</p>
+        <div style={{ marginTop: 22 }}><button className="lp-btn lp-btn-grad lg" onClick={onStart}>Grab Your Seat</button></div>
+      </section>
+
+      <section className="lp-sec" style={{ paddingTop: 20 }}>
+        <h2>What You <span className="lp-grad">Get</span></h2>
+        <div className="lp-cards">
+          {FEATURES.map(([k, t, d, icon]) => (
+            <div className="lp-card" key={t}><div className={'lp-ic ' + k}><svg viewBox="0 0 24 24">{icon}</svg></div><h3>{t}</h3><p>{d}</p></div>
+          ))}
+        </div>
+      </section>
+
+      <section className="lp-sec" style={{ paddingTop: 10 }}>
+        <h2>How The <span className="lp-grad">NIYTRI Score</span> Works</h2>
+        <div className="lp-subh">A transparent 0–100 score, a weighted blend of eight explainable pillars — each with a clear reason, never a black box.</div>
+        <div className="lp-about-grid">
+          {PILLARS_ABOUT.map(([t, d], i) => (
+            <div className="lp-about-item" key={t}>
+              <div className="lp-about-num">{i + 1}</div>
+              <div><b>{t}</b><div className="lp-about-d">{d}</div></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="lp-sec" style={{ paddingTop: 10 }}>
+        <h2>Built For <span className="lp-grad">Trust</span></h2>
+        <div className="lp-cards">
+          <div className="lp-card"><h3>SEBI-aligned</h3><p>Designed as information &amp; analytics — no buy/sell/hold calls, no price targets, no personalised advice.</p></div>
+          <div className="lp-card"><h3>Human-reviewed</h3><p>A quality/maker-checker step validates AI output before it’s published, so what you see is vetted.</p></div>
+          <div className="lp-card"><h3>Transparent &amp; explainable</h3><p>Every score comes with its pillar breakdown and a plain-language rationale.</p></div>
+          <div className="lp-card"><h3>NSE &amp; BSE coverage</h3><p>Live indices, delayed price charts and AI-summarised market news across Indian markets.</p></div>
+        </div>
+        <p className="lp-about-disc">{brand} provides AI-generated market information and analytics for informational
+          purposes only — not investment advice. Investments are subject to market risks. Please read all
+          scheme-related documents carefully.</p>
+      </section>
+    </div>
+  )
+}
+
 export default function Landing({ onLogin }) {
   const [info, setInfo] = useState(null)
   const [spot, setSpot] = useState(null)
@@ -207,6 +269,7 @@ export default function Landing({ onLogin }) {
   const [pending, setPending] = useState(null)
   const [forgot, setForgot] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [page, setPage] = useState('home')   // home | about
   const gbtn = useRef(null)
 
   useEffect(() => {
@@ -398,10 +461,12 @@ export default function Landing({ onLogin }) {
       <style>{CSS}</style>
       <div className="lp-wrap">
         <nav className="lp-nav">
-          <div className="lp-brand">
+          <div className="lp-brand" onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ cursor: 'pointer' }}>
             <span className="lp-grad lp-word">{brand}</span>
           </div>
           <div className="lp-navbtns">
+            <button className={'lp-navlink' + (page === 'home' ? ' on' : '')} onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Home</button>
+            <button className={'lp-navlink' + (page === 'about' ? ' on' : '')} onClick={() => { setPage('about'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>About</button>
             <button className="lp-btn lp-btn-login" onClick={() => goAuth('signin')}>Log In</button>
             <button className="lp-btn lp-btn-grad" onClick={() => goAuth(closed ? 'waitlist' : 'signup')}>{closed ? 'Join Waitlist' : 'Get Started'}</button>
           </div>
@@ -416,6 +481,7 @@ export default function Landing({ onLogin }) {
       )}
 
       <div className="lp-wrap">
+        {page === 'about' ? <AboutView brand={brand} onStart={() => goAuth(closed ? 'waitlist' : 'signup')} /> : (<>
         <section className="lp-hero">
           <div className="lp-hero-l">
             <span className="lp-ribbon">{String.fromCharCode(0x2726)} {inviteRequired ? 'Invite-Only Beta — Grab Your Seat' : 'Now In Beta'}</span>
@@ -492,6 +558,7 @@ export default function Landing({ onLogin }) {
             {!modalOpen && authPanel}
           </div>
         </section>
+        </>)}
 
         <footer className="lp-foot">© {new Date().getFullYear()} {brand} · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
       </div>
@@ -521,10 +588,22 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-brand{display:flex;align-items:center;gap:10px}
 .lp-brand img{width:38px;height:38px;display:block}
 .lp-word{font-weight:800;font-size:20px;letter-spacing:1.4px}
-.lp-navbtns{display:flex;gap:11px}
+.lp-navbtns{display:flex;gap:11px;align-items:center}
+.lp-navlink{background:none;border:none;color:#5b6473;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;padding:8px 6px}
+.lp-navlink:hover{color:var(--or3)}
+.lp-navlink.on{color:var(--or3)}
+.lp-about-h1{font-size:clamp(32px,4.4vw,48px);font-weight:900;letter-spacing:-1px;margin:14px 0 12px}
+.lp-about-lead{color:var(--mut);font-size:17px;line-height:1.7;max-width:760px}
+.lp-about-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.lp-about-item{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.lp-about-num{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:var(--grad)}
+.lp-about-item b{font-size:15px}.lp-about-d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:3px}
+.lp-about-disc{color:#8a93a4;font-size:12.5px;line-height:1.6;margin-top:24px;max-width:820px}
+@media(max-width:700px){.lp-about-grid{grid-template-columns:1fr}}
 .lp-btn{border:none;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
 .lp-btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}
 .lp-btn-grad:hover{filter:brightness(1.05)}
+.lp-btn.lg{padding:14px 32px;font-size:16px}
 .lp-btn-google{background:#fff;color:#20242e;border:1px solid var(--line2);display:inline-flex;gap:11px;align-items:center;justify-content:center;font-weight:600}
 .lp-btn-login{background:#fff;border:1px solid var(--line2);color:#2a3140;padding:10px 16px}
 .lp-btn-login:hover{border-color:var(--or2);color:var(--or3)}
