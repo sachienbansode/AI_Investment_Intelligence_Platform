@@ -79,6 +79,14 @@ export default function Profile({ user, onUpdated }) {
       setEmails(['']); await loadInv()
     } catch (e) { toast('Failed: ' + (e.message || e)) } finally { setInvBusy(false) }
   }
+  async function resendInv(email) {
+    try {
+      const r = await api.resendInvite(email)
+      toast(r.already_member ? 'They’ve already joined 🎉'
+        : (r.delivered ? 'Invite re-sent to ' + email : 'Couldn’t send — check email settings'))
+      await loadInv()
+    } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
   const initial = (name || user?.email || '?')[0].toUpperCase()
   return (
     <div className="profile-wrap">
@@ -165,11 +173,15 @@ export default function Profile({ user, onUpdated }) {
           {(inv.invitations || []).length > 0 && (
             <div style={{ marginTop: 14 }}>
               <div className="hint" style={{ marginBottom: 6 }}>Invited</div>
-              {inv.invitations.map(it => (
-                <span key={it.email} className="tag" style={{ marginRight: 6, marginBottom: 6, display: 'inline-block' }}>
-                  {it.email} · <b style={{ color: it.status === 'joined' ? 'var(--green)' : 'var(--muted)' }}>{it.status}</b>
-                </span>
-              ))}
+              <div style={{ display: 'grid', gap: 6 }}>
+                {inv.invitations.map(it => (
+                  <div key={it.email} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</span>
+                    <b style={{ color: it.status === 'joined' ? 'var(--green)' : 'var(--muted)', fontSize: '.82rem', minWidth: 52, textAlign: 'right' }}>{it.status}</b>
+                    {it.status !== 'joined' && <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

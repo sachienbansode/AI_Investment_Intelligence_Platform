@@ -378,6 +378,35 @@ def send_invites(user_id: int, emails: list[str]) -> dict:
         db.close()
 
 
+def resend_invite(user_id: int, email: str) -> dict:
+    """Re-send an existing invitation email (spam/deleted). Returns delivered flag."""
+    email = (email or "").strip().lower()
+    db = SessionLocal()
+    try:
+        me = db.get(User, user_id)
+        inv = db.query(Invitation).filter_by(inviter_user_id=user_id, email=email).first()
+        if not inv:
+            raise HTTPException(404, "No invitation found for that email.")
+        already = bool(db.query(User.id).filter(User.email == email).first())
+        code = me.referral_code or _issue_member_code(db, user_id)
+        db.commit()
+        name = me.full_name or ""
+    finally:
+        db.close()
+    if already:
+        return {"delivered": False, "already_member": True}
+    delivered = _send_invite_email(email, code, name)
+    db = SessionLocal()
+    try:
+        inv = db.query(Invitation).filter_by(inviter_user_id=user_id, email=email).first()
+        if inv and delivered and not inv.delivered:
+            inv.delivered = True
+            db.commit()
+    finally:
+        db.close()
+    return {"delivered": delivered, "already_member": False}
+
+
 def my_invites(user_id: int) -> dict:
     """The member's referral code, invites remaining, and who they've invited."""
     max_n = int(get_setting("invites_per_user") or 5)

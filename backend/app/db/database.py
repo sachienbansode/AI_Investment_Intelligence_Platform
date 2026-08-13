@@ -47,6 +47,7 @@ class User(Base):
     signup_ip = Column(String, nullable=True)         # IP captured at registration
     last_ip = Column(String, nullable=True)           # IP captured at last login
     last_login_at = Column(DateTime, nullable=True)   # last successful login (UTC)
+    session_id = Column(String, nullable=True)        # current active session; new login invalidates old
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -345,6 +346,7 @@ _MIGRATIONS = [
     ("users", "signup_ip", "VARCHAR"),
     ("users", "last_ip", "VARCHAR"),
     ("users", "last_login_at", "TIMESTAMP"),
+    ("users", "session_id", "VARCHAR"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -433,6 +435,7 @@ def init_db():
             ("users", "signup_ip", "VARCHAR"),
             ("users", "last_ip", "VARCHAR"),
             ("users", "last_login_at", "TIMESTAMPTZ"),
+            ("users", "session_id", "VARCHAR"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:

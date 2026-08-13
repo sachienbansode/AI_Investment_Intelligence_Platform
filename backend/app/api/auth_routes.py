@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from app.core.auth import (get_current_user, hash_password, issue_tokens,
-                           password_error, rotate_refresh, verify_password)
+                           password_error, rotate_refresh, start_new_session, verify_password)
 from app.core.compliance import audit_log
 from app.db.database import SessionLocal, User
 from app.core import registration
@@ -65,6 +65,7 @@ def login(req: LoginRequest, request: Request):
         raise HTTPException(403,
             "Please verify your email first \u2014 check your inbox for the verification link.")
     audit_log("login_success", user=user.email)
+    import secrets
     from datetime import datetime, timezone
     db2 = SessionLocal()
     try:
@@ -72,7 +73,9 @@ def login(req: LoginRequest, request: Request):
         if u2:
             u2.last_ip = _client_ip(request)
             u2.last_login_at = datetime.now(timezone.utc)
+            u2.session_id = secrets.token_hex(8)   # new session invalidates any other
             db2.commit()
+            user.session_id = u2.session_id
     finally:
         db2.close()
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
@@ -188,6 +191,7 @@ def register(req: RegisterRequest, request: Request):
         return {"needs_verification": True, "delivered": bool(res.get("delivered")),
                 "resent": bool(res.get("resent")), "verify_link": res.get("verify_link")}
     user = res["user"]
+    user.session_id = start_new_session(user.id)
     audit_log("register", user=user.email, provider="email",
               invited_by=user.invited_by_code or "")
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
@@ -201,6 +205,7 @@ class VerifyRequest(BaseModel):
 def verify_email(req: VerifyRequest):
     """Confirm an email via the emailed token and log the user in."""
     user = registration.verify_email_token(req.token)
+    user.session_id = start_new_session(user.id)
     audit_log("email_verified", user=user.email)
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
 
@@ -218,6 +223,7 @@ def resend_verification(req: ResendRequest):
 def google_auth(req: GoogleRequest, request: Request):
     user, created = registration.login_or_register_google(req.id_token, req.invite_code,
                                                           signup_ip=_client_ip(request))
+    user.session_id = start_new_session(user.id)
     audit_log("login_google" if not created else "register", user=user.email, provider="google")
     return {**issue_tokens(user), "user": _user_dict(user), "created": created}
 
@@ -244,6 +250,17 @@ def my_invites(user: User = Depends(get_current_user)):
 
 class SendInvitesRequest(BaseModel):
     emails: list[str]
+
+
+class ResendInviteReq(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-invite")
+def resend_invite(req: ResendInviteReq, user: User = Depends(get_current_user)):
+    res = registration.resend_invite(user.id, req.email)
+    audit_log("invite_resend", user=user.email, to=str(req.email), delivered=res.get("delivered"))
+    return res
 
 
 @router.post("/send-invites")

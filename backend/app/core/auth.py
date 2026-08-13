@@ -4,6 +4,7 @@ Swap `get_current_user` for your trading app's SSO validation later — the rest
 of the codebase only depends on the returned User.
 """
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -67,12 +68,28 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def start_new_session(user_id: int) -> str:
+    """Rotate the user's active session id (single active session per account).
+    Any previously issued tokens carrying the old sid stop being accepted."""
+    sid = secrets.token_hex(8)
+    db = SessionLocal()
+    try:
+        u = db.get(User, user_id)
+        if u:
+            u.session_id = sid
+            db.commit()
+    finally:
+        db.close()
+    return sid
+
+
 def create_access_token(user: User) -> str:
     payload = {
         "sub": str(user.id),
         "email": user.email,
         "admin": bool(user.is_admin),
         "typ": "access",
+        "sid": getattr(user, "session_id", None),
         "exp": _now() + timedelta(minutes=ACCESS_TTL_MINUTES),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
@@ -86,6 +103,7 @@ def create_refresh_token(user: User, login_at: int | None = None) -> str:
         "sub": str(user.id),
         "typ": "refresh",
         "lia": login_at,
+        "sid": getattr(user, "session_id", None),
         "exp": _now() + timedelta(minutes=IDLE_TTL_MINUTES),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
@@ -131,6 +149,9 @@ def rotate_refresh(refresh_token: str) -> dict:
         db.close()
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or disabled")
+    if user.session_id and payload.get("sid") != user.session_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Session ended - you signed in on another device.")
     return issue_tokens(user, login_at or None)
 
 
@@ -150,6 +171,9 @@ def get_current_user(
         db.close()
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or disabled")
+    if user.session_id and payload.get("sid") != user.session_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Session ended - you signed in on another device.")
     return user
 
 
