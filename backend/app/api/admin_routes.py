@@ -1335,7 +1335,7 @@ def user_activity(from_: str = Query(None, alias="from"), to: str = Query(None))
         "invites": {"sent": sent, "delivered": delivered, "joined": joined,
                     "sent_in_range": sent_in_range, "top_inviters": top_inviters},
         "waitlist": {"count": len(wl),
-                     "recent": [{"email": w.email, "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:25]]},
+                     "list": [{"email": w.email, "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:2000]]},
         "users": user_rows,
     }
 
@@ -1434,9 +1434,10 @@ class EmailTestReq(BaseModel):
 @router.post("/email-test")
 def email_test(req: EmailTestReq, admin: User = Depends(require_admin)):
     from app.services import emailer
+    plat = emailer.platform_name()
     delivered, err = emailer.send_email(
-        str(req.to), "NIYTRI AI - test email",
-        "This is a test email from your NIYTRI AI admin console.\n\n"
-        "If you received it, outbound email is configured correctly.\n\n- NIYTRI Technologies")
+        str(req.to), f"{plat} - test email",
+        f"This is a test email from your {plat} admin console.\n\n"
+        "If you received it, outbound email is configured correctly.")
     audit_log("email_test", to=str(req.to), delivered=delivered)
     return {"delivered": delivered, "error": err}

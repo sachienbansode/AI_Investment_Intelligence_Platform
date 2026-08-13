@@ -13,6 +13,19 @@ function Stat({ label, value, sub }) {
   return <div className="ua-stat"><div className="ua-stat-v">{value}</div><div className="ua-stat-l">{label}</div>{sub && <div className="ua-stat-s">{sub}</div>}</div>
 }
 
+const PER = 10
+function Pager({ page, total, onPage }) {
+  const pages = Math.max(1, Math.ceil(total / PER))
+  if (pages <= 1) return null
+  return (
+    <div className="ua-pager">
+      <button className="ghost sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>‹ Prev</button>
+      <span>Page {page} of {pages} · {total} total</span>
+      <button className="ghost sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next ›</button>
+    </div>
+  )
+}
+
 // SVG bar chart for new-user growth. Long ranges auto-aggregate to weekly buckets
 // so bars stay readable; labels use dd-MMM-yyyy.
 function Growth({ data }) {
@@ -73,6 +86,9 @@ export default function Users() {
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
   const [srcFilter, setSrcFilter] = useState('all')
+  const [uPage, setUPage] = useState(1)
+  const [wlQ, setWlQ] = useState('')
+  const [wlPage, setWlPage] = useState(1)
 
   function load() {
     setLoading(true); setErr('')
@@ -84,7 +100,7 @@ export default function Users() {
     try { await api.waitlistRemove(email); toast('Removed from waitlist'); load() } catch (e) { toast('Failed: ' + e.message) }
   }
   async function wlInvite(email) {
-    try { const r = await api.waitlistInvite(email); toast(r.delivered ? 'Invite emailed to ' + email : 'Invite created — code ' + r.code + ' (email not sent)'); load() }
+    try { const r = await api.waitlistInvite(email); toast(r.delivered ? 'Approved — invite emailed to ' + email : 'Approved — code ' + r.code + ' (email not sent)'); load() }
     catch (e) { toast('Failed: ' + e.message) }
   }
   async function wlClear() {
@@ -100,6 +116,17 @@ export default function Users() {
       (!term || u.email.toLowerCase().includes(term) || (u.full_name || '').toLowerCase().includes(term) || (u.signup_ip || '').includes(term))
     )
   }, [data, q, srcFilter])
+
+  useEffect(() => { setUPage(1) }, [q, srcFilter, data])
+  const pagedUsers = rows.slice((uPage - 1) * PER, uPage * PER)
+
+  const wlRows = useMemo(() => {
+    const list = data?.waitlist?.list || []
+    const term = wlQ.trim().toLowerCase()
+    return term ? list.filter(w => w.email.toLowerCase().includes(term)) : list
+  }, [data, wlQ])
+  useEffect(() => { setWlPage(1) }, [wlQ, data])
+  const pagedWl = wlRows.slice((wlPage - 1) * PER, wlPage * PER)
 
   const quick = [['7d', 6], ['30d', 29], ['90d', 89]]
 
@@ -154,20 +181,24 @@ export default function Users() {
           <div className="panel">
             <div className="ua-h ua-users-h">
               <span>Waitlist ({data.waitlist.count})</span>
-              {data.waitlist.count > 0 && <button className="ghost sm" onClick={wlClear}>Clear all</button>}
+              <div className="ua-filters">
+                <input placeholder="Search email" value={wlQ} onChange={e => setWlQ(e.target.value)} />
+                {data.waitlist.count > 0 && <button className="ghost sm" onClick={wlClear}>Clear all</button>}
+              </div>
             </div>
-            {data.waitlist.recent.length ? (
-              <div className="ua-wl">{data.waitlist.recent.map((w, i) => (
+            {wlRows.length ? (
+              <div className="ua-wl">{pagedWl.map((w, i) => (
                 <div key={i} className="ua-wl-row">
                   <span>{w.email}<span className="hint" style={{ marginLeft: 8 }}>{fmtD(w.created_at)}</span></span>
                   <span className="ua-wl-act">
-                    <button className="sm" title="Send an invite code and remove from waitlist" onClick={() => wlInvite(w.email)}>Invite</button>
+                    <button className="sm" title="Approve: email them an invite code and remove from waitlist" onClick={() => wlInvite(w.email)}>Approve</button>
                     <button className="ghost sm" title="Remove from waitlist" onClick={() => wlRemove(w.email)}>Remove</button>
                   </span>
                 </div>
               ))}</div>
-            ) : <div className="hint">Waitlist is empty.</div>}
-            <div className="hint" style={{ marginTop: 8 }}>Entries auto-clear when the person signs up. Showing latest {data.waitlist.recent.length} of {data.waitlist.count}.</div>
+            ) : <div className="hint">{wlQ ? 'No matching emails.' : 'Waitlist is empty.'}</div>}
+            <Pager page={wlPage} total={wlRows.length} onPage={setWlPage} />
+            <div className="hint" style={{ marginTop: 8 }}>Entries auto-clear when the person signs up.</div>
           </div>
         </div>
 
@@ -186,7 +217,7 @@ export default function Users() {
             <table className="ua-table">
               <thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Verified</th><th>Joined</th><th>Signup IP</th><th>Last login</th><th>Last IP</th></tr></thead>
               <tbody>
-                {rows.map(u => (
+                {pagedUsers.map(u => (
                   <tr key={u.id}>
                     <td>{u.full_name || '—'}{u.is_admin && <span className="ua-adm">admin</span>}</td>
                     <td>{u.email}</td>
@@ -201,6 +232,7 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+          <Pager page={uPage} total={rows.length} onPage={setUPage} />
         </div>
       </>)}
 
@@ -246,5 +278,7 @@ const CSS = `
 .ua-wl-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
 .ua-wl-act{display:flex;gap:6px;flex:0 0 auto}
 .ua-wl-act button{padding:4px 10px;font-size:12px}
+.ua-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;color:var(--muted);font-size:12.5px}
+.ua-pager button{padding:5px 12px;font-size:12.5px}
 @media(max-width:900px){.ua-stats{grid-template-columns:repeat(3,1fr)}.ua-grid2{grid-template-columns:1fr}}
 `

@@ -244,6 +244,7 @@ export default function Landing({ onLogin }) {
   }, [gReady, view, pending, modalOpen])
 
   const mode = info ? info.mode : 'invite_only'
+  const brand = (info && info.platform_label) || 'NIYTRI AI'
   const inviteRequired = mode === 'invite_only'
   const closed = mode === 'closed'
   const googleOn = info && info.google_enabled
@@ -363,7 +364,7 @@ export default function Landing({ onLogin }) {
         <nav className="lp-nav">
           <div className="lp-brand">
             <img src="/niytri-mark.svg" alt="NIYTRI" onError={e => { e.currentTarget.style.display = 'none' }} />
-            <span className="lp-grad lp-word">NIYTRI</span>
+            <span className="lp-grad lp-word">{brand}</span>
           </div>
           <div className="lp-navbtns">
             <button className="lp-btn lp-btn-login" onClick={() => goAuth('signin')}>Log In</button>
@@ -384,7 +385,7 @@ export default function Landing({ onLogin }) {
           <div className="lp-hero-l">
             <span className="lp-ribbon">{String.fromCharCode(0x2726)} {inviteRequired ? 'Invite-Only Beta — Grab Your Seat' : 'Now In Beta'}</span>
             <h1>Invest Smarter,<br /><span className="lp-grad">Your Way.</span></h1>
-            <p>NIYTRI is your AI investing companion for Indian markets — it scores every NSE stock daily,
+            <p>{brand} is your AI investing companion for Indian markets — it scores every NSE stock daily,
               explains the “why” in plain language, watches your portfolio, and answers your questions in
               English or your language.</p>
             <div className="lp-cta-row">
@@ -457,7 +458,7 @@ export default function Landing({ onLogin }) {
           </div>
         </section>
 
-        <footer className="lp-foot">© {new Date().getFullYear()} NIYTRI Technologies · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
+        <footer className="lp-foot">© {new Date().getFullYear()} {brand} · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
       </div>
       {modalOpen && (
         <div className="lp-modal" onMouseDown={e => { if (e.target === e.currentTarget) closeModal() }}>

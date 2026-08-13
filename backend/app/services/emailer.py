@@ -19,6 +19,26 @@ def _s(key: str) -> str:
     return (get_setting(key) or "").strip()
 
 
+def platform_name() -> str:
+    from app.services.app_settings import get_setting
+    return (get_setting("platform_label") or "NIYTRI AI").strip()
+
+
+def _footer() -> str:
+    """Standard footer appended to EVERY outgoing email: platform name + URL + copyright."""
+    import datetime
+    from app.config import get_settings
+    plat = platform_name()
+    url = (get_settings().app_base_url or "").strip()
+    year = datetime.datetime.now().year
+    lines = ["", "—"]
+    if url:
+        lines.append(f"{plat} · {url}")
+    lines.append(f"© {year} {plat}. All rights reserved.")
+    lines.append("Information & analytics only — not investment advice. Investments are subject to market risks.")
+    return "\n".join(lines)
+
+
 def graph_configured() -> bool:
     return bool(_s("graph_tenant_id") and _s("graph_client_id")
                and _s("graph_client_secret") and _s("graph_sender"))
@@ -77,6 +97,7 @@ def _send_smtp(to: str, subject: str, body: str) -> None:
 def send_email(to: str, subject: str, body: str) -> tuple[bool, str]:
     """Send via the configured provider. Returns (delivered, error_message)."""
     provider = _s("email_provider") or "smtp"
+    body = (body or "").rstrip() + "\n\n" + _footer()
     try:
         if provider == "off":
             return False, "Email is turned off in settings."

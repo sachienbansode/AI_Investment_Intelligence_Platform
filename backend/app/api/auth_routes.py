@@ -174,6 +174,7 @@ def registration_info():
     from app.config import get_settings
     return {"mode": get_setting("registration_mode") or "invite_only",
             "waitlist_enabled": bool(get_setting("waitlist_enabled")),
+            "platform_label": get_setting("platform_label") or "NIYTRI AI",
             "google_enabled": bool((get_settings().google_oauth_client_id or "").strip()),
             "google_client_id": (get_settings().google_oauth_client_id or "").strip()}
 

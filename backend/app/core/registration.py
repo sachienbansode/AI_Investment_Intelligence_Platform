@@ -132,11 +132,11 @@ def _verify_link(token: str) -> str:
 
 def _send_verification_email(to: str, token: str, name: str) -> bool:
     from app.services import emailer
+    plat = emailer.platform_name()
     link = _verify_link(token)
-    subject = "Verify your email for NIYTRI AI"
-    body = (f"Hi {name or ''},\n\nConfirm your email to activate your NIYTRI AI account:\n"
-            f"{link}\n\nIf you didn\u2019t create this account, you can ignore this email.\n\n"
-            f"\u2014 NIYTRI Technologies")
+    subject = f"Verify your email for {plat}"
+    body = (f"Hi {name or ''},\n\nConfirm your email to activate your {plat} account:\n"
+            f"{link}\n\nIf you didn\u2019t create this account, you can ignore this email.")
     delivered, _ = emailer.send_email(to, subject, body)
     return delivered
 
@@ -176,11 +176,11 @@ def _send_password_email(to: str, newpw: str, name: str) -> bool:
     from app.config import get_settings
     from app.services import emailer
     base = (get_settings().app_base_url or "").rstrip("/")
-    subject = "Your new NIYTRI AI password"
+    subject = f"Your new {emailer.platform_name()} password"
     body = (f"Hi {name or ''},\n\nAs requested, your password has been reset. Use this "
             f"temporary password to log in{(' at ' + base) if base else ''}:\n\n"
             f"    {newpw}\n\nPlease change it from your profile after logging in.\n\n"
-            f"If you didn\u2019t request this, contact support immediately.\n\n\u2014 NIYTRI Technologies")
+            f"If you didn\u2019t request this, contact support immediately.")
     delivered, _ = emailer.send_email(to, subject, body)
     return delivered
 
@@ -318,12 +318,12 @@ def db_user_exists(email: str) -> bool:
 def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
     from app.config import get_settings
     from app.services import emailer
+    plat = emailer.platform_name()
     link = f"{(get_settings().app_base_url or '').rstrip('/')}/?invite={code}"
-    subject = "You\u2019re invited to NIYTRI AI"
-    body = (f"{inviter_name or 'A friend'} invited you to NIYTRI AI \u2014 AI-powered, "
+    subject = f"You\u2019re invited to {plat}"
+    body = (f"{inviter_name or 'A friend'} invited you to {plat} \u2014 AI-powered, "
             f"explainable stock intelligence for Indian markets.\n\n"
-            f"Join with invite code {code} or use this link:\n{link}\n\n"
-            f"\u2014 NIYTRI Technologies")
+            f"Join with invite code {code} or use this link:\n{link}")
     delivered, _ = emailer.send_email(to, subject, body)
     return delivered
 
