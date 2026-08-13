@@ -73,15 +73,16 @@ const bandCol = (sc) => sc >= 65 ? '#12b981' : sc >= 45 ? '#d4920f' : '#e05252'
 const fmtCr = (v) => v == null ? '—' : (Number(v) >= 1e7 ? (Number(v) / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 0 }) + ' Cr' : Number(v).toLocaleString('en-IN'))
 const fmtNum = (v, d = 2) => v == null ? '—' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: d })
 
-// Interactive line chart — hover shows label + value. Works for score or price.
+// Interactive line chart — full-bleed, gridlines, gradient fill, glow, animated
+// draw + hover crosshair. Works for score or price.
 function HoverChart({ series, prefix = '', round = 0 }) {
   const [hi, setHi] = useState(null)
-  const W = 360, H = 160, padT = 14, padB = 22, padL = 10, padR = 56
+  const W = 760, H = 230, padT = 20, padB = 30, padL = 12, padR = 46
   const g = useMemo(() => {
     const vals = series.map(s => s.value)
     const n = vals.length
     const mn = Math.min(...vals), mx = Math.max(...vals)
-    const pad = (mx - mn) * 0.1 || 1
+    const pad = (mx - mn) * 0.14 || 1
     const lo = mn - pad, hiV = mx + pad, rng = (hiV - lo) || 1
     const X = i => padL + (W - padL - padR) * (i / Math.max(1, n - 1))
     const Y = v => padT + (H - padT - padB) * (1 - (v - lo) / rng)
@@ -89,24 +90,32 @@ function HoverChart({ series, prefix = '', round = 0 }) {
     let d = 'M' + X(0).toFixed(1) + ',' + Y(vals[0]).toFixed(1)
     for (let i = 1; i < n; i++) { const cx = (X(i - 1) + X(i)) / 2; d += ' Q' + X(i - 1).toFixed(1) + ',' + Y(vals[i - 1]).toFixed(1) + ' ' + cx.toFixed(1) + ',' + ((Y(vals[i - 1]) + Y(vals[i])) / 2).toFixed(1) }
     d += ' T' + X(n - 1).toFixed(1) + ',' + Y(vals[n - 1]).toFixed(1)
-    return { vals, n, mn, mx, lo, hiV, X, Y, up, d }
+    const iMax = vals.indexOf(mx), iMin = vals.indexOf(mn)
+    return { vals, n, mn, mx, lo, hiV, X, Y, up, d, iMax, iMin }
   }, [series])
   const col = g.up ? '#FF6A00' : '#e0503f'
-  const gy = [0.15, 0.4, 0.65, 0.9].map(f => padT + (H - padT - padB) * f)
+  const gy = [0.12, 0.35, 0.58, 0.81].map(f => padT + (H - padT - padB) * f)
   const lbl = v => prefix + Number(v).toLocaleString('en-IN', { maximumFractionDigits: round })
   function move(e) { const r = e.currentTarget.getBoundingClientRect(); const frac = (e.clientX - r.left) / r.width; setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1))))) }
   const cur = hi != null ? series[hi] : null
   return (
     <div className="lp-chartbox">
-      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }} onMouseMove={move} onMouseLeave={() => setHi(null)}>
-        <defs><linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
-        {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#f0e6dc" strokeWidth="1" />)}
+      <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" style={{ display: 'block', height: 'auto' }} preserveAspectRatio="xMidYMid meet" onMouseMove={move} onMouseLeave={() => setHi(null)}>
+        <defs>
+          <linearGradient id="lpfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".28" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient>
+          <linearGradient id="lpln" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#FF8A3D" /><stop offset="1" stopColor={col} /></linearGradient>
+          <filter id="lpglow" x="-20%" y="-40%" width="140%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="4" floodColor={col} floodOpacity="0.28" /></filter>
+        </defs>
+        {gy.map((y, i) => <line key={i} x1={padL} y1={y.toFixed(1)} x2={W - padR} y2={y.toFixed(1)} stroke="#f2e6db" strokeWidth="1" />)}
         <path d={g.d + ' L' + (W - padR) + ',' + (H - padB) + ' L' + padL + ',' + (H - padB) + ' Z'} fill="url(#lpfl)" />
-        <path d={g.d} fill="none" stroke={col} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        {[g.mx, (g.mx + g.mn) / 2, g.mn].map((val, i) => (<text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#9aa3b2" fontSize="10">{lbl(val)}</text>))}
-        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (<text key={k} x={g.X(i).toFixed(1)} y={H - 6} fill="#9aa3b2" fontSize="10" textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{series[i].label}</text>))}
-        <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.vals[g.n - 1]).toFixed(1)} r="3.5" fill={col} />
-        {cur && <><line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#d9c4b0" strokeWidth="1" strokeDasharray="3 3" /><circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.value).toFixed(1)} r="4" fill="#fff" stroke={col} strokeWidth="2" /></>}
+        <path className="lp-cline" d={g.d} fill="none" stroke="url(#lpln)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#lpglow)" />
+        {[g.mx, (g.mx + g.mn) / 2, g.mn].map((val, i) => (<text key={i} x={W - padR + 8} y={(g.Y(val) + 4).toFixed(1)} fill="#9aa3b2" fontSize="11">{lbl(val)}</text>))}
+        {[0, Math.floor((g.n - 1) / 2), g.n - 1].map((i, k) => (<text key={k} x={g.X(i).toFixed(1)} y={H - 8} fill="#9aa3b2" fontSize="11" textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}>{series[i].label}</text>))}
+        <circle cx={g.X(g.n - 1).toFixed(1)} cy={g.Y(g.vals[g.n - 1]).toFixed(1)} r="4.5" fill={col} stroke="#fff" strokeWidth="2" />
+        {cur && <>
+          <line x1={g.X(hi).toFixed(1)} y1={padT} x2={g.X(hi).toFixed(1)} y2={H - padB} stroke="#d9c4b0" strokeWidth="1" strokeDasharray="3 3" />
+          <circle cx={g.X(hi).toFixed(1)} cy={g.Y(cur.value).toFixed(1)} r="5" fill="#fff" stroke={col} strokeWidth="2.5" />
+        </>}
       </svg>
       {cur && <div className="lp-tip" style={{ left: (g.X(hi) / W * 100) + '%' }}><b>{lbl(cur.value)}</b> <span>{cur.label}</span></div>}
       <div className="lp-chart-meta"><span>Low <b>{lbl(g.mn)}</b></span><span>High <b>{lbl(g.mx)}</b></span><span>Hover for any day</span></div>
@@ -191,6 +200,7 @@ export default function Landing({ onLogin }) {
   const [confirm, setConfirm] = useState('')
   const [invite, setInvite] = useState('')
   const [invitedEmail, setInvitedEmail] = useState('')
+  const [lockedInvite, setLockedInvite] = useState(false)
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
@@ -218,7 +228,7 @@ export default function Landing({ onLogin }) {
     if (!token) {
       const inv = p.get('invite')
       if (inv) {
-        setInvite(inv); setView('signup'); setModalOpen(true)   // open sign-up prefilled
+        setInvite(inv); setLockedInvite(true); setView('signup'); setModalOpen(true)   // open sign-up prefilled
         api.inviteInfo(inv).then(r => {
           if (r && r.email) { setEmail(r.email); setInvitedEmail(r.email) }
           if (r && !r.valid) setErr(r.expired ? 'This invite link has expired — please ask for a new one.'
@@ -360,7 +370,9 @@ export default function Landing({ onLogin }) {
                       <ul className="lp-pwrules">
                         {PW_RULES.map(([label, test]) => { const okr = test(password); return <li key={label} className={password ? (okr ? 'ok' : '') : ''}>{okr ? '✓' : '○'} {label}</li> })}
                       </ul>
-                      <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired} onChange={e => setInvite(e.target.value)} />
+                      <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired}
+                             readOnly={lockedInvite} onChange={e => setInvite(e.target.value)}
+                             style={lockedInvite ? { background: '#f4f6fb', color: '#6b7280', cursor: 'not-allowed' } : undefined} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
                       {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
                     </form>
@@ -543,6 +555,9 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
 .lp-pvtabs button.on{background:var(--grad);color:#fff}
 .lp-chartbox{position:relative}
+.lp-cline{stroke-dasharray:2600;stroke-dashoffset:2600;animation:lpdraw 1.15s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes lpdraw{to{stroke-dashoffset:0}}
+@media(prefers-reduced-motion:reduce){.lp-cline{animation:none;stroke-dashoffset:0}}
 .lp-tip{position:absolute;top:2px;transform:translateX(-50%);background:#fff;border:1px solid var(--line2);border-radius:9px;padding:4px 9px;font-size:12px;color:var(--ink);pointer-events:none;white-space:nowrap;box-shadow:0 6px 18px rgba(24,29,39,.10)}
 .lp-tip b{color:var(--or3)}.lp-tip span{color:var(--mut);margin-left:4px}
 .lp-chart-meta{display:flex;gap:16px;color:#8a93a4;font-size:12px;margin-top:6px}.lp-chart-meta b{color:#3a4150}.lp-chart-meta span:last-child{margin-left:auto}
