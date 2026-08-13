@@ -418,22 +418,44 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
         sd = sp.get_spotlight()
         if sd.get("available") and base:
             sc = round(sd.get("score") or 0)
-            pillars = sorted((sd.get("pillars") or {}).items(), key=lambda x: x[1], reverse=True)[:3]
-            drivers = ", ".join(f'{k.replace("_", " ")} {round(v)}' for k, v in pillars)
-            expl = _esc((sd.get("explanation") or "").strip())
+            weights = get_setting("scoring_weights") or {}
+            pk = sd.get("pillars") or {}
+            LABELS = {"fundamental": "Fundamentals", "technical": "Technicals",
+                      "valuation": "Valuation", "momentum": "Momentum", "earnings": "Earnings",
+                      "news_sentiment": "News sentiment", "institutional": "Institutional", "risk": "Risk"}
+            keys = sorted((weights or pk).keys(), key=lambda k: weights.get(k, 0), reverse=True)
+
+            def _pcol(v):
+                return "#12a06b" if v >= 65 else ("#c07d0a" if v >= 45 else "#e0503f")
+
+            head = ('<tr>'
+                    '<td style="padding:0 0 6px;color:#8a93a4;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Pillar</td>'
+                    '<td style="padding:0 0 6px;color:#8a93a4;font-size:11px;text-transform:uppercase;letter-spacing:.4px;text-align:center">Importance</td>'
+                    '<td style="padding:0 0 6px;color:#8a93a4;font-size:11px;text-transform:uppercase;letter-spacing:.4px;text-align:right">Score</td></tr>')
+            prows = "".join(
+                f'<tr><td style="padding:7px 0;border-top:1px solid #f2f3f7;color:#2a3140">{LABELS.get(k, k.title())}</td>'
+                f'<td style="padding:7px 0;border-top:1px solid #f2f3f7;text-align:center;color:#6b7280">{round(weights.get(k, 0) * 100)}%</td>'
+                f'<td style="padding:7px 0;border-top:1px solid #f2f3f7;text-align:right;font-weight:700;color:{_pcol(round(pk.get(k, 0)))}">{round(pk.get(k, 0))}/100</td></tr>'
+                for k in keys)
+            table = ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                     'style="font-size:13px;margin:10px 0 4px">' + head + prows + '</table>')
+            tops = sorted(((LABELS.get(k, k.title()), round(pk.get(k, 0))) for k in keys),
+                          key=lambda x: x[1], reverse=True)[:2]
+            strengths = ", ".join(f"{n} ({v}/100)" for n, v in tops)
             spot_html = (
                 '<div style="margin:26px 0 0;border:1px solid #f0f0f5;border-radius:12px;overflow:hidden">'
                 '<div style="background:#fff7f0;padding:12px 16px;font-size:12px;font-weight:700;'
                 'text-transform:uppercase;letter-spacing:.5px;color:#b25a12">Today’s top NIYTRI score</div>'
                 '<div style="padding:14px 16px">'
                 f'<div style="font-size:17px;font-weight:800;color:#181d27">{_esc(sd["symbol"])} '
-                f'<span style="color:#12a06b">{sc}/100</span> '
+                f'<span style="color:{_pcol(sc)}">{sc}/100</span> '
                 f'<span style="color:#6b7280;font-weight:400;font-size:13px">{_esc(sd.get("name") or "")}</span></div>'
                 f'<img src="{base}/api/v1/public/spotlight-chart.png" width="536" alt="Score trend" '
                 'style="display:block;width:100%;max-width:536px;border-radius:8px;margin:12px 0;border:1px solid #f2f3f7">'
-                + (f'<div style="font-size:13px;color:#6b7280;margin:0 0 4px"><b>Key strengths:</b> {drivers}</div>' if drivers else '')
-                + (f'<div style="font-size:13px;color:#2a3140;line-height:1.55">{expl}</div>' if expl else '')
-                + '<div style="font-size:11px;color:#9aa3b2;margin-top:8px">AI-generated · informational, not investment advice.</div>'
+                f'<div style="font-size:13px;color:#2a3140;margin:0 0 4px">The NIYTRI Score blends <b>8 pillars</b> by importance. '
+                f'<b>{_esc(sd["symbol"])}</b> leads on <b>{_esc(strengths)}</b>.</div>'
+                + table +
+                '<div style="font-size:11px;color:#9aa3b2;margin-top:8px">AI-generated · informational, not investment advice.</div>'
                 '</div></div>')
     except Exception:
         spot_html = ""
