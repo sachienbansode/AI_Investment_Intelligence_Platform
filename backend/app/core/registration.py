@@ -345,12 +345,12 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
             f"explainable stock intelligence for Indian markets.\n\n"
             f"Join with invite code {code} or use this link:\n{link}")
     feats = [
-        ("NIYTRI Score", "Every NSE stock rated 0-100 daily across 8 explainable factors."),
-        ("Data Lense Assistant", "Ask anything about a stock, your portfolio or the market."),
-        ("Smart Alerts", "Get pinged the moment a stock turns Strong or Weak."),
-        ("Portfolio X-Ray", "Health score, concentration and sector risk on your holdings."),
-        ("Delayed Price Charts", "Clean charts with the key stats beside the AI score."),
-        ("Market News AI", "The day's news, summarised and linked to the stocks it moves."),
+        ("Explainable AI scores", "Every NSE stock rated 0-100 daily, with the reason behind each score."),
+        ("Ask-anything assistant", "Chat about any stock, your portfolio or the market - in your language."),
+        ("Real-time smart alerts", "Know the moment a stock turns Strong or Weak - before the crowd."),
+        ("Portfolio X-Ray", "Instant health score, concentration and sector-risk on your holdings."),
+        ("Delayed charts + key stats", "Clean price charts with P/E, market cap and 52-week range."),
+        ("AI market news", "The day's headlines, summarised and linked to the stocks they move."),
     ]
     rows = "".join(
         f'<tr><td style="padding:8px 0;vertical-align:top;width:22px">'

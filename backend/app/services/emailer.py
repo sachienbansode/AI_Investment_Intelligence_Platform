@@ -34,9 +34,9 @@ def app_url() -> str:
     return (get_settings().app_base_url or "").rstrip("/")
 
 
-def logo_url() -> str:
+def mark_url() -> str:
     base = app_url()
-    return (base + "/niytri-logo.png") if base else ""
+    return (base + "/niytri-mark.png") if base else ""
 
 
 def button(url: str, label: str) -> str:
@@ -59,10 +59,10 @@ def _footer_text() -> str:
 
 def _layout(inner_html: str) -> str:
     import datetime
-    plat, url, logo, year = platform_name(), app_url(), logo_url(), datetime.datetime.now().year
-    header = (f'<img src="{logo}" alt="{_html.escape(plat)}" height="38" style="display:block;border:0;height:38px">'
-              if logo else
-              f'<div style="font-size:22px;font-weight:800;color:#F94C00;font-family:Arial,Helvetica,sans-serif">{_html.escape(plat)}</div>')
+    plat, url, mark, year = platform_name(), app_url(), mark_url(), datetime.datetime.now().year
+    wordmark = f'<span style="font-size:20px;font-weight:800;color:#F94C00;vertical-align:middle;font-family:Arial,Helvetica,sans-serif">{_html.escape(plat)}</span>'
+    header = ((f'<img src="{mark}" alt="" width="34" height="34" style="height:34px;width:34px;border:0;'
+               f'vertical-align:middle;margin-right:10px">' if mark else '') + wordmark)
     return (
         '<!doctype html><html><body style="margin:0;padding:24px 0;background:#f4f6fb;'
         'font-family:Arial,Helvetica,sans-serif;color:#181d27">'
