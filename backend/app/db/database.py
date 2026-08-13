@@ -48,6 +48,9 @@ class User(Base):
     last_ip = Column(String, nullable=True)           # IP captured at last login
     last_login_at = Column(DateTime, nullable=True)   # last successful login (UTC)
     session_id = Column(String, nullable=True)        # current active session; new login invalidates old
+    tos_accepted = Column(Boolean, default=False)      # accepted Terms & Conditions
+    tos_version = Column(String, nullable=True)        # version of T&C accepted
+    tos_accepted_at = Column(DateTime, nullable=True)  # when T&C were accepted (UTC)
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -347,6 +350,9 @@ _MIGRATIONS = [
     ("users", "last_ip", "VARCHAR"),
     ("users", "last_login_at", "TIMESTAMP"),
     ("users", "session_id", "VARCHAR"),
+    ("users", "tos_accepted", "BOOLEAN DEFAULT 0"),
+    ("users", "tos_version", "VARCHAR"),
+    ("users", "tos_accepted_at", "TIMESTAMP"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -436,6 +442,9 @@ def init_db():
             ("users", "last_ip", "VARCHAR"),
             ("users", "last_login_at", "TIMESTAMPTZ"),
             ("users", "session_id", "VARCHAR"),
+            ("users", "tos_accepted", "BOOLEAN DEFAULT FALSE"),
+            ("users", "tos_version", "VARCHAR"),
+            ("users", "tos_accepted_at", "TIMESTAMPTZ"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:

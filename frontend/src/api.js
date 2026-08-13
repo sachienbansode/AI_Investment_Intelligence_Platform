@@ -84,10 +84,11 @@ export const api = {
   login: (email, password) =>
     http('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   registrationInfo: () => http('/auth/registration-info'),
+  acceptTerms: () => http('/auth/accept-terms', { method: 'POST' }),
   inviteInfo: (code) => http('/auth/invite-info?code=' + encodeURIComponent(code)),
   publicSpotlight: () => http('/public/spotlight'),
   register: (body) => http('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  googleAuth: (id_token, invite_code) => http('/auth/google', { method: 'POST', body: JSON.stringify({ id_token, invite_code }) }),
+  googleAuth: (id_token, invite_code, tos_accepted) => http('/auth/google', { method: 'POST', body: JSON.stringify({ id_token, invite_code, tos_accepted }) }),
   waitlist: (email) => http('/auth/waitlist', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyEmail: (token) => http('/auth/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   resendVerification: (email) => http('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),

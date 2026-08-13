@@ -79,6 +79,7 @@ DEFAULTS: dict = {
     "registration_mode": "invite_only",
     "invites_per_user": 5,            # invite codes each member can share
     "invite_expiry_days": 30,         # invite codes auto-expire this many days after creation
+    "tos_version": "1.0",             # current Terms&Conditions version; bump to force re-consent
     "waitlist_enabled": True,
     "require_email_verification": True,
     # Outbound email. provider: graph (Microsoft 365 Graph) | smtp | off.
@@ -263,6 +264,9 @@ def _validate(key: str, value) -> None:
     elif key == "invite_expiry_days":
         if not (isinstance(value, int) and 1 <= value <= 365):
             raise ValueError("invite_expiry_days must be an integer 1-365")
+    elif key == "tos_version":
+        if not (isinstance(value, str) and 1 <= len(value) <= 20):
+            raise ValueError("tos_version must be a short string")
     elif key in ("waitlist_enabled", "require_email_verification"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")

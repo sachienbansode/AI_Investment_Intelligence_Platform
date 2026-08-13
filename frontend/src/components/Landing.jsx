@@ -188,63 +188,119 @@ function ScoreAnalysis({ explanation, pillars }) {
   )
 }
 
-const PILLARS_ABOUT = [
-  ['Fundamentals', 'Financial health — profitability, balance sheet, cash flows.'],
-  ['Valuation', 'Is the price reasonable versus earnings, book and peers.'],
-  ['Technicals', 'Trend and chart structure from price action.'],
-  ['Momentum', 'Strength and direction of recent moves.'],
-  ['Earnings', 'Growth and quality of the latest results.'],
-  ['News sentiment', 'Tone of recent news impacting the stock.'],
-  ['Institutional', 'Positioning and interest from large investors.'],
-  ['Risk', 'Volatility and downside considerations.'],
+const ABOUT_CATS = [
+  { name: 'Conversational AI', features: [
+    { icon: '◉', title: 'NIYTRI Data Lense', desc: "Lets the assistant read the platform's live database on demand to answer questions the standard context doesn't cover — strictly read-only, bounded queries over scores, instruments, news and only your own watchlist and portfolio. Accounts, admin config and the confidential scoring methodology are never accessible." },
+    { icon: '✦', title: 'AI Assistant', desc: "Conversational intelligence grounded in live quotes, the platform's scores and market news. Multilingual, with per-user chat history and smart follow-up suggestions after every reply." },
+    { icon: '⇄', title: 'Stock Comparison', desc: "Side-by-side comparison of any two NSE scripts — or a random same-sector pair — with live metrics and an advice-free AI summary." },
+  ] },
+  { name: 'Answer Quality & Trust', features: [
+    { icon: '✓', title: 'Exact, Verified Answers', desc: "Quantitative questions — sector averages, counts, thresholds, top/bottom rankings and totals — are computed deterministically in code, so figures are exact and consistent." },
+    { icon: '⚑', title: 'Answer Feedback Loop', desc: "Every answer can be rated helpful or not, feeding an Admin quality dashboard so whole categories of answers improve over time." },
+    { icon: '◷', title: 'Grounded Confidence & Sources', desc: "Each answer shows a confidence level and the exact sources that grounded it, derived from the evidence actually used." },
+    { icon: '◎', title: 'Independent AI Checker', desc: "A second LLM (a different provider, when available) reviews each score rationale for compliance and factual consistency before publishing." },
+    { icon: '❏', title: 'Broker-Research RAG', desc: "Upload the firm's research notes (PDF/text); the assistant retrieves and cites the most relevant passages as reference material, not advice." },
+  ] },
+  { name: 'Scoring & Analytics', features: [
+    { icon: '▤', title: 'Agentic Stock Scoring', desc: "A daily multi-agent pipeline scores every script 0-100 using a proprietary blend of fundamentals, technicals, valuation, momentum, earnings, news sentiment, institutional activity and risk." },
+    { icon: '↺', title: 'On-demand Rescore', desc: "Refresh any script's score with a live quote anytime — day-over-day change, the pillars that drove the move and an AI-written rationale." },
+    { icon: '≣', title: 'Deep Fundamentals', desc: "Each score carries P/E, market cap, EPS, P/B, dividend yield, ROE, 52-week range and volume, pulled daily with fallback for near-complete coverage." },
+    { icon: '▦', title: 'Sector Strength & Stats', desc: "A sector heatmap plus exact per-sector aggregates that power accurate sector comparisons in the assistant." },
+  ] },
+  { name: 'Data & Markets', features: [
+    { icon: '◈', title: 'Market News Intelligence', desc: "Continuous collection from leading Indian financial sources, AI-summarised and tagged with impacted stocks, sectors and sentiment, linked to the original article." },
+    { icon: '◴', title: 'Live Market Data', desc: "Broker, NSE and Yahoo feeds with automatic fallback so quotes and indices keep working everywhere — including cloud servers where some sources are blocked." },
+    { icon: '⊕', title: 'Global Markets', desc: "Optional global indices (S&P 500, Nasdaq, Dow, FTSE, Nikkei, Hang Seng) and global news shown alongside Indian markets." },
+    { icon: '◆', title: 'Dashboard & Index Filters', desc: "KPIs, score trends with avg/min/max labels, top movers and an index filter (Nifty 50, Nifty 500 and sectors)." },
+  ] },
+  { name: 'Portfolio & Watchlist', features: [
+    { icon: '◐', title: 'Portfolio Intelligence', desc: "Health score with a transparent deduction breakdown, diversification and concentration metrics (HHI), sector exposure, factual AI insights and a downloadable PDF report." },
+    { icon: '☆', title: 'Personal Watchlist', desc: "Follow any script with live price, day change and its latest score in one view." },
+    { icon: '⚑', title: 'Score-Crossing Alerts', desc: "Proactive in-app alerts when a watchlist/portfolio script crosses a score band or moves sharply — each with a plain-language explanation of the drivers. Per-user preferences included. Informational only, not advice." },
+  ] },
+  { name: 'Governance & Compliance', features: [
+    { icon: '⛨', title: 'Maker-Checker Governance', desc: "Every score passes an automated Quality Agent gate plus an optional strict mode that holds scores as pending until a human admin approves them — every decision attributed and audit-logged." },
+    { icon: '⚖', title: 'SEBI-Compliant Guardrails', desc: "No buy/sell/hold calls, no price targets and no personalised advice; the scoring methodology stays confidential and every AI output is flagged as informational and reviewable." },
+    { icon: '≡', title: 'Audit Logging', desc: "Every AI call, score decision and admin action is attributed and audit-logged for governance and review." },
+  ] },
+  { name: 'Platform & Engine', features: [
+    { icon: '⬡', title: 'Multi-LLM Engine', desc: "Anthropic Claude, OpenAI GPT and Google Gemini behind one router with automatic failover and key-based auto-switch — no single-vendor dependency." },
+    { icon: '⚡', title: 'Prompt Caching', desc: "Optional caching of the assistant's system prompt to cut latency and repeated input-token cost — toggled from Admin." },
+    { icon: '⚒', title: 'Fully DB-Configurable', desc: "Instruments master with one-click NIFTY500 import, editable scoring weights, scheduler times, chatbot persona, display names and branding — all from Admin." },
+    { icon: '◉', title: 'User Profiles & Preferences', desc: "Each user has a self-service profile — update name and photo, change password and manage personal alert preferences — all in one place." },
+    { icon: '▣', title: 'Mobile Apps', desc: "The same experience packaged as native iOS and Android apps with a mobile-first UI and a compact assistant." },
+    { icon: '⇲', title: 'Open Partner API', desc: "A versioned REST API for partners and mobile apps — scores, instruments, news, the assistant and stateless portfolio analysis, secured with per-partner keys, scopes and rate limits." },
+  ] },
 ]
 
 function AboutView({ brand, onStart }) {
   return (
     <div>
-      <section className="lp-sec" style={{ paddingTop: 34, paddingBottom: 20 }}>
+      <section className="lp-sec" style={{ paddingTop: 34, paddingBottom: 12 }}>
         <span className="lp-ribbon">{String.fromCharCode(0x2726)} About</span>
         <h1 className="lp-about-h1">Meet <span className="lp-grad">{brand}</span></h1>
-        <p className="lp-about-lead">{brand} is an AI investment-intelligence platform for Indian markets. It scores
-          every NSE stock daily, explains the “why” in plain language, watches your portfolio and answers your
-          questions — in English or your language. It is an <b>information &amp; analytics</b> product, never a
-          buy/sell advice engine.</p>
-        <div style={{ marginTop: 22 }}><button className="lp-btn lp-btn-grad lg" onClick={onStart}>Grab Your Seat</button></div>
+        <p className="lp-about-lead">Explainable, agentic AI for Indian markets — combining large language models,
+          live market data and transparent governance to deliver conversational insight, daily stock scoring and
+          portfolio analytics. Information and analytics, never buy/sell advice. Built for SEBI-regulated broking.</p>
+        <div style={{ marginTop: 20 }}><button className="lp-btn lp-btn-grad lg" onClick={onStart}>Grab Your Seat</button></div>
       </section>
+      {ABOUT_CATS.map(cat => (
+        <section className="lp-sec" style={{ paddingTop: 4, paddingBottom: 6 }} key={cat.name}>
+          <div className="lp-cat">{cat.name}</div>
+          <div className="lp-cards">
+            {cat.features.map(f => (
+              <div className="lp-card" key={f.title}>
+                <div className="lp-ic k1">{f.icon}</div>
+                <h3>{f.title}</h3><p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+      <section className="lp-sec" style={{ paddingTop: 10 }}>
+        <div className="lp-about-important">
+          <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>Important information</h3>
+          <p style={{ margin: 0, color: '#7a4a1e', fontSize: 13.5, lineHeight: 1.65 }}>All AI outputs in this application
+            — scores, insights, summaries and chat responses — are generated by artificial intelligence for informational
+            purposes only. They are not investment advice, research reports, or recommendations to buy or sell securities,
+            and must be reviewed and approved before business or regulatory use. Investments in securities markets are
+            subject to market risks. Please consult a SEBI-registered investment adviser before investing.</p>
+        </div>
+      </section>
+    </div>
+  )
+}
 
-      <section className="lp-sec" style={{ paddingTop: 20 }}>
-        <h2>What You <span className="lp-grad">Get</span></h2>
-        <div className="lp-cards">
-          {FEATURES.map(([k, t, d, icon]) => (
-            <div className="lp-card" key={t}><div className={'lp-ic ' + k}><svg viewBox="0 0 24 24">{icon}</svg></div><h3>{t}</h3><p>{d}</p></div>
+const TERMS_SECTIONS = [
+  ['Nature of the service', "The Platform provides information and analytics about listed securities in Indian markets — AI-generated scores, explanations, news summaries and a conversational assistant. It is not an investment adviser, research analyst, portfolio manager, broker or distributor, and nothing here constitutes investment, legal, tax or financial advice, or an offer to buy or sell any security."],
+  ['Eligibility', "You must be at least 18 and legally able to contract. Access is invite-only; invitations and invite codes are personal to the recipient and may not be shared, sold or transferred."],
+  ['Your account', "You are responsible for the accuracy of your details, for keeping credentials confidential and for all activity under your account. Only one active session is permitted per account; signing in on a new device may end other sessions."],
+  ['Acceptable use', "Do not: use the Platform unlawfully; rely on any output as a recommendation to transact; scrape, resell or redistribute data except via an authorised Partner API; disrupt or reverse-engineer the Platform; or present outputs as independent advice or research."],
+  ['Data, sources and delays', "Market data is sourced from third parties and exchanges and may be delayed, incomplete or inaccurate. Prices shown are indicative and not for execution. We do not guarantee timeliness, accuracy or completeness."],
+  ['AI limitations', "AI outputs may be incomplete, out of date or incorrect, and the scoring methodology is proprietary and may change without notice. Outputs must be independently verified and, for business or regulatory use, reviewed and approved by a qualified person."],
+  ['No liability for decisions', "You are solely responsible for your investment decisions. To the maximum extent permitted by law, NIYTRI Technologies and its affiliates are not liable for any loss arising from your use of, or reliance on, the Platform or its outputs."],
+  ['Privacy', "We process account and usage data (including sign-up/login IP and activity) to operate, secure and improve the Platform, as described in our Privacy Policy."],
+  ['Changes & termination', "We may update these Terms and may require re-acceptance; continued use after an update is acceptance. We may suspend or terminate access for breach, misuse of invites, or where required by law."],
+  ['Governing law', "These Terms are governed by the laws of India, subject to applicable law."],
+]
+
+function TermsView({ brand, onBack }) {
+  return (
+    <div>
+      <section className="lp-sec" style={{ paddingTop: 34 }}>
+        <span className="lp-ribbon">Terms &amp; Conditions</span>
+        <h1 className="lp-about-h1">{brand} <span className="lp-grad">Terms</span></h1>
+        <div className="lp-about-important" style={{ marginTop: 16 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>Important — AI disclaimer</h3>
+          <p style={{ margin: 0, color: '#7a4a1e', fontSize: 14, lineHeight: 1.65 }}>All AI outputs in this application — scores, insights, summaries and chat responses — are generated by artificial intelligence for informational purposes only. They are not investment advice, research reports, or recommendations to buy or sell securities, and must be reviewed and approved before business or regulatory use. Investments in securities markets are subject to market risks. Please consult a SEBI-registered investment adviser before investing.</p>
+        </div>
+        <div style={{ marginTop: 20, display: 'grid', gap: 16, maxWidth: 860 }}>
+          {TERMS_SECTIONS.map(([t, d], i) => (
+            <div key={t}><h3 style={{ margin: '0 0 4px', fontSize: 16 }}>{i + 1}. {t}</h3>
+              <p style={{ margin: 0, color: 'var(--mut)', fontSize: 14.5, lineHeight: 1.7 }}>{d}</p></div>
           ))}
         </div>
-      </section>
-
-      <section className="lp-sec" style={{ paddingTop: 10 }}>
-        <h2>How The <span className="lp-grad">NIYTRI Score</span> Works</h2>
-        <div className="lp-subh">A transparent 0–100 score, a weighted blend of eight explainable pillars — each with a clear reason, never a black box.</div>
-        <div className="lp-about-grid">
-          {PILLARS_ABOUT.map(([t, d], i) => (
-            <div className="lp-about-item" key={t}>
-              <div className="lp-about-num">{i + 1}</div>
-              <div><b>{t}</b><div className="lp-about-d">{d}</div></div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="lp-sec" style={{ paddingTop: 10 }}>
-        <h2>Built For <span className="lp-grad">Trust</span></h2>
-        <div className="lp-cards">
-          <div className="lp-card"><h3>SEBI-aligned</h3><p>Designed as information &amp; analytics — no buy/sell/hold calls, no price targets, no personalised advice.</p></div>
-          <div className="lp-card"><h3>Human-reviewed</h3><p>A quality/maker-checker step validates AI output before it’s published, so what you see is vetted.</p></div>
-          <div className="lp-card"><h3>Transparent &amp; explainable</h3><p>Every score comes with its pillar breakdown and a plain-language rationale.</p></div>
-          <div className="lp-card"><h3>NSE &amp; BSE coverage</h3><p>Live indices, delayed price charts and AI-summarised market news across Indian markets.</p></div>
-        </div>
-        <p className="lp-about-disc">{brand} provides AI-generated market information and analytics for informational
-          purposes only — not investment advice. Investments are subject to market risks. Please read all
-          scheme-related documents carefully.</p>
+        <div style={{ marginTop: 24 }}><button className="lp-btn lp-btn-login" onClick={onBack}>← Back</button></div>
       </section>
     </div>
   )
@@ -263,6 +319,9 @@ export default function Landing({ onLogin }) {
   const [invite, setInvite] = useState('')
   const [invitedEmail, setInvitedEmail] = useState('')
   const [lockedInvite, setLockedInvite] = useState(false)
+  const [agree, setAgree] = useState(false)
+  const agreeRef = useRef(false)
+  useEffect(() => { agreeRef.current = agree }, [agree])
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
@@ -317,8 +376,9 @@ export default function Landing({ onLogin }) {
       window.google.accounts.id.initialize({
         client_id: info.google_client_id,
         callback: async (resp) => {
+          if (view === 'signup' && !agreeRef.current) { setErr('Please accept the Terms & Conditions to continue.'); return }
           setBusy(true); setErr('')
-          try { const r = await api.googleAuth(resp.credential, inviteRef.current.trim() || null); setSession(r); onLogin(r.user) }
+          try { const r = await api.googleAuth(resp.credential, inviteRef.current.trim() || null, view === 'signup' ? true : agreeRef.current); setSession(r); onLogin(r.user) }
           catch (ex) { setErr(ex.message) } finally { setBusy(false) }
         },
       })
@@ -350,8 +410,9 @@ export default function Landing({ onLogin }) {
     if (perr) return setErr(perr)
     if (password !== confirm) return setErr('Passwords do not match.')
     if (inviteRequired && !invite.trim()) return setErr('An invite code is required to join the beta.')
+    if (!agree) return setErr('Please accept the Terms & Conditions to create an account.')
     setBusy(true)
-    try { const r = await api.register({ email, password, full_name, invite_code: invite.trim() || null }); if (r && r.needs_verification) setPending({ email, delivered: r.delivered, verify_link: r.verify_link, resent: r.resent }); else { setSession(r); onLogin(r.user) } }
+    try { const r = await api.register({ email, password, full_name, invite_code: invite.trim() || null, tos_accepted: true }); if (r && r.needs_verification) setPending({ email, delivered: r.delivered, verify_link: r.verify_link, resent: r.resent }); else { setSession(r); onLogin(r.user) } }
     catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
   async function doWaitlist(e) {
@@ -438,7 +499,11 @@ export default function Landing({ onLogin }) {
                       <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired}
                              readOnly={lockedInvite} onChange={e => setInvite(e.target.value)}
                              style={lockedInvite ? { background: '#f4f6fb', color: '#6b7280', cursor: 'not-allowed' } : undefined} />
-                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
+                      <label className="lp-agree">
+                        <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
+                        <span>I agree to the <a className="lp-grad" onClick={() => { setModalOpen(false); setPage('terms'); window.scrollTo({ top: 0 }) }}>Terms &amp; Conditions</a>.</span>
+                      </label>
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy || !agree}>{busy ? 'Please wait…' : 'Create Account'}</button>
                       {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
                     </form>
                   )}
@@ -481,7 +546,8 @@ export default function Landing({ onLogin }) {
       )}
 
       <div className="lp-wrap">
-        {page === 'about' ? <AboutView brand={brand} onStart={() => goAuth(closed ? 'waitlist' : 'signup')} /> : (<>
+        {page === 'terms' ? <TermsView brand={brand} onBack={() => { setPage('home'); window.scrollTo({ top: 0 }) }} />
+          : page === 'about' ? <AboutView brand={brand} onStart={() => goAuth(closed ? 'waitlist' : 'signup')} /> : (<>
         <section className="lp-hero">
           <div className="lp-hero-l">
             <span className="lp-ribbon">{String.fromCharCode(0x2726)} {inviteRequired ? 'Invite-Only Beta — Grab Your Seat' : 'Now In Beta'}</span>
@@ -560,7 +626,7 @@ export default function Landing({ onLogin }) {
         </section>
         </>)}
 
-        <footer className="lp-foot">© {new Date().getFullYear()} {brand} · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
+        <footer className="lp-foot">© {new Date().getFullYear()} {brand} · <a className="lp-foot-link" onClick={() => { setPage('terms'); window.scrollTo({ top: 0 }) }}>Terms &amp; Conditions</a> · Informational analytics, not investment advice · Prices delayed · Markets carry risk.</footer>
       </div>
       {modalOpen && (
         <div className="lp-modal" onMouseDown={e => { if (e.target === e.currentTarget) closeModal() }}>
@@ -599,6 +665,13 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-about-num{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:var(--grad)}
 .lp-about-item b{font-size:15px}.lp-about-d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:3px}
 .lp-about-disc{color:#8a93a4;font-size:12.5px;line-height:1.6;margin-top:24px;max-width:820px}
+.lp-cat{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#b25a12;border-left:3px solid #F94C00;padding-left:10px;margin:6px 0 14px}
+.lp-ic{font-size:20px}
+.lp-about-important{background:#fff7f0;border:1px solid #ffe0c7;border-radius:14px;padding:18px}
+.lp-agree{display:flex;gap:9px;align-items:flex-start;text-align:left;margin:6px 2px 2px;font-size:13px;color:var(--mut)}
+.lp-agree input{margin-top:2px;flex:0 0 auto;width:16px;height:16px;accent-color:#F94C00}
+.lp-agree a{cursor:pointer;font-weight:600}
+.lp-foot-link{color:var(--or3);cursor:pointer;text-decoration:none;font-weight:600}
 @media(max-width:700px){.lp-about-grid{grid-template-columns:1fr}}
 .lp-btn{border:none;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
 .lp-btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}

@@ -45,6 +45,7 @@ def _user_dict(u: User) -> dict:
     return {"id": u.id, "email": u.email, "full_name": u.full_name,
             "is_admin": is_admin, "pages": pages, "role_id": u.role_id,
             "avatar": getattr(u, "avatar", None),
+            "tos_ok": bool(getattr(u, "tos_accepted", False)) and (getattr(u, "tos_version", None) == (get_setting("tos_version") or "1.0")),
             "created_at": u.created_at.isoformat() if u.created_at else None}
 
 
@@ -106,6 +107,13 @@ def me(user: User = Depends(get_current_user)):
     return _user_dict(user)
 
 
+@router.post("/accept-terms")
+def accept_terms(user: User = Depends(get_current_user)):
+    res = registration.accept_terms(user.id)
+    audit_log("tos_accepted", user=user.email, version=res.get("tos_version"))
+    return res
+
+
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
     avatar: str | None = None   # data:image/... URI, or "" to clear
@@ -164,11 +172,13 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str = ""
     invite_code: str | None = None
+    tos_accepted: bool = False
 
 
 class GoogleRequest(BaseModel):
     id_token: str
     invite_code: str | None = None
+    tos_accepted: bool = False
 
 
 class WaitlistRequest(BaseModel):
@@ -196,7 +206,7 @@ def get_invite_info(code: str):
 @router.post("/register")
 def register(req: RegisterRequest, request: Request):
     res = registration.register_email(req.email, req.password, req.full_name, req.invite_code,
-                                      signup_ip=_client_ip(request))
+                                      signup_ip=_client_ip(request), tos_accepted=req.tos_accepted)
     if res.get("needs_verification"):
         audit_log("register_pending", user=req.email.lower(), provider="email")
         return {"needs_verification": True, "delivered": bool(res.get("delivered")),
@@ -233,7 +243,7 @@ def resend_verification(req: ResendRequest):
 @router.post("/google")
 def google_auth(req: GoogleRequest, request: Request):
     user, created = registration.login_or_register_google(req.id_token, req.invite_code,
-                                                          signup_ip=_client_ip(request))
+                                                          signup_ip=_client_ip(request), tos_accepted=req.tos_accepted)
     user.session_id = start_new_session(user.id)
     audit_log("login_google" if not created else "register", user=user.email, provider="google")
     return {**issue_tokens(user), "user": _user_dict(user), "created": created}
