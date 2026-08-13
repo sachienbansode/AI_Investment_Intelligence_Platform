@@ -78,6 +78,26 @@ function Split({ title, a, b, av, bv, ac = 'var(--green)', bc = 'var(--accent)' 
   )
 }
 
+function TreeNode({ id, nodes, kids, depth }) {
+  const [open, setOpen] = useState(depth < 2)
+  const n = nodes[id]
+  if (!n) return null
+  const ch = kids[id] || []
+  return (
+    <div>
+      <div className="rt-row" style={{ paddingLeft: 6 + depth * 20 }}>
+        {ch.length
+          ? <button className="rt-tog" onClick={() => setOpen(o => !o)}>{open ? '▾' : '▸'}</button>
+          : <span className="rt-dot">•</span>}
+        <span className="rt-name">{n.name}{n.is_admin && <span className="ua-adm">admin</span>}</span>
+        <span className="rt-email">{n.email}</span>
+        {n.direct > 0 && <span className="rt-badge">{n.direct} direct · {n.network} network</span>}
+      </div>
+      {open && ch.map(k => <TreeNode key={k} id={k} nodes={nodes} kids={kids} depth={depth + 1} />)}
+    </div>
+  )
+}
+
 export default function Users() {
   const [from, setFrom] = useState(daysAgo(29))
   const [to, setTo] = useState(iso(new Date()))
@@ -90,11 +110,23 @@ export default function Users() {
   const [wlQ, setWlQ] = useState('')
   const [wlPage, setWlPage] = useState(1)
 
+  const [tree, setTree] = useState(null)
   function load() {
     setLoading(true); setErr('')
     api.userActivity(from, to).then(setData).catch(e => setErr(e.message)).finally(() => setLoading(false))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); api.referralTree().then(setTree).catch(() => {}) }, [])
+
+  const ref = useMemo(() => {
+    if (!tree) return null
+    const nodes = {}; tree.nodes.forEach(n => { nodes[n.id] = n })
+    const kids = {}
+    tree.nodes.forEach(n => { if (n.inviter_id) (kids[n.inviter_id] = kids[n.inviter_id] || []).push(n.id) })
+    Object.values(kids).forEach(arr => arr.sort((a, b) => (nodes[b].network - nodes[a].network)))
+    const rootsWithNet = tree.roots.filter(id => (nodes[id]?.network || 0) > 0)
+      .sort((a, b) => nodes[b].network - nodes[a].network)
+    return { nodes, kids, rootsWithNet }
+  }, [tree])
 
   async function wlRemove(email) {
     try { await api.waitlistRemove(email); toast('Removed from waitlist'); load() } catch (e) { toast('Failed: ' + e.message) }
@@ -236,6 +268,33 @@ export default function Users() {
         </div>
       </>)}
 
+      {ref && (
+        <div className="ua-grid2">
+          <div className="panel">
+            <div className="ua-h">Top referrers — who brought the most</div>
+            {tree.leaderboard.length ? (
+              <table className="ua-table">
+                <thead><tr><th>#</th><th>Member</th><th>Direct</th><th>Network</th></tr></thead>
+                <tbody>{tree.leaderboard.map((n, i) => (
+                  <tr key={n.id}>
+                    <td>{i + 1}</td>
+                    <td>{n.name}<div className="hint" style={{ fontSize: '.72rem' }}>{n.email}</div></td>
+                    <td><b>{n.direct}</b></td>
+                    <td>{n.network}</td>
+                  </tr>))}</tbody>
+              </table>
+            ) : <div className="hint">No referrals yet.</div>}
+          </div>
+          <div className="panel">
+            <div className="ua-h">Referral tree</div>
+            {ref.rootsWithNet.length ? (
+              <div className="rt-wrap">{ref.rootsWithNet.map(id => <TreeNode key={id} id={id} nodes={ref.nodes} kids={ref.kids} depth={0} />)}</div>
+            ) : <div className="hint">No invited sign-ups yet.</div>}
+            <div className="hint" style={{ marginTop: 8 }}>Members with at least one referral. <b>Direct</b> = they invited · <b>Network</b> = whole downstream.</div>
+          </div>
+        </div>
+      )}
+
       {!data && !err && <div className="panel"><p className="hint">Loading user activity…</p></div>}
     </div>
   )
@@ -280,5 +339,12 @@ const CSS = `
 .ua-wl-act button{padding:4px 10px;font-size:12px}
 .ua-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;color:var(--muted);font-size:12.5px}
 .ua-pager button{padding:5px 12px;font-size:12.5px}
+.rt-wrap{max-height:520px;overflow:auto}
+.rt-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.rt-tog{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;width:18px;padding:0}
+.rt-dot{width:18px;text-align:center;color:var(--faint)}
+.rt-name{font-weight:600;white-space:nowrap}
+.rt-email{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.rt-badge{flex:0 0 auto;font-size:11px;color:var(--accent);background:rgba(79,142,247,.12);padding:2px 8px;border-radius:999px}
 @media(max-width:900px){.ua-stats{grid-template-columns:repeat(3,1fr)}.ua-grid2{grid-template-columns:1fr}}
 `

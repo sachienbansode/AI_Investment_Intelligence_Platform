@@ -1446,3 +1446,48 @@ def email_test(req: EmailTestReq, admin: User = Depends(require_admin)):
         "If you received it, outbound email is configured correctly.")
     audit_log("email_test", to=str(req.to), delivered=delivered)
     return {"delivered": delivered, "error": err}
+
+
+@router.get("/referral-tree")
+def referral_tree():
+    """Who invited whom: the referral graph + a leaderboard of top inviters.
+    A member's referral = a user who joined using one of that member's codes."""
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        codes = db.query(InviteCode).all()
+    finally:
+        db.close()
+    code_owner = {c.code: c.owner_user_id for c in codes}
+    by_id = {u.id: u for u in users}
+    inviter = {}
+    for u in users:
+        owner = code_owner.get(u.invited_by_code or "")
+        inviter[u.id] = owner if owner in by_id else None
+    children: dict[int, list[int]] = {}
+    for uid, pid in inviter.items():
+        if pid:
+            children.setdefault(pid, []).append(uid)
+
+    def network(uid, seen):
+        total = 0
+        for c in children.get(uid, []):
+            if c in seen:
+                continue
+            seen.add(c)
+            total += 1 + network(c, seen)
+        return total
+
+    nodes = []
+    for u in users:
+        direct = len(children.get(u.id, []))
+        nodes.append({
+            "id": u.id, "name": (u.full_name or u.email.split("@")[0]), "email": u.email,
+            "inviter_id": inviter[u.id], "is_admin": bool(u.is_admin),
+            "joined": u.created_at.isoformat() if u.created_at else None,
+            "direct": direct, "network": network(u.id, set())})
+    roots = [n["id"] for n in nodes if not n["inviter_id"]]
+    leaderboard = sorted([n for n in nodes if n["direct"] > 0],
+                         key=lambda x: (x["direct"], x["network"]), reverse=True)[:25]
+    return {"nodes": nodes, "roots": roots, "leaderboard": leaderboard,
+            "total_users": len(users)}

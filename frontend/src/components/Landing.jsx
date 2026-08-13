@@ -311,7 +311,9 @@ export default function Landing({ onLogin }) {
   function goAuth(v) { setView(v); setForgot(false); setErr(''); setOk(''); setModalOpen(true) }
   function closeModal() { setModalOpen(false) }
 
-  const sc = spot ? Math.round(spot.score) : 0
+  const sval = spot ? (Number(spot.score) || 0) : 0
+  const scoreLbl = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1) }
+  const sc = scoreLbl(sval)
   const scoreSeries = spot ? spot.history.map(h => ({ label: fmtDate(h.date), value: h.score })) : []
   const pricePts = spot && spot.price_history ? (spot.price_history.points || []) : []
   const priceSeries = pricePts.map(p => ({ label: fmtDate(new Date(p.t * 1000)), value: p.c }))
@@ -442,7 +444,7 @@ export default function Landing({ onLogin }) {
                     {spot.change_pct != null && <span className={spot.change_pct >= 0 ? 'lp-up' : 'lp-dn'}> {spot.change_pct >= 0 ? String.fromCharCode(0x25B2) : String.fromCharCode(0x25BC)} {Math.abs(spot.change_pct).toFixed(2)}%</span>}
                   </div>
                 </div>
-                <div className="lp-score" style={{ background: 'linear-gradient(135deg,' + bandCol(sc) + ',' + bandCol(sc) + 'cc)' }}>{sc}</div>
+                <div className="lp-score" style={{ background: 'linear-gradient(135deg,' + bandCol(sval) + ',' + bandCol(sval) + 'cc)' }}>{sc}</div>
               </div>
 
               <div className="lp-pvtabs">
@@ -548,9 +550,10 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-preview{position:relative;background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 30px 70px rgba(24,29,39,.10)}
 .lp-pv-load{height:300px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
 .lp-pv-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#0f8f5f;background:rgba(18,160,107,.10);border:1px solid rgba(18,160,107,.25);border-radius:999px;padding:4px 11px;margin-bottom:14px}
-.lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.lp-pv-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.lp-pv-top>div:first-child{flex:1;min-width:0}
 .lp-nm{font-weight:800;font-size:18px}.lp-pvsub{color:var(--mut);font-size:13px}.lp-up{color:#12a06b;font-weight:600}.lp-dn{color:#e0503f;font-weight:600}
-.lp-score{color:#fff;font-weight:800;border-radius:12px;padding:8px 14px;font-size:20px}
+.lp-score{color:#fff;font-weight:800;border-radius:12px;padding:8px 14px;font-size:20px;flex:0 0 auto;white-space:nowrap}
 .lp-pvtabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:4px 0 12px}
 .lp-pvtabs button{flex:1;background:transparent;border:0;color:var(--mut);font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px}
 .lp-pvtabs button.on{background:var(--grad);color:#fff}
@@ -639,4 +642,7 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-modal-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#6b7280;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2;box-shadow:0 2px 6px rgba(24,29,39,.08)}
 .lp-modal-x:hover{background:var(--or2);color:#fff;border-color:var(--or2);transform:rotate(90deg)}
 @media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
+@media(max-width:560px){.lp-wrap{padding:0 16px}.lp-preview{padding:14px}.lp-hero h1{font-size:34px}.lp-hero p{font-size:15px}
+  .lp-nav{padding:14px 0}.lp-btn{padding:10px 14px;font-size:13px}.lp-cta-row{gap:10px}.lp-cta-row .lp-btn{flex:1}
+  .lp-modal{padding:10px}.lp-modal-card{max-height:94vh}.lp-pvtabs button{font-size:12px}}
 `

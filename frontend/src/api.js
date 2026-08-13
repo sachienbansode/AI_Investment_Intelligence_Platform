@@ -95,6 +95,7 @@ export const api = {
   resendInvite: (email) => http('/auth/resend-invite', { method: 'POST', body: JSON.stringify({ email }) }),
   createInviteCode: () => http('/auth/create-invite-code', { method: 'POST' }),
   userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),
+  referralTree: () => http('/admin/referral-tree'),
   waitlistRemove: (email) => http('/admin/waitlist/remove', { method: 'POST', body: JSON.stringify({ email }) }),
   waitlistInvite: (email) => http('/admin/waitlist/invite', { method: 'POST', body: JSON.stringify({ email }) }),
   waitlistClearAll: () => http('/admin/waitlist/clear-all', { method: 'POST' }),

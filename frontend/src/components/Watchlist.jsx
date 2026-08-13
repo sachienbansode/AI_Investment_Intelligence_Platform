@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
@@ -21,20 +21,43 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
   const [sector, setSector] = useState('')
   const [sortKey, setSortKey] = useState('ai_score')
   const [sortDir, setSortDir] = useState('desc')
+  const [open, setOpen] = useState(false)
+  const [hi, setHi] = useState(0)
+  const boxRef = useRef(null)
 
   const load = () => api.watchlist().then(d => setRows(d.watchlist)).catch(e => setErr(e.message))
   useEffect(() => {
     load()
     api.instruments().then(d => setAll(d.instruments)).catch(() => {})
   }, [])
+  useEffect(() => {
+    const away = e => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', away); return () => document.removeEventListener('mousedown', away)
+  }, [])
 
-  async function add() {
-    const sym = pick.trim().toUpperCase()
-    if (!sym) return
-    setBusy(true); setErr('')
-    try { await api.watchAdd(sym); setPick(''); await load() }
+  const matches = useMemo(() => {
+    const t = pick.trim().toLowerCase()
+    if (!t) return []
+    return all.filter(i => i.symbol.toLowerCase().includes(t) || (i.name || '').toLowerCase().includes(t))
+      .sort((a, b) => (a.symbol.toLowerCase().startsWith(t) ? 0 : 1) - (b.symbol.toLowerCase().startsWith(t) ? 0 : 1))
+      .slice(0, 8)
+  }, [all, pick])
+
+  async function add(sym) {
+    const s = (typeof sym === 'string' ? sym : pick).trim().toUpperCase()
+    if (!s) return
+    setBusy(true); setErr(''); setOpen(false)
+    try { await api.watchAdd(s); setPick(''); await load() }
     catch (e) { setErr(e.message) }
     setBusy(false)
+  }
+  function choose(sym) { setOpen(false); add(sym) }
+  function onKey(e) {
+    if (e.key === 'Escape') { setOpen(false); return }
+    if (!matches.length) { if (e.key === 'Enter') add(); return }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, matches.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(matches[hi].symbol) }
   }
   async function remove(sym) {
     try { await api.watchRemove(sym); await load() } catch (e) { setErr(e.message) }
@@ -79,13 +102,32 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
 
   return (
     <div>
+      <style>{`
+        .wl-combo{position:relative;flex:1 1 260px;min-width:0}
+        .wl-combo input{width:100%}
+        .wl-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:40;background:var(--panel);
+          border:1px solid var(--border2);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.25);overflow:hidden;max-height:320px;overflow-y:auto}
+        .wl-opt{display:flex;gap:10px;align-items:baseline;padding:9px 12px;cursor:pointer}
+        .wl-opt.hi{background:var(--panel2)}
+        .wl-opt b{min-width:74px}
+        .wl-opt span{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      `}</style>
       <div className="toolbar">
-        <input list="inst-list" value={pick} placeholder="Add script (e.g. RELIANCE)"
-               onChange={e => setPick(e.target.value)}
-               onKeyDown={e => e.key === 'Enter' && add()} />
-        <datalist id="inst-list">
-          {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name}</option>)}
-        </datalist>
+        <div className="wl-combo" ref={boxRef}>
+          <input value={pick} placeholder="Search script by symbol or name…" autoComplete="off"
+                 onChange={e => { setPick(e.target.value); setOpen(true); setHi(0) }}
+                 onFocus={() => setOpen(true)} onKeyDown={onKey} />
+          {open && matches.length > 0 && (
+            <div className="wl-drop">
+              {matches.map((m, i) => (
+                <div key={m.symbol} className={'wl-opt' + (i === hi ? ' hi' : '')}
+                     onMouseEnter={() => setHi(i)} onMouseDown={() => choose(m.symbol)}>
+                  <b>{m.symbol}</b><span>{m.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <button onClick={add} disabled={busy || !pick.trim()}>Add</button>
         <button className="ghost" onClick={load}>Refresh</button>
       </div>
