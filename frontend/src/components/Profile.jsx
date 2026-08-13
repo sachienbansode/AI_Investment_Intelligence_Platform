@@ -179,18 +179,25 @@ export default function Profile({ user, onUpdated }) {
             </div>
           ) : <p className="hint">You’ve used all your invites. Thanks for spreading the word!</p>}
           {(inv.invitations || []).length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <div className="hint" style={{ marginBottom: 6 }}>Invited</div>
-              <div style={{ display: 'grid', gap: 6 }}>
-                {inv.invitations.map(it => (
-                  <div key={it.email} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {it.email}{it.code && <code style={{ marginLeft: 8, fontSize: '.72rem', color: 'var(--muted)' }}>{it.code}</code>}
-                    </span>
-                    <b style={{ color: it.status === 'joined' ? 'var(--green)' : 'var(--muted)', fontSize: '.82rem', minWidth: 52, textAlign: 'right' }}>{it.status}</b>
-                    {it.status !== 'joined' && <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>}
-                  </div>
-                ))}
+            <div style={{ marginTop: 18 }}>
+              <div className="hint" style={{ marginBottom: 8, fontWeight: 600 }}>Invited ({inv.invitations.length})</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {inv.invitations.map(it => {
+                  const st = it.status
+                  const pill = st === 'joined' ? { bg: 'rgba(34,160,107,.14)', c: 'var(--green)', t: 'Joined' }
+                    : st === 'sent' ? { bg: 'var(--panel2)', c: 'var(--muted)', t: 'Sent' }
+                    : { bg: 'rgba(212,146,15,.16)', c: 'var(--amber)', t: 'Shared' }
+                  return (
+                    <div key={it.email} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--panel)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</div>
+                        {it.code && <code style={{ fontSize: '.7rem', color: 'var(--faint)', letterSpacing: '.5px' }}>{it.code}</code>}
+                      </div>
+                      <span style={{ fontSize: '.72rem', fontWeight: 700, color: pill.c, background: pill.bg, padding: '3px 11px', borderRadius: 999, flex: '0 0 auto' }}>{pill.t}</span>
+                      {st !== 'joined' && <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

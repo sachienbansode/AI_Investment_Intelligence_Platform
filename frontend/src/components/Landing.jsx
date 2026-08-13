@@ -502,7 +502,7 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
   background:radial-gradient(900px 520px at 12% -8%,rgba(255,138,61,.12),transparent 60%),
              radial-gradient(820px 480px at 92% 4%,rgba(249,76,0,.08),transparent 60%),var(--bg)}
 .lp *{box-sizing:border-box}
-.lp-wrap{max-width:1140px;margin:0 auto;padding:0 26px}
+.lp-wrap{max-width:1560px;margin:0 auto;padding:0 40px}
 .lp-grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lp-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
 .lp-brand{display:flex;align-items:center;gap:10px}
