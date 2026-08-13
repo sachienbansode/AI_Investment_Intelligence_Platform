@@ -54,14 +54,58 @@ def _mint_code(db, owner_user_id: int, created_by: str = "member") -> str:
     return code
 
 
-def _redeem(db, code: str):
-    """Validate + consume an invite code. Returns the InviteCode row or raises."""
-    row = db.query(InviteCode).filter(InviteCode.code == code.strip().upper()).first()
+def _is_expired(row) -> bool:
+    """True if the invite code is older than invite_expiry_days."""
+    import datetime
+    days = int(get_setting("invite_expiry_days") or 30)
+    created = getattr(row, "created_at", None)
+    if not created:
+        return False
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=datetime.timezone.utc)
+    return (datetime.datetime.now(datetime.timezone.utc) - created).days >= days
+
+
+def _invite_email_for_code(db, code: str):
+    """The email an invite code was issued to (if it's an emailed invitation)."""
+    inv = db.query(Invitation).filter(Invitation.code == code.strip().upper()).first()
+    return (inv.email or "").lower() if inv else None
+
+
+def _redeem(db, code: str, email: str | None = None):
+    """Validate + consume an invite code. If the code was emailed to a specific
+    address, the registering email must match it (codes can't be forwarded)."""
+    code = code.strip().upper()
+    row = db.query(InviteCode).filter(InviteCode.code == code).first()
     if not row or not row.is_active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or inactive invite code.")
     if (row.used_count or 0) >= (row.max_uses or 0):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This invite code has been fully used.")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This invite code has already been used.")
+    if _is_expired(row):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This invite code has expired. Please ask for a new one.")
+    bound = _invite_email_for_code(db, code)
+    if bound and email and bound != (email or "").lower():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "This invite code was issued for a different email address.")
     return row
+
+
+def invite_info(code: str) -> dict:
+    """Public: is this code usable, and which email was it issued to (for prefill)."""
+    code = (code or "").strip().upper()
+    if not code:
+        return {"valid": False}
+    db = SessionLocal()
+    try:
+        row = db.query(InviteCode).filter(InviteCode.code == code).first()
+        if not row or not row.is_active:
+            return {"valid": False}
+        used = (row.used_count or 0) >= (row.max_uses or 0)
+        expired = _is_expired(row)
+        email = _invite_email_for_code(db, code)
+        return {"valid": not used and not expired, "used": used, "expired": expired, "email": email}
+    finally:
+        db.close()
 
 
 def _finalize_new_user(db, user: User, code_row):
@@ -104,7 +148,7 @@ def register_email(email: str, password: str, full_name: str, invite_code: str |
             raise HTTPException(400, "An account with this email already exists. Try logging in.")
         code_row = None
         if invite_code and invite_code.strip():
-            code_row = _redeem(db, invite_code)
+            code_row = _redeem(db, invite_code, email=email)
         elif mode == "invite_only":
             raise HTTPException(400, "An invite code is required to join the beta.")
         user = User(email=email, full_name=(full_name or "").strip() or email.split("@")[0],
@@ -294,7 +338,7 @@ def login_or_register_google(id_token: str, invite_code: str | None, signup_ip: 
             raise HTTPException(403, "Sign-ups are closed. Please contact your administrator.")
         code_row = None
         if invite_code and invite_code.strip():
-            code_row = _redeem(db, invite_code)
+            code_row = _redeem(db, invite_code, email=email)
         elif mode == "invite_only":
             raise HTTPException(400, "An invite code is required to join the beta.")
         user = User(email=email, full_name=info["name"], hashed_password="",

@@ -1357,16 +1357,21 @@ def waitlist_remove(req: WaitlistAction):
 
 
 @router.post("/waitlist/invite")
-def waitlist_invite(req: WaitlistAction):
-    """Create a one-time invite code, email it to the waitlisted address, and
+def waitlist_invite(req: WaitlistAction, admin: User = Depends(require_admin)):
+    """Create a one-time invite code bound to the waitlisted email, email it, and
     remove them from the waitlist. Returns the code (share manually if no SMTP)."""
     from app.core import registration as reg
+    from app.db.database import Invitation
     email = req.email.lower()
     db = SessionLocal()
     try:
         code = reg._gen_code(db)
-        db.add(InviteCode(code=code, owner_user_id=None, max_uses=1, used_count=0,
+        db.add(InviteCode(code=code, owner_user_id=admin.id, max_uses=1, used_count=0,
                           is_active=True, created_by="admin"))
+        # Bind the code to this email (expires + can't be forwarded) and log it.
+        if not db.query(Invitation.id).filter_by(inviter_user_id=admin.id, email=email).first():
+            db.add(Invitation(inviter_user_id=admin.id, email=email, code=code,
+                              status="sent", delivered=False))
         db.query(Waitlist).filter(Waitlist.email == email).delete()
         db.commit()
     finally:

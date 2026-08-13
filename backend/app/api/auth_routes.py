@@ -187,6 +187,12 @@ def registration_info():
             "google_client_id": (get_settings().google_oauth_client_id or "").strip()}
 
 
+@router.get("/invite-info")
+def get_invite_info(code: str):
+    """Public: validity + the email an invite code was issued to (for prefill)."""
+    return registration.invite_info(code)
+
+
 @router.post("/register")
 def register(req: RegisterRequest, request: Request):
     res = registration.register_email(req.email, req.password, req.full_name, req.invite_code,

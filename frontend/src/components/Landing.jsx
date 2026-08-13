@@ -190,6 +190,7 @@ export default function Landing({ onLogin }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [invite, setInvite] = useState('')
+  const [invitedEmail, setInvitedEmail] = useState('')
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
@@ -216,7 +217,14 @@ export default function Landing({ onLogin }) {
     const token = p.get('verify')
     if (!token) {
       const inv = p.get('invite')
-      if (inv) { setInvite(inv); setView('signup'); setModalOpen(true) }   // open sign-up prefilled
+      if (inv) {
+        setInvite(inv); setView('signup'); setModalOpen(true)   // open sign-up prefilled
+        api.inviteInfo(inv).then(r => {
+          if (r && r.email) { setEmail(r.email); setInvitedEmail(r.email) }
+          if (r && !r.valid) setErr(r.expired ? 'This invite link has expired — please ask for a new one.'
+            : (r.used ? 'This invite link has already been used.' : 'This invite link is not valid.'))
+        }).catch(() => {})
+      }
       return
     }
     api.verifyEmail(token).then(r => { setSession(r); onLogin(r.user) })
@@ -343,7 +351,10 @@ export default function Landing({ onLogin }) {
                   {view === 'signup' && !closed && (
                     <form onSubmit={doRegister}>
                       <input className="lp-field" placeholder="Full name" value={full_name} required onChange={e => setName(e.target.value)} />
-                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required
+                             readOnly={!!invitedEmail} onChange={e => setEmail(e.target.value)}
+                             style={invitedEmail ? { background: '#f4f6fb', color: '#6b7280', cursor: 'not-allowed' } : undefined} />
+                      {invitedEmail && <div className="lp-invite" style={{ marginTop: -2, textAlign: 'left' }}>Invited as <b>{invitedEmail}</b> — this invite is tied to your email.</div>}
                       <input className="lp-field" type="password" placeholder="Create a password" value={password} required minLength={8} onChange={e => setPassword(e.target.value)} />
                       <input className="lp-field" type="password" placeholder="Confirm password" value={confirm} required onChange={e => setConfirm(e.target.value)} />
                       <ul className="lp-pwrules">
