@@ -993,6 +993,7 @@ def get_app_settings():
     # (managed separately via /admin/llm-keys with masking).
     st = dict(all_settings())
     st["llm_api_keys"] = {}
+    st["graph_client_secret"] = ""   # secret managed via /admin/email-config
     return {"settings": st, "defaults": DEFAULTS}
 
 
@@ -1385,3 +1386,57 @@ def waitlist_clear_all():
         db.close()
     audit_log("waitlist_clear_all", count=n)
     return {"removed": n}
+
+
+class EmailConfigReq(BaseModel):
+    provider: str | None = None
+    graph_tenant_id: str | None = None
+    graph_client_id: str | None = None
+    graph_client_secret: str | None = None   # send blank to keep existing
+    graph_sender: str | None = None
+
+
+@router.get("/email-config")
+def email_config():
+    from app.config import get_settings
+    s = get_settings()
+    a = all_settings()
+    return {"provider": a.get("email_provider") or "smtp",
+            "graph_tenant_id": a.get("graph_tenant_id") or "",
+            "graph_client_id": a.get("graph_client_id") or "",
+            "graph_sender": a.get("graph_sender") or "",
+            "graph_secret_set": bool((a.get("graph_client_secret") or "").strip()),
+            "smtp_configured": bool((s.smtp_host or "") and (s.smtp_from or "")),
+            "smtp_from": s.smtp_from or ""}
+
+
+@router.post("/email-config")
+def set_email_config(req: EmailConfigReq, admin: User = Depends(require_admin)):
+    try:
+        if req.provider is not None:
+            set_setting("email_provider", req.provider)
+        for k in ("graph_tenant_id", "graph_client_id", "graph_sender"):
+            v = getattr(req, k)
+            if v is not None:
+                set_setting(k, v.strip())
+        if req.graph_client_secret is not None and req.graph_client_secret.strip():
+            set_setting("graph_client_secret", req.graph_client_secret.strip())
+    except (KeyError, ValueError) as e:
+        raise HTTPException(400, str(e))
+    audit_log("email_config_update", provider=req.provider or get_setting("email_provider"))
+    return {"ok": True}
+
+
+class EmailTestReq(BaseModel):
+    to: EmailStr
+
+
+@router.post("/email-test")
+def email_test(req: EmailTestReq, admin: User = Depends(require_admin)):
+    from app.services import emailer
+    delivered, err = emailer.send_email(
+        str(req.to), "NIYTRI AI - test email",
+        "This is a test email from your NIYTRI AI admin console.\n\n"
+        "If you received it, outbound email is configured correctly.\n\n- NIYTRI Technologies")
+    audit_log("email_test", to=str(req.to), delivered=delivered)
+    return {"delivered": delivered, "error": err}

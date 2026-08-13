@@ -131,28 +131,14 @@ def _verify_link(token: str) -> str:
 
 
 def _send_verification_email(to: str, token: str, name: str) -> bool:
-    from app.config import get_settings
-    s = get_settings()
-    if not (s.smtp_host and s.smtp_from):
-        return False
+    from app.services import emailer
     link = _verify_link(token)
     subject = "Verify your email for NIYTRI AI"
     body = (f"Hi {name or ''},\n\nConfirm your email to activate your NIYTRI AI account:\n"
             f"{link}\n\nIf you didn\u2019t create this account, you can ignore this email.\n\n"
             f"\u2014 NIYTRI Technologies")
-    try:
-        import smtplib
-        from email.mime.text import MIMEText
-        msg = MIMEText(body); msg["Subject"] = subject; msg["From"] = s.smtp_from; msg["To"] = to
-        srv = smtplib.SMTP(s.smtp_host, int(s.smtp_port or 587), timeout=12)
-        srv.starttls()
-        if s.smtp_user:
-            srv.login(s.smtp_user, s.smtp_password)
-        srv.sendmail(s.smtp_from, [to], msg.as_string()); srv.quit()
-        return True
-    except Exception as e:
-        log.warning("verification email to %s failed: %s", to, e)
-        return False
+    delivered, _ = emailer.send_email(to, subject, body)
+    return delivered
 
 
 def verify_email_token(token: str):
@@ -188,28 +174,15 @@ def _gen_password(n: int = 12) -> str:
 
 def _send_password_email(to: str, newpw: str, name: str) -> bool:
     from app.config import get_settings
-    s = get_settings()
-    if not (s.smtp_host and s.smtp_from):
-        return False
-    base = (s.app_base_url or "").rstrip("/")
+    from app.services import emailer
+    base = (get_settings().app_base_url or "").rstrip("/")
     subject = "Your new NIYTRI AI password"
     body = (f"Hi {name or ''},\n\nAs requested, your password has been reset. Use this "
             f"temporary password to log in{(' at ' + base) if base else ''}:\n\n"
             f"    {newpw}\n\nPlease change it from your profile after logging in.\n\n"
             f"If you didn\u2019t request this, contact support immediately.\n\n\u2014 NIYTRI Technologies")
-    try:
-        import smtplib
-        from email.mime.text import MIMEText
-        msg = MIMEText(body); msg["Subject"] = subject; msg["From"] = s.smtp_from; msg["To"] = to
-        srv = smtplib.SMTP(s.smtp_host, int(s.smtp_port or 587), timeout=12)
-        srv.starttls()
-        if s.smtp_user:
-            srv.login(s.smtp_user, s.smtp_password)
-        srv.sendmail(s.smtp_from, [to], msg.as_string()); srv.quit()
-        return True
-    except Exception as e:
-        log.warning("password-reset email to %s failed: %s", to, e)
-        return False
+    delivered, _ = emailer.send_email(to, subject, body)
+    return delivered
 
 
 def reset_password(email: str) -> dict:
@@ -344,28 +317,15 @@ def db_user_exists(email: str) -> bool:
 
 def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
     from app.config import get_settings
-    s = get_settings()
-    link = f"{(s.app_base_url or '').rstrip('/')}/?invite={code}"
-    if not (s.smtp_host and s.smtp_from):
-        return False
+    from app.services import emailer
+    link = f"{(get_settings().app_base_url or '').rstrip('/')}/?invite={code}"
     subject = "You\u2019re invited to NIYTRI AI"
     body = (f"{inviter_name or 'A friend'} invited you to NIYTRI AI \u2014 AI-powered, "
             f"explainable stock intelligence for Indian markets.\n\n"
             f"Join with invite code {code} or use this link:\n{link}\n\n"
             f"\u2014 NIYTRI Technologies")
-    try:
-        import smtplib
-        from email.mime.text import MIMEText
-        msg = MIMEText(body); msg["Subject"] = subject; msg["From"] = s.smtp_from; msg["To"] = to
-        srv = smtplib.SMTP(s.smtp_host, int(s.smtp_port or 587), timeout=12)
-        srv.starttls()
-        if s.smtp_user:
-            srv.login(s.smtp_user, s.smtp_password)
-        srv.sendmail(s.smtp_from, [to], msg.as_string()); srv.quit()
-        return True
-    except Exception as e:
-        log.warning("invite email to %s failed: %s", to, e)
-        return False
+    delivered, _ = emailer.send_email(to, subject, body)
+    return delivered
 
 
 def send_invites(user_id: int, emails: list[str]) -> dict:

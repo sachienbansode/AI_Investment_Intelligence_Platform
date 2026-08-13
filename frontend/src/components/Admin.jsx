@@ -12,12 +12,12 @@ export default function Admin() {
   return (
     <div>
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'partner', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'partner', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
                feedback: 'Assistant quality', review: 'Score review', research: 'Research (RAG)', users: 'Users',
-               roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations', partner: 'Partner API',
-               settings: 'Settings' }[v]}
+               roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations', email: 'Email',
+               partner: 'Partner API', settings: 'Settings' }[v]}
           </button>
         ))}
       </div>
@@ -32,6 +32,7 @@ export default function Admin() {
       {view === 'roles' && <Roles />}
       {view === 'instruments' && <Instruments />}
       {view === 'integrations' && <Integrations />}
+      {view === 'email' && <EmailConfig />}
       {view === 'partner' && <PartnerKeys />}
       {view === 'settings' && <Settings />}
     </div>
@@ -1533,6 +1534,77 @@ function ProviderKeys() {
           {r.source === 'db' && <button className="ghost sm" onClick={() => clearKey(r.provider)}>Clear</button>}
         </div>
       ))}
+    </div>
+  )
+}
+
+function EmailConfig() {
+  const [cfg, setCfg] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [secret, setSecret] = useState('')
+  const [testTo, setTestTo] = useState('')
+  const [testMsg, setTestMsg] = useState(null)
+  const load = () => api.emailConfig().then(c => { setCfg(c); setTestTo(t => t || '') }).catch(e => toast('Failed: ' + (e.message || e)))
+  useEffect(() => { load() }, [])
+  if (!cfg) return <p className="hint">Loading…</p>
+  const set = (k, v) => setCfg(c => ({ ...c, [k]: v }))
+
+  async function save() {
+    setBusy(true)
+    try {
+      const body = { provider: cfg.provider, graph_tenant_id: cfg.graph_tenant_id,
+        graph_client_id: cfg.graph_client_id, graph_sender: cfg.graph_sender }
+      if (secret.trim()) body.graph_client_secret = secret.trim()
+      await api.setEmailConfig(body); setSecret(''); await load(); toast('Email settings saved')
+    } catch (e) { toast('Save failed: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  async function sendTest() {
+    if (!testTo.trim()) { toast('Enter a recipient email'); return }
+    setBusy(true); setTestMsg(null)
+    try {
+      const r = await api.emailTest(testTo.trim())
+      setTestMsg(r.delivered ? { ok: true, text: 'Sent! Check ' + testTo } : { ok: false, text: 'Not sent: ' + (r.error || 'unknown error') })
+    } catch (e) { setTestMsg({ ok: false, text: e.message || String(e) }) } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="panel">
+      <h3>Email (Microsoft 365)</h3>
+      <p className="hint">Send transactional email (verification, invites, password resets) via Microsoft 365 Graph — the modern replacement for SMTP basic auth, which Microsoft is retiring. Credentials are stored in the database (not <code>.env</code>) and the client secret is never shown back.</p>
+
+      <label style={{ display: 'block', margin: '12px 0 4px' }}>Provider</label>
+      <select value={cfg.provider} onChange={e => set('provider', e.target.value)} style={{ maxWidth: 320 }}>
+        <option value="graph">Microsoft 365 (Graph API)</option>
+        <option value="smtp">SMTP (from .env)</option>
+        <option value="off">Off (disable outbound email)</option>
+      </select>
+
+      {cfg.provider === 'graph' && (
+        <div className="profile-fields" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 14 }}>
+          <label>Tenant ID (Directory ID)<input value={cfg.graph_tenant_id} onChange={e => set('graph_tenant_id', e.target.value)} placeholder="xxxxxxxx-xxxx-…" /></label>
+          <label>Application (Client) ID<input value={cfg.graph_client_id} onChange={e => set('graph_client_id', e.target.value)} placeholder="0be18c53-…" /></label>
+          <label>Client Secret<input type="password" value={secret} onChange={e => setSecret(e.target.value)}
+            placeholder={cfg.graph_secret_set ? '•••••••• (saved — leave blank to keep)' : 'Paste the secret value'} /></label>
+          <label>Sender mailbox<input value={cfg.graph_sender} onChange={e => set('graph_sender', e.target.value)} placeholder="no-reply@niytri.com" /></label>
+        </div>
+      )}
+
+      {cfg.provider === 'smtp' && (
+        <p className="hint" style={{ marginTop: 12 }}>Using SMTP settings from <code>backend/.env</code> (smtp_host / smtp_user / smtp_from). Currently {cfg.smtp_configured ? <b style={{ color: 'var(--green)' }}>configured</b> : <b style={{ color: 'var(--red)' }}>not configured</b>}{cfg.smtp_from ? ' · from ' + cfg.smtp_from : ''}.</p>
+      )}
+
+      <div style={{ marginTop: 14 }}>
+        <button onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save email settings'}</button>
+      </div>
+
+      <hr style={{ margin: '18px 0', border: 0, borderTop: '1px solid var(--border)' }} />
+      <h4 style={{ margin: '0 0 8px' }}>Send a test email</h4>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input type="email" value={testTo} onChange={e => setTestTo(e.target.value)} placeholder="you@company.com" style={{ minWidth: 260 }} />
+        <button className="ghost" onClick={sendTest} disabled={busy}>{busy ? 'Sending…' : 'Send test'}</button>
+      </div>
+      {testMsg && <p style={{ marginTop: 10, color: testMsg.ok ? 'var(--green)' : 'var(--red)' }}>{testMsg.text}</p>}
+      <p className="hint" style={{ marginTop: 8 }}>The test uses whatever is currently saved. Save first, then test.</p>
     </div>
   )
 }

@@ -80,6 +80,13 @@ DEFAULTS: dict = {
     "invites_per_user": 5,            # invite codes each member can share
     "waitlist_enabled": True,
     "require_email_verification": True,
+    # Outbound email. provider: graph (Microsoft 365 Graph) | smtp | off.
+    # Graph creds are DB-backed (admin UI), NOT .env. graph_client_secret is redacted.
+    "email_provider": "smtp",
+    "graph_tenant_id": "",
+    "graph_client_id": "",
+    "graph_client_secret": "",
+    "graph_sender": "",
     "llm_models": {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
                    "gemini": "gemini-1.5-pro", "groq": "openai/gpt-oss-120b"},
     "llm_pricing": {
@@ -252,6 +259,12 @@ def _validate(key: str, value) -> None:
     elif key in ("waitlist_enabled", "require_email_verification"):
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
+    elif key == "email_provider":
+        if value not in ("graph", "smtp", "off"):
+            raise ValueError("email_provider must be graph, smtp or off")
+    elif key in ("graph_tenant_id", "graph_client_id", "graph_client_secret", "graph_sender"):
+        if not isinstance(value, str):
+            raise ValueError(f"{key} must be a string")
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")
