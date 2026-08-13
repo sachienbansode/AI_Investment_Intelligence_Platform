@@ -131,13 +131,21 @@ def _verify_link(token: str) -> str:
 
 
 def _send_verification_email(to: str, token: str, name: str) -> bool:
+    from html import escape as _esc
     from app.services import emailer
     plat = emailer.platform_name()
     link = _verify_link(token)
     subject = f"Verify your email for {plat}"
     body = (f"Hi {name or ''},\n\nConfirm your email to activate your {plat} account:\n"
             f"{link}\n\nIf you didn\u2019t create this account, you can ignore this email.")
-    delivered, _ = emailer.send_email(to, subject, body)
+    inner = (
+        f'<h1 style="margin:0 0 10px;font-size:22px;color:#181d27">Confirm your email</h1>'
+        f'<p style="font-size:15px;line-height:1.7;color:#2a3140;margin:0 0 22px">'
+        f'Hi {_esc(name or "there")}, please confirm your email to activate your <b>{_esc(plat)}</b> account.</p>'
+        f'<p style="margin:0 0 24px">{emailer.button(link, "Verify My Email")}</p>'
+        f'<p style="font-size:13px;color:#8a93a4;margin:0">Or paste this link into your browser:<br>'
+        f'<a href="{link}" style="color:#F94C00;word-break:break-all">{link}</a></p>')
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
     return delivered
 
 
@@ -173,15 +181,26 @@ def _gen_password(n: int = 12) -> str:
 
 
 def _send_password_email(to: str, newpw: str, name: str) -> bool:
+    from html import escape as _esc
     from app.config import get_settings
     from app.services import emailer
     base = (get_settings().app_base_url or "").rstrip("/")
-    subject = f"Your new {emailer.platform_name()} password"
+    plat = emailer.platform_name()
+    subject = f"Your new {plat} password"
     body = (f"Hi {name or ''},\n\nAs requested, your password has been reset. Use this "
             f"temporary password to log in{(' at ' + base) if base else ''}:\n\n"
             f"    {newpw}\n\nPlease change it from your profile after logging in.\n\n"
             f"If you didn\u2019t request this, contact support immediately.")
-    delivered, _ = emailer.send_email(to, subject, body)
+    inner = (
+        f'<h1 style="margin:0 0 10px;font-size:22px;color:#181d27">Your new password</h1>'
+        f'<p style="font-size:15px;line-height:1.7;color:#2a3140;margin:0 0 18px">'
+        f'Hi {_esc(name or "there")}, your password has been reset. Use this temporary password to log in:</p>'
+        f'<div style="background:#f4f6fb;border:1px dashed #cfd8e6;border-radius:10px;padding:14px 16px;margin:0 0 22px;'
+        f'font-family:monospace;font-size:20px;font-weight:700;letter-spacing:2px;color:#181d27;text-align:center">{_esc(newpw)}</div>'
+        + (f'<p style="margin:0 0 22px">{emailer.button(base, "Log In")}</p>' if base else '')
+        + f'<p style="font-size:13px;color:#8a93a4;margin:0">Please change it from your profile after logging in. '
+          f'If you didn\u2019t request this, contact support immediately.</p>')
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
     return delivered
 
 
@@ -316,6 +335,7 @@ def db_user_exists(email: str) -> bool:
 
 
 def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
+    from html import escape as _esc
     from app.config import get_settings
     from app.services import emailer
     plat = emailer.platform_name()
@@ -324,7 +344,33 @@ def _send_invite_email(to: str, code: str, inviter_name: str) -> bool:
     body = (f"{inviter_name or 'A friend'} invited you to {plat} \u2014 AI-powered, "
             f"explainable stock intelligence for Indian markets.\n\n"
             f"Join with invite code {code} or use this link:\n{link}")
-    delivered, _ = emailer.send_email(to, subject, body)
+    feats = [
+        ("NIYTRI Score", "Every NSE stock rated 0-100 daily across 8 explainable factors."),
+        ("Data Lense Assistant", "Ask anything about a stock, your portfolio or the market."),
+        ("Smart Alerts", "Get pinged the moment a stock turns Strong or Weak."),
+        ("Portfolio X-Ray", "Health score, concentration and sector risk on your holdings."),
+        ("Delayed Price Charts", "Clean charts with the key stats beside the AI score."),
+        ("Market News AI", "The day's news, summarised and linked to the stocks it moves."),
+    ]
+    rows = "".join(
+        f'<tr><td style="padding:8px 0;vertical-align:top;width:22px">'
+        f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F94C00"></span></td>'
+        f'<td style="padding:8px 0"><b style="color:#181d27">{t}</b>'
+        f'<div style="color:#6b7280;font-size:13.5px;line-height:1.5">{d}</div></td></tr>'
+        for t, d in feats)
+    inner = (
+        f'<h1 style="margin:0 0 12px;font-size:24px;color:#181d27">You\u2019re invited to {_esc(plat)} <span style="color:#F94C00">Pro</span></h1>'
+        f'<p style="font-size:15px;line-height:1.7;color:#2a3140;margin:0 0 20px">'
+        f'<b>{_esc(inviter_name or "A friend")}</b> invited you to {_esc(plat)} \u2014 AI-powered, explainable stock '
+        f'intelligence for Indian markets. Join the invite-only beta and unlock your <b>Pro workspace</b>.</p>'
+        f'<p style="margin:0 0 18px">{emailer.button(link, "Create My Pro Account")}</p>'
+        f'<div style="background:#fff7f0;border:1px solid #ffd9bd;border-radius:10px;padding:12px 16px;margin:0 0 24px;font-size:14px;color:#7a4a1e">'
+        f'Your invite code: <b style="letter-spacing:1px;font-size:16px;color:#F94C00">{code}</b></div>'
+        f'<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b25a12;margin:0 0 6px">What you get</div>'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%">{rows}</table>'
+        f'<p style="font-size:12.5px;color:#8a93a4;margin:22px 0 0">Or paste this link:<br>'
+        f'<a href="{link}" style="color:#F94C00;word-break:break-all">{link}</a></p>')
+    delivered, _ = emailer.send_email(to, subject, body, html_inner=inner)
     return delivered
 
 
