@@ -18,7 +18,7 @@ import About from './components/About.jsx'
 import Profile from './components/Profile.jsx'
 import Login from './components/Login.jsx'
 import Landing from './components/Landing.jsx'
-import StockDetail, { StockSearch } from './components/StockDetail.jsx'
+import StockDetail from './components/StockDetail.jsx'
 import { api, getToken, getRefresh, clearSession, refreshSession, onUnauthorized } from './api.js'
 
 const UP = String.fromCharCode(0x25B2)
@@ -227,13 +227,12 @@ export default function App() {
             })()}
           </div>
           <div className="topbar-right">
-            <StockSearch onPick={openStock} />
-            {health && health.show_active_model && health.active_provider && (
+            {user.is_admin && health && health.show_active_model && health.active_provider && (
               <div className="active-model" title="AI model currently answering">
                 {String.fromCharCode(0x26A1)} {health.active_provider}{health.active_model ? ' ' + DOT + ' ' + health.active_model : ''}
               </div>
             )}
-            {health && (
+            {user.is_admin && health && (
               <div className="status" title="Active engines">
                 <span className="dot ok" /> {health.llm_providers.join(' ' + DOT + ' ')} | {health.market_data_providers.join(' ' + DOT + ' ')}
               </div>
