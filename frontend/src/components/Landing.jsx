@@ -96,71 +96,6 @@ function HoverChart({ series, prefix = '', round = 0 }) {
   const lbl = v => prefix + Number(v).toLocaleString('en-IN', { maximumFractionDigits: round })
   function move(e) { const r = e.currentTarget.getBoundingClientRect(); const frac = (e.clientX - r.left) / r.width; setHi(Math.max(0, Math.min(g.n - 1, Math.round(frac * (g.n - 1))))) }
   const cur = hi != null ? series[hi] : null
-  const authPanel = (
-    <div className="lp-auth">
-              {pending ? (
-                <div className="lp-verify">
-                  <div className="lp-verify-ic">{String.fromCharCode(0x2709)}</div>
-                  <h3>{pending.resent ? 'Check your inbox again' : 'Confirm your email'}</h3>
-                  <p className="lp-vtext">We sent a verification link to <b>{pending.email}</b>. Click it to activate your account and log in.</p>
-                  {!pending.delivered && pending.verify_link && (<p className="lp-invite">Email delivery isn't set up yet. <a className="lp-grad" href={pending.verify_link}>Click here to verify →</a></p>)}
-                  {!pending.delivered && !pending.verify_link && (<p className="lp-invite">We couldn't send the email right now — try resend or contact support.</p>)}
-                  <button className="lp-btn lp-btn-grad lp-full" disabled={busy} onClick={doResend}>{busy ? 'Please wait…' : 'Resend Email'}</button>
-                  <p className="lp-invite"><a className="lp-grad" onClick={() => { setPending(null); setView('signin') }}>← Back to log in</a></p>
-                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
-                </div>
-              ) : (
-                <>
-                  <div className="lp-tabs">
-                    <button className={view === 'signin' ? 'on' : ''} onClick={() => setView('signin')}>Log In</button>
-                    {!closed && <button className={view === 'signup' ? 'on' : ''} onClick={() => setView('signup')}>Sign Up</button>}
-                    {waitlistOn && <button className={view === 'waitlist' ? 'on' : ''} onClick={() => setView('waitlist')}>Waitlist</button>}
-                  </div>
-                  {googleOn && view !== 'waitlist' && (<><div className="lp-google" ref={gbtn} /><div className="lp-or">— or —</div></>)}
-                  {view === 'signin' && !forgot && (
-                    <form onSubmit={doLogin}>
-                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <input className="lp-field" type="password" placeholder="Password" value={password} required onChange={e => setPassword(e.target.value)} />
-                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Log In'}</button>
-                      <div className="lp-forgot"><a onClick={() => { setForgot(true); setErr(''); setOk('') }}>Forgot password?</a></div>
-                    </form>
-                  )}
-                  {view === 'signin' && forgot && (
-                    <form onSubmit={doForgot}>
-                      <p className="lp-vtext">Enter your email and we'll send a new password to it.</p>
-                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Send New Password'}</button>
-                      <div className="lp-forgot"><a onClick={() => { setForgot(false); setErr(''); setOk('') }}>← Back to log in</a></div>
-                    </form>
-                  )}
-                  {view === 'signup' && !closed && (
-                    <form onSubmit={doRegister}>
-                      <input className="lp-field" placeholder="Full name" value={full_name} required onChange={e => setName(e.target.value)} />
-                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <input className="lp-field" type="password" placeholder="Create a password" value={password} required minLength={8} onChange={e => setPassword(e.target.value)} />
-                      <input className="lp-field" type="password" placeholder="Confirm password" value={confirm} required onChange={e => setConfirm(e.target.value)} />
-                      <ul className="lp-pwrules">
-                        {PW_RULES.map(([label, test]) => { const okr = test(password); return <li key={label} className={password ? (okr ? 'ok' : '') : ''}>{okr ? '✓' : '○'} {label}</li> })}
-                      </ul>
-                      <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired} onChange={e => setInvite(e.target.value)} />
-                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
-                      {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
-                    </form>
-                  )}
-                  {view === 'waitlist' && (
-                    <form onSubmit={doWaitlist}>
-                      <p className="lp-vtext">Beta is invite-only right now. Leave your email and we'll reach out when a seat opens.</p>
-                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Join Waitlist'}</button>
-                    </form>
-                  )}
-                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
-                  <div className="lp-invite">Members invite up to <b style={{ color: '#cfd6ea' }}>5 friends</b>.</div>
-                </>
-              )}
-            </div>
-  )
-
   return (
     <div className="lp-chartbox">
       <svg viewBox={'0 0 ' + W + ' ' + H} width="100%" height="160" style={{ display: 'block' }} onMouseMove={move} onMouseLeave={() => setHi(null)}>
@@ -355,6 +290,71 @@ export default function Landing({ onLogin }) {
   const mapped = useMemo(() => indices.map(i => ({ ...i, exch: i.index.includes('(BSE)') ? 'BSE' : i.index.includes('(GL)') ? 'GL' : 'NSE' })), [indices])
   const nse = mapped.filter(i => i.exch === 'NSE')
   const bse = mapped.filter(i => i.exch === 'BSE')
+
+  const authPanel = (
+    <div className="lp-auth">
+              {pending ? (
+                <div className="lp-verify">
+                  <div className="lp-verify-ic">{String.fromCharCode(0x2709)}</div>
+                  <h3>{pending.resent ? 'Check your inbox again' : 'Confirm your email'}</h3>
+                  <p className="lp-vtext">We sent a verification link to <b>{pending.email}</b>. Click it to activate your account and log in.</p>
+                  {!pending.delivered && pending.verify_link && (<p className="lp-invite">Email delivery isn't set up yet. <a className="lp-grad" href={pending.verify_link}>Click here to verify →</a></p>)}
+                  {!pending.delivered && !pending.verify_link && (<p className="lp-invite">We couldn't send the email right now — try resend or contact support.</p>)}
+                  <button className="lp-btn lp-btn-grad lp-full" disabled={busy} onClick={doResend}>{busy ? 'Please wait…' : 'Resend Email'}</button>
+                  <p className="lp-invite"><a className="lp-grad" onClick={() => { setPending(null); setView('signin') }}>← Back to log in</a></p>
+                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="lp-tabs">
+                    <button className={view === 'signin' ? 'on' : ''} onClick={() => setView('signin')}>Log In</button>
+                    {!closed && <button className={view === 'signup' ? 'on' : ''} onClick={() => setView('signup')}>Sign Up</button>}
+                    {waitlistOn && <button className={view === 'waitlist' ? 'on' : ''} onClick={() => setView('waitlist')}>Waitlist</button>}
+                  </div>
+                  {googleOn && view !== 'waitlist' && (<><div className="lp-google" ref={gbtn} /><div className="lp-or">— or —</div></>)}
+                  {view === 'signin' && !forgot && (
+                    <form onSubmit={doLogin}>
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <input className="lp-field" type="password" placeholder="Password" value={password} required onChange={e => setPassword(e.target.value)} />
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Log In'}</button>
+                      <div className="lp-forgot"><a onClick={() => { setForgot(true); setErr(''); setOk('') }}>Forgot password?</a></div>
+                    </form>
+                  )}
+                  {view === 'signin' && forgot && (
+                    <form onSubmit={doForgot}>
+                      <p className="lp-vtext">Enter your email and we'll send a new password to it.</p>
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Send New Password'}</button>
+                      <div className="lp-forgot"><a onClick={() => { setForgot(false); setErr(''); setOk('') }}>← Back to log in</a></div>
+                    </form>
+                  )}
+                  {view === 'signup' && !closed && (
+                    <form onSubmit={doRegister}>
+                      <input className="lp-field" placeholder="Full name" value={full_name} required onChange={e => setName(e.target.value)} />
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <input className="lp-field" type="password" placeholder="Create a password" value={password} required minLength={8} onChange={e => setPassword(e.target.value)} />
+                      <input className="lp-field" type="password" placeholder="Confirm password" value={confirm} required onChange={e => setConfirm(e.target.value)} />
+                      <ul className="lp-pwrules">
+                        {PW_RULES.map(([label, test]) => { const okr = test(password); return <li key={label} className={password ? (okr ? 'ok' : '') : ''}>{okr ? '✓' : '○'} {label}</li> })}
+                      </ul>
+                      <input className="lp-field" placeholder={inviteRequired ? 'Invite code (required)' : 'Invite code (optional)'} value={invite} required={inviteRequired} onChange={e => setInvite(e.target.value)} />
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Create Account'}</button>
+                      {inviteRequired && waitlistOn && <div className="lp-invite">No code? <a className="lp-grad" onClick={() => setView('waitlist')}>Join the waitlist →</a></div>}
+                    </form>
+                  )}
+                  {view === 'waitlist' && (
+                    <form onSubmit={doWaitlist}>
+                      <p className="lp-vtext">Beta is invite-only right now. Leave your email and we'll reach out when a seat opens.</p>
+                      <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Join Waitlist'}</button>
+                    </form>
+                  )}
+                  {err && <p className="lp-err">{err}</p>}{ok && <p className="lp-ok">{ok}</p>}
+                  <div className="lp-invite">Members invite up to <b style={{ color: '#cfd6ea' }}>5 friends</b>.</div>
+                </>
+              )}
+            </div>
+  )
 
   return (
     <div className="lp">
