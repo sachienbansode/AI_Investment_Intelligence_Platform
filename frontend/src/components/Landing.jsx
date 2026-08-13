@@ -115,11 +115,18 @@ function HoverChart({ series, prefix = '', round = 0 }) {
 }
 
 function TickerRow({ items, reverse }) {
+  if (!items.length) return null
+  // Repeat short rows so a single sequence is wide enough (no gaps), then render
+  // it twice for a seamless translateX(-50%) loop. Duration ∝ item count → every
+  // row scrolls at the SAME pixel speed regardless of how many indices it has.
+  let seq = items
+  while (seq.length < 8) seq = seq.concat(items)
+  const dur = seq.length * 4
   return (
     <div className="lp-ticker">
-      <div className={'lp-track' + (reverse ? ' rev' : '')} style={{ animationDuration: Math.max(26, items.length * 4) + 's' }}>
-        {[...items, ...items].map((i, idx) => (
-          <span className="lp-tk" key={idx} aria-hidden={idx >= items.length}>
+      <div className={'lp-track' + (reverse ? ' rev' : '')} style={{ animationDuration: dur + 's' }}>
+        {[...seq, ...seq].map((i, idx) => (
+          <span className="lp-tk" key={idx} aria-hidden={idx >= seq.length}>
             <span className="ex">{i.exch}</span>
             <b>{i.index.replace(' (BSE)', '')}</b>
             <span className="val">{i.last?.toLocaleString('en-IN')}</span>
@@ -497,10 +504,10 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-tickers{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .lp-ticker{overflow:hidden;background:var(--soft)}
 .lp-tickers .lp-ticker + .lp-ticker{border-top:1px solid var(--line)}
-.lp-track{display:inline-flex;gap:28px;padding:8px 26px;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+.lp-track{display:inline-flex;padding:8px 0;white-space:nowrap;animation-name:lpmarq;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
 .lp-track.rev{animation-direction:reverse}
 @keyframes lpmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.lp-tk{display:inline-flex;gap:7px;align-items:center;font-size:12px}
+.lp-tk{display:inline-flex;gap:7px;align-items:center;font-size:12px;margin-right:34px}
 .lp-tk .ex{font-size:10px;font-weight:700;color:#fff;background:var(--or2);border-radius:5px;padding:1px 6px}
 .lp-tk b{color:#181d27;font-weight:700}.lp-tk .val{color:var(--mut);font-variant-numeric:tabular-nums}
 .lp-tk .up{color:#12a06b;font-style:normal}.lp-tk .dn{color:#e0503f;font-style:normal}
@@ -588,10 +595,10 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-foot{color:#9aa3b2;font-size:13px;text-align:center;padding:38px 0;border-top:1px solid var(--line);margin-top:24px}
 .lp-modal{position:fixed;inset:0;z-index:70;background:rgba(24,29,39,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:lpfade .18s ease}
 @keyframes lpfade{from{opacity:0}to{opacity:1}}
-.lp-modal-card{position:relative;width:100%;max-width:430px;max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 30px 80px rgba(24,29,39,.35);animation:lppop .26s cubic-bezier(.18,.79,.28,1.09)}
-@keyframes lppop{from{opacity:0;transform:translateY(18px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
-.lp-modal-card .lp-auth{margin:0;padding-top:48px;border-radius:20px;box-shadow:none}
-.lp-modal-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;border:none;background:var(--soft);color:#7a4a1e;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2}
-.lp-modal-x:hover{background:#ffe6d3;color:var(--or3)}
+.lp-modal-card{position:relative;width:100%;max-width:430px;max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 30px 80px rgba(24,29,39,.35);animation:lppop .3s cubic-bezier(.18,.79,.28,1.12)}
+@keyframes lppop{0%{opacity:0;transform:translateY(24px) scale(.92)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+.lp-modal-card .lp-auth{margin:0;padding-top:52px;border-radius:20px;box-shadow:none}
+.lp-modal-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#6b7280;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2;box-shadow:0 2px 6px rgba(24,29,39,.08)}
+.lp-modal-x:hover{background:var(--or2);color:#fff;border-color:var(--or2);transform:rotate(90deg)}
 @media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
 `
