@@ -842,13 +842,24 @@ async def agents_status(user: User = Depends(get_current_user)):
              "next_run": j.next_run_time.isoformat() if j.next_run_time else None}
             for j in scheduler.get_jobs()]
     running = live_snapshot()
+    # Persistent run history from the DB (survives restarts), newest first.
+    from app.db.database import PipelineRun
+    db = SessionLocal()
+    try:
+        rows = db.query(PipelineRun).order_by(PipelineRun.started.desc()).limit(10).all()
+        history = [{"run_id": r.run_id,
+                    "started": r.started.isoformat() if r.started else None,
+                    "finished": r.finished.isoformat() if r.finished else None,
+                    "status": r.status, "symbols_count": r.symbols_count or 0} for r in rows]
+    finally:
+        db.close()
     return {
         "running": bool(running),
         "active_agents": ([a["name"] for a in running["agents"]
                            if a["status"] == "running"] if running else []),
         "current": running,
-        "last": PIPELINE_STATE["last"],
-        "history": PIPELINE_STATE["history"],
+        "last": PIPELINE_STATE["last"] or (history[0] if history else None),
+        "history": history,
         "scheduled_jobs": jobs,
         "llm_providers": get_llm_router().active_providers,
         "market_data_providers": get_market_data().active_providers,

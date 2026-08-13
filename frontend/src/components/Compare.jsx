@@ -6,7 +6,7 @@ const DASH = String.fromCharCode(0x2014)   // em dash
 const NDASH = String.fromCharCode(0x2013)  // en dash
 const RS = String.fromCharCode(0x20B9)     // rupee
 
-export default function Compare({ scoreLabel = 'NITRI Score' }) {
+export default function Compare({ scoreLabel = 'NIYTRI Score' }) {
   const [insts, setInsts] = useState([])
   const [cmp, setCmp] = useState({ a: '', b: '' })
   const [res, setRes] = useState(null)
@@ -83,7 +83,6 @@ export default function Compare({ scoreLabel = 'NITRI Score' }) {
               </table>
               <h4 style={{ marginBottom: 4 }}>Summary</h4>
               <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(res.summary) }} />
-              <p className="disclaimer">{res.disclaimer}</p>
             </div>
           )
         })()}
