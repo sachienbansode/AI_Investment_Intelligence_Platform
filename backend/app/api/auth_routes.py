@@ -1,7 +1,7 @@
 """Auth API: login + current user. Self-registration is disabled —
 the initial admin is seeded from .env (ADMIN_EMAIL/ADMIN_PASSWORD) at startup,
 and admins create further users via /api/v1/admin/users."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from app.core.auth import (get_current_user, hash_password, issue_tokens,
@@ -12,6 +12,14 @@ from app.core import registration
 from app.services.app_settings import get_setting
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def _client_ip(request: Request) -> str:
+    """Real client IP, honouring the nginx X-Forwarded-For chain."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else ""
 
 
 class LoginRequest(BaseModel):
@@ -41,7 +49,7 @@ def _user_dict(u: User) -> dict:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(email=req.email.lower()).first()
@@ -57,6 +65,16 @@ def login(req: LoginRequest):
         raise HTTPException(403,
             "Please verify your email first \u2014 check your inbox for the verification link.")
     audit_log("login_success", user=user.email)
+    from datetime import datetime, timezone
+    db2 = SessionLocal()
+    try:
+        u2 = db2.get(User, user.id)
+        if u2:
+            u2.last_ip = _client_ip(request)
+            u2.last_login_at = datetime.now(timezone.utc)
+            db2.commit()
+    finally:
+        db2.close()
     return TokenResponse(**issue_tokens(user), user=_user_dict(user))
 
 
@@ -160,8 +178,9 @@ def registration_info():
 
 
 @router.post("/register")
-def register(req: RegisterRequest):
-    res = registration.register_email(req.email, req.password, req.full_name, req.invite_code)
+def register(req: RegisterRequest, request: Request):
+    res = registration.register_email(req.email, req.password, req.full_name, req.invite_code,
+                                      signup_ip=_client_ip(request))
     if res.get("needs_verification"):
         audit_log("register_pending", user=req.email.lower(), provider="email")
         return {"needs_verification": True, "delivered": bool(res.get("delivered")),
@@ -194,8 +213,9 @@ def resend_verification(req: ResendRequest):
 
 
 @router.post("/google")
-def google_auth(req: GoogleRequest):
-    user, created = registration.login_or_register_google(req.id_token, req.invite_code)
+def google_auth(req: GoogleRequest, request: Request):
+    user, created = registration.login_or_register_google(req.id_token, req.invite_code,
+                                                          signup_ip=_client_ip(request))
     audit_log("login_google" if not created else "register", user=user.email, provider="google")
     return {**issue_tokens(user), "user": _user_dict(user), "created": created}
 

@@ -9,7 +9,7 @@ export default function Profile({ user, onUpdated }) {
   const [cur, setCur] = useState(''); const [nw, setNw] = useState(''); const [cf, setCf] = useState('')
   const [pwBusy, setPwBusy] = useState(false)
   const [prefs, setPrefs] = useState(null); const [prefBusy, setPrefBusy] = useState(false)
-  const [inv, setInv] = useState(null); const [emails, setEmails] = useState(['','','','','']); const [invBusy, setInvBusy] = useState(false)
+  const [inv, setInv] = useState(null); const [emails, setEmails] = useState(['']); const [invBusy, setInvBusy] = useState(false)
 
   useEffect(() => { api.alertPrefs().then(setPrefs).catch(() => {}) }, [])
   const loadInv = () => api.myInvites().then(setInv).catch(() => {})
@@ -59,7 +59,7 @@ export default function Profile({ user, onUpdated }) {
       const skip = (r.skipped || []).length
       toast(okN ? (r.emailed ? `Sent ${okN} invite(s)` : `Recorded ${okN} invite(s) — share your code`)
                 : (skip ? 'Nothing sent — see below' : 'No invites sent'))
-      setEmails(['', '', '', '', '']); await loadInv()
+      setEmails(['']); await loadInv()
     } catch (e) { toast('Failed: ' + (e.message || e)) } finally { setInvBusy(false) }
   }
   const initial = (name || user?.email || '?')[0].toUpperCase()
@@ -100,8 +100,9 @@ export default function Profile({ user, onUpdated }) {
         <div className="panel">
           <h3>Invite Friends</h3>
           <p className="hint" style={{ marginTop: 2 }}>
-            You have <b style={{ color: 'var(--text)' }}>{inv.remaining}</b> of {inv.max} invites left.
-            Enter up to {inv.remaining} email{inv.remaining === 1 ? '' : 's'} and we’ll send them an invite.
+            You’ve sent <b style={{ color: 'var(--text)' }}>{inv.sent}</b> of {inv.max} ·{' '}
+            <b style={{ color: 'var(--text)' }}>{inv.remaining}</b> remaining.
+            Add one at a time, or up to {inv.remaining} at once.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px' }}>
             <span className="hint">Your code</span>
@@ -110,15 +111,30 @@ export default function Profile({ user, onUpdated }) {
           </div>
           {inv.remaining > 0 ? (
             <div>
-              {emails.slice(0, inv.remaining).map((v, i) => {
+              {emails.map((v, i) => {
                 const bad = v.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())
                 return (
-                  <input key={i} className="field" type="email" placeholder={"friend" + (i + 1) + "@email.com"}
-                    value={v} style={{ borderColor: bad ? 'var(--red)' : undefined }}
-                    onChange={e => setEmails(a => a.map((x, j) => j === i ? e.target.value : x))} />
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <input className="field" type="email" placeholder={"friend" + (i + 1) + "@email.com"}
+                      value={v} style={{ flex: 1, borderColor: bad ? 'var(--red)' : undefined, margin: 0 }}
+                      onChange={e => setEmails(a => a.map((x, j) => j === i ? e.target.value : x))} />
+                    {emails.length > 1 && (
+                      <button className="ghost sm" title="Remove" style={{ flex: '0 0 auto' }}
+                        onClick={() => setEmails(a => a.filter((_, j) => j !== i))}>✕</button>
+                    )}
+                  </div>
                 )
               })}
-              <button onClick={sendInv} disabled={invBusy} style={{ marginTop: 8 }}>{invBusy ? 'Sending…' : 'Send invites'}</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                <button className="ghost sm" disabled={emails.length >= inv.remaining}
+                  onClick={() => setEmails(a => [...a, ''])}>+ Add another</button>
+                <button onClick={sendInv} disabled={invBusy} style={{ marginLeft: 'auto' }}>
+                  {invBusy ? 'Sending…' : 'Send ' + (emails.filter(e => e.trim()).length <= 1 ? 'invite' : emails.filter(e => e.trim()).length + ' invites')}
+                </button>
+              </div>
+              <div className="hint" style={{ marginTop: 6 }}>
+                {emails.length >= inv.remaining ? 'You’ve reached your invite limit.' : 'You can add up to ' + inv.remaining + ' in total.'}
+              </div>
             </div>
           ) : <p className="hint">You’ve used all your invites. Thanks for spreading the word!</p>}
           {(inv.invitations || []).length > 0 && (

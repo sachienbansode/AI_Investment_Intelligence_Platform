@@ -7,14 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
 from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, InviteCode, PartnerKey,
-                             PipelineRun, Role, SessionLocal, StockScore, User, Waitlist)
+                             PipelineRun, Role, SessionLocal, StockScore, User, Waitlist,
+                             Invitation)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -1238,3 +1239,101 @@ def toggle_invite_code(code_id: int, admin: User = Depends(require_admin)):
         return {"id": row.id, "is_active": row.is_active}
     finally:
         db.close()
+
+
+@router.get("/user-activity")
+def user_activity(from_: str = Query(None, alias="from"), to: str = Query(None)):
+    """User-activity analytics for admins: totals & growth, acquisition breakdown,
+    invite funnel, users table and waitlist. Date filter applies to new users /
+    invites in the range; totals are all-time."""
+    from collections import Counter
+    from datetime import datetime, timedelta, timezone
+
+    def aware(c):
+        if c is None:
+            return None
+        return c.replace(tzinfo=timezone.utc) if c.tzinfo is None else c
+
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_to = datetime.strptime(to, "%Y-%m-%d").date() if to else today
+    except Exception:
+        d_to = today
+    try:
+        d_from = datetime.strptime(from_, "%Y-%m-%d").date() if from_ else (d_to - timedelta(days=29))
+    except Exception:
+        d_from = d_to - timedelta(days=29)
+    start = datetime(d_from.year, d_from.month, d_from.day, tzinfo=timezone.utc)
+    end = datetime(d_to.year, d_to.month, d_to.day, tzinfo=timezone.utc) + timedelta(days=1)
+
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        invs = db.query(Invitation).all()
+        wl = db.query(Waitlist).order_by(Waitlist.id.desc()).all()
+    finally:
+        db.close()
+
+    def in_range(c):
+        c = aware(c)
+        return bool(c and start <= c < end)
+
+    total = len(users)
+    verified = sum(1 for u in users if u.email_verified)
+    admins = sum(1 for u in users if u.is_admin)
+    new_users = [u for u in users if in_range(u.created_at)]
+
+    buckets = {}
+    d = d_from
+    while d <= d_to:
+        buckets[d.isoformat()] = 0
+        d += timedelta(days=1)
+    for u in new_users:
+        k = aware(u.created_at).date().isoformat()
+        if k in buckets:
+            buckets[k] += 1
+    growth = [{"date": k, "count": v} for k, v in buckets.items()]
+
+    def acq(lst):
+        google = sum(1 for u in lst if (u.auth_provider or "email") == "google")
+        invited = sum(1 for u in lst if u.invited_by_code)
+        ver = sum(1 for u in lst if u.email_verified)
+        n = len(lst)
+        return {"google": google, "email": n - google, "invited": invited, "self": n - invited,
+                "verified": ver, "unverified": n - ver, "total": n}
+
+    joined_emails = {u.email for u in users}
+    sent = len(invs)
+    delivered = sum(1 for i in invs if i.delivered)
+    joined = sum(1 for i in invs if i.email in joined_emails)
+    sent_in_range = sum(1 for i in invs if in_range(i.created_at))
+    inviter_counts = Counter(i.inviter_user_id for i in invs)
+    uid_name = {u.id: (u.full_name or u.email) for u in users}
+    top_inviters = [{"user": uid_name.get(uid, str(uid)), "invites": n,
+                     "joined": sum(1 for i in invs if i.inviter_user_id == uid and i.email in joined_emails)}
+                    for uid, n in inviter_counts.most_common(10)]
+
+    def row(u):
+        src = "google" if (u.auth_provider or "email") == "google" else ("invited" if u.invited_by_code else "self")
+        return {"id": u.id, "email": u.email, "full_name": u.full_name, "source": src,
+                "auth_provider": u.auth_provider or "email", "invited_by_code": u.invited_by_code,
+                "email_verified": bool(u.email_verified), "is_admin": bool(u.is_admin),
+                "created_at": (aware(u.created_at).isoformat() if u.created_at else None),
+                "signup_ip": u.signup_ip, "last_ip": u.last_ip,
+                "last_login_at": (aware(u.last_login_at).isoformat() if u.last_login_at else None)}
+    fallback = datetime.min.replace(tzinfo=timezone.utc)
+    user_rows = [row(u) for u in sorted(users, key=lambda x: aware(x.created_at) or fallback, reverse=True)][:2000]
+
+    return {
+        "range": {"from": d_from.isoformat(), "to": d_to.isoformat()},
+        "totals": {"users": total, "verified": verified, "unverified": total - verified,
+                   "admins": admins, "new_in_range": len(new_users)},
+        "growth": growth,
+        "acquisition_range": acq(new_users),
+        "acquisition_all": acq(users),
+        "invites": {"sent": sent, "delivered": delivered, "joined": joined,
+                    "sent_in_range": sent_in_range, "top_inviters": top_inviters},
+        "waitlist": {"count": len(wl),
+                     "recent": [{"email": w.email, "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:25]]},
+        "users": user_rows,
+    }

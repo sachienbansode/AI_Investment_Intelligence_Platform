@@ -91,6 +91,7 @@ export const api = {
   verifyEmail: (token) => http('/auth/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   resendVerification: (email) => http('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email) => http('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),
   stockDetail: (sym) => http('/stock/' + encodeURIComponent(sym)),
   priceHistory: (sym, range) => http('/price-history/' + encodeURIComponent(sym) + '?range=' + encodeURIComponent(range || '1M')),
   me: () => http('/auth/me'),

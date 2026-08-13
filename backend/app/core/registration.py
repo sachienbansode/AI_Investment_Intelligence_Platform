@@ -64,7 +64,7 @@ def _finalize_new_user(db, user: User, code_row):
     user.referral_code = _issue_member_code(db, user.id)
 
 
-def register_email(email: str, password: str, full_name: str, invite_code: str | None):
+def register_email(email: str, password: str, full_name: str, invite_code: str | None, signup_ip: str | None = None):
     """Create an email/password account. Returns a dict:
     {"needs_verification": bool, "user": User|None, "delivered": bool, "verify_link": str|None}.
     When email verification is required, no login tokens are issued until the user
@@ -99,7 +99,7 @@ def register_email(email: str, password: str, full_name: str, invite_code: str |
             raise HTTPException(400, "An invite code is required to join the beta.")
         user = User(email=email, full_name=(full_name or "").strip() or email.split("@")[0],
                     hashed_password=hash_password(password), is_admin=False, is_active=True,
-                    auth_provider="email", email_verified=not require_verify)
+                    auth_provider="email", email_verified=not require_verify, signup_ip=signup_ip)
         db.add(user)
         _finalize_new_user(db, user, code_row)
         token = _new_verify_token(db, user) if require_verify else None
@@ -270,7 +270,7 @@ def verify_google_id_token(id_token: str) -> dict:
             "email_verified": str(data.get("email_verified")).lower() == "true"}
 
 
-def login_or_register_google(id_token: str, invite_code: str | None):
+def login_or_register_google(id_token: str, invite_code: str | None, signup_ip: str | None = None):
     """Existing user -> login. New user -> register (needs a code in invite_only)."""
     info = verify_google_id_token(id_token)
     email = info["email"]
@@ -292,7 +292,7 @@ def login_or_register_google(id_token: str, invite_code: str | None):
             raise HTTPException(400, "An invite code is required to join the beta.")
         user = User(email=email, full_name=info["name"], hashed_password="",
                     is_admin=False, is_active=True, auth_provider="google",
-                    email_verified=info["email_verified"])
+                    email_verified=info["email_verified"], signup_ip=signup_ip)
         db.add(user)
         _finalize_new_user(db, user, code_row)
         db.commit()

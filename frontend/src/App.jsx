@@ -14,6 +14,7 @@ import Alerts from './components/Alerts.jsx'
 import Agents from './components/Agents.jsx'
 import Admin from './components/Admin.jsx'
 import RunAudit from './components/RunAudit.jsx'
+import Users from './components/Users.jsx'
 import About from './components/About.jsx'
 import Profile from './components/Profile.jsx'
 import Login from './components/Login.jsx'
@@ -28,7 +29,7 @@ const DOT = String.fromCharCode(0x00B7)
 // Icon for every page in the catalog; nav is built from the user's allowed pages.
 const ICONS = {
   'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Stock Scores': '▤', 'Compare': '⇄', 'Market News': '◈',
-  'Watchlist': '☆', 'Portfolio': '◐', 'Alerts': '⚑', 'Agents': '⚙', 'Audit': '≣',
+  'Watchlist': '☆', 'Portfolio': '◐', 'Alerts': '⚑', 'Agents': '⚙', 'Audit': '≣', 'Users': '♟',
   'Admin': '⛨', 'About': 'ⓘ',
 }
 // Primary tabs shown in the mobile bottom bar; the rest live behind "More".
@@ -259,6 +260,7 @@ export default function App() {
           {tab === 'Stock' && <StockDetail symbol={stockSym} openStock={openStock} askAI={askAI} scoreLabel={brand.score_label} />}
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
+          {tab === 'Users' && can('Users') && <Users />}
           {tab === 'Admin' && can('Admin') && <Admin />}
         </main>
 

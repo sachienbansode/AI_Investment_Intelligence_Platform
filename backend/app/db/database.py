@@ -44,6 +44,9 @@ class User(Base):
     auth_provider = Column(String, default="email")  # email | google
     email_verified = Column(Boolean, default=False)
     verify_token = Column(String, nullable=True)      # email-verification token (one-time)
+    signup_ip = Column(String, nullable=True)         # IP captured at registration
+    last_ip = Column(String, nullable=True)           # IP captured at last login
+    last_login_at = Column(DateTime, nullable=True)   # last successful login (UTC)
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -59,7 +62,7 @@ class Role(Base):
 
 # Canonical page catalog (matches the frontend nav tab names)
 ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
-             "Watchlist", "Portfolio", "Alerts", "About", "Agents", "Audit", "Admin"]
+             "Watchlist", "Portfolio", "Alerts", "About", "Agents", "Audit", "Users", "Admin"]
 USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
               "Watchlist", "Portfolio", "Alerts", "About"]
 
@@ -339,6 +342,9 @@ _MIGRATIONS = [
     ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
     ("users", "email_verified", "BOOLEAN DEFAULT 0"),
     ("users", "verify_token", "VARCHAR"),
+    ("users", "signup_ip", "VARCHAR"),
+    ("users", "last_ip", "VARCHAR"),
+    ("users", "last_login_at", "TIMESTAMP"),
 ]
 
 # NIFTY50 constituents (seed; constituents change over time — manage from
@@ -424,6 +430,9 @@ def init_db():
             ("users", "auth_provider", "VARCHAR DEFAULT 'email'"),
             ("users", "email_verified", "BOOLEAN DEFAULT FALSE"),
             ("users", "verify_token", "VARCHAR"),
+            ("users", "signup_ip", "VARCHAR"),
+            ("users", "last_ip", "VARCHAR"),
+            ("users", "last_login_at", "TIMESTAMPTZ"),
         ]
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:
