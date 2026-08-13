@@ -399,7 +399,6 @@ export default function Landing({ onLogin }) {
       <div className="lp-wrap">
         <nav className="lp-nav">
           <div className="lp-brand">
-            <img src="/niytri-mark.svg" alt="NIYTRI" onError={e => { e.currentTarget.style.display = 'none' }} />
             <span className="lp-grad lp-word">{brand}</span>
           </div>
           <div className="lp-navbtns">
@@ -641,7 +640,8 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-modal-card .lp-auth{margin:0;padding-top:52px;border-radius:20px;box-shadow:none}
 .lp-modal-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#6b7280;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;z-index:2;box-shadow:0 2px 6px rgba(24,29,39,.08)}
 .lp-modal-x:hover{background:var(--or2);color:#fff;border-color:var(--or2);transform:rotate(90deg)}
-@media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}.lp-word{display:none}}
+@media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}}
+@media(max-width:560px){.lp-word{font-size:16px;letter-spacing:.6px}}
 @media(max-width:560px){.lp-wrap{padding:0 16px}.lp-preview{padding:14px}.lp-hero h1{font-size:34px}.lp-hero p{font-size:15px}
   .lp-nav{padding:14px 0}.lp-btn{padding:10px 14px;font-size:13px}.lp-cta-row{gap:10px}.lp-cta-row .lp-btn{flex:1}
   .lp-modal{padding:10px}.lp-modal-card{max-height:94vh}.lp-pvtabs button{font-size:12px}}
