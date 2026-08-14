@@ -125,20 +125,53 @@ def detect_symbols(question: str) -> list[str]:
     return found[:4]
 
 
-def _topn_over_days(question, db):
-    """Deterministic: which scripts were in the TOP-N by NIYTRI Score on X of the
-    last K days. Handles 'top 10 for at least 10 days in last 30 days' and
-    'always in the top 10 over the last 30 days'. Returns a factual string or None."""
+import re as _re_mod
+_FRAME_CUES = _re_mod.compile(
+    r"\b(who\s+else|who'?s\s+else|any(?:one|body)\s+else|what\s+else|who\s+is\s+next|"
+    r"who'?s\s+next|next\s+to|the\s+next|others?|other\s+than|apart\s+from|besides|"
+    r"aside\s+from|rest|remaining|same\s+(?:list|set|group)|along\s+with|with\s+(?:it|them)|"
+    r"the\s+other|and\s+after|then\b|how\s+about|what\s+about)", _re_mod.IGNORECASE)
+_WHOELSE_CUES = _re_mod.compile(
+    r"\b(who\s+else|who'?s\s+else|any(?:one|body)\s+else|what\s+else|who\s+is\s+next|"
+    r"who'?s\s+next|next\s+to|the\s+next|others?|other\s+than|apart\s+from|besides|"
+    r"aside\s+from|the\s+rest|remaining|same\s+(?:list|set|group)|along\s+with|the\s+other)",
+    _re_mod.IGNORECASE)
+_COUNT_CUES = _re_mod.compile(
+    r"\b(how\s+many\s+times?|how\s+often|how\s+many\s+days|number\s+of\s+days|how\s+long)\b",
+    _re_mod.IGNORECASE)
+
+
+def _topn_over_days(question, db, prev_questions=None):
+    """Deterministic answers about TOP-N-by-NIYTRI-Score over a recent window.
+    Covers three intents from one code path (so new phrasings don't each need a
+    new patch):
+      * per-script count  - "how many times IDEA in top 5 (over 30 days)"
+      * peer list         - "who is next to idea", "who else", "the others"
+      * threshold         - "top 10 for at least 10 days in last 30 days"
+    Short follow-ups inherit the previous turn's top-N / window frame from
+    prev_questions. Returns a factual string or None."""
     import re as _re
-    low = " " + (question or "").lower() + " "
-    if not (_re.search(r"\btop\b", low) and _re.search(r"\bday(s)?\b", low)):
-        return None
+    cur = " " + (question or "").lower() + " "
+    low = cur                              # frame text (may be inherited below)
+    direct = bool(_re.search(r"\btop\b", cur) and (
+        _re.search(r"\bday(s)?\b", cur) or _COUNT_CUES.search(cur)))
+    followup = False
+    if not direct:
+        # A short follow-up to a prior top-N-over-days question: inherit its frame.
+        if _FRAME_CUES.search(cur) and prev_questions:
+            for pq in prev_questions:
+                plow = " " + (pq or "").lower() + " "
+                if _re.search(r"\btop\s+\d+", plow):
+                    low = plow             # inherit the prior frame's numbers
+                    followup = True
+                    break
+        if not followup:
+            return None
     mtop = _re.search(r"top\s+(\d+)", low)
     topn = int(mtop.group(1)) if mtop else 10
     daynums = [int(x) for x in _re.findall(r"(\d+)\s*days?", low)]
     window = max(daynums) if daynums else 30
     window = max(2, min(window, 120))
-    # Day threshold ("at least/minimum/>= M days", "M+ days", "M or more days").
     mmin = (_re.search(r"(?:at\s*least|at\s*minimum|minimum|min\.?|>=)\s*(\d+)\s*(?:or\s*more\s*)?days?", low)
             or _re.search(r"(\d+)\s*\+\s*days?", low)
             or _re.search(r"(\d+)\s*or\s*more\s*days?", low))
@@ -154,25 +187,52 @@ def _topn_over_days(question, db):
                         .order_by(StockScore.composite_score.desc()).limit(topn).all()):
             counts[sym] += 1
             scoresum[sym] += (sc or 0)
-    # Threshold precedence: explicit "minimum/at least M days"; else if the question
-    # gives two day-numbers (e.g. "top 5 for 5 days in last 30 days") the smaller is
-    # the per-day threshold; otherwise "over the last K days" means EVERY day.
+    span = str(dates[-1]) + " to " + str(dates[0])
+    ranked = sorted(counts.items(), key=lambda x: (-x[1], -(scoresum[x[0]] / max(1, x[1]))))
+    rank_of = {sym: i for i, (sym, _c) in enumerate(ranked, 1)}
+
+    def _tbl(items):
+        return "\n".join("| %d | **%s** | %d/%d | %.1f |" % (i, sym, c, ndays, scoresum[sym] / max(1, c))
+                         for i, (sym, c) in enumerate(items, 1))
+
+    # --- Intent 1: per-script count ("how many times IDEA in top 5") ---
+    qsyms = [s for s in detect_symbols(question) if not _WHOELSE_CUES.search(cur)]
+    if qsyms and _COUNT_CUES.search(cur) and not followup:
+        lines = []
+        for sym in qsyms[:3]:
+            c = counts.get(sym, 0)
+            if c:
+                lines.append("**%s** was in the **top %d** on **%d of the last %d days** "
+                             "(avg score %.1f, ranked #%d by frequency)."
+                             % (sym, topn, c, ndays, scoresum[sym] / max(1, c), rank_of.get(sym, 0)))
+            else:
+                lines.append("**%s** was **not** in the top %d on any of the last %d days."
+                             % (sym, topn, ndays))
+        peers = [it for it in ranked if it[0] not in qsyms][:5]
+        extra = ("\n\nOthers most often in the top %d over this window:\n\n"
+                 "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s"
+                 % (topn, topn, _tbl(peers))) if peers else ""
+        return "> " + " ".join(lines) + extra + "\n\n_Window: %s._" % span
+
+    # --- Intent 2: peer list ("who is next to idea", "who else", "the others") ---
+    if followup or _WHOELSE_CUES.search(cur):
+        peers = ranked[:15]
+        more = ("\n\n_Showing 15 of %d._" % len(ranked)) if len(ranked) > 15 else ""
+        return (
+            "> Over the last %d days, **%d script(s)** appeared in the **top %d** by NIYTRI "
+            "Score. Here they are, ranked by how many days each held a top-%d place:\n\n"
+            "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s%s\n\n_Window: %s._"
+            % (ndays, len(ranked), topn, topn, topn, _tbl(peers), more, span))
+
+    # --- Intent 3: threshold ("top 10 for at least 10 days in last 30 days") ---
     if mmin:
         min_days = min(int(mmin.group(1)), ndays)
     elif len(set(daynums)) >= 2:
         min_days = min(min(daynums), ndays)
     else:
         min_days = ndays
-    span = str(dates[-1]) + " to " + str(dates[0])
     label = ("every one of the last %d days" % ndays if min_days >= ndays
              else "at least %d of the last %d days" % (min_days, ndays))
-    # Rank by days-in-top-N, then average score (used for hits AND the nearest fallback).
-    ranked = sorted(counts.items(), key=lambda x: (-x[1], -(scoresum[x[0]] / max(1, x[1]))))
-
-    def _tbl(items):
-        return "\n".join("| %d | **%s** | %d/%d | %.1f |" % (i, sym, c, ndays, scoresum[sym] / max(1, c))
-                         for i, (sym, c) in enumerate(items, 1))
-
     hits = [(sym, c) for sym, c in ranked if c >= min_days]
     if hits:
         cap = hits[:40]
@@ -181,8 +241,6 @@ def _topn_over_days(question, db):
             "> **%d script(s)** were in the **top %d** by NIYTRI Score on %s.\n\n"
             "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s%s\n\n_Window: %s._"
             % (len(hits), topn, label, topn, _tbl(cap), more, span))
-    # None met the threshold — show the CLOSEST (most days in the top N) so the user
-    # still gets the best available answer instead of a bare "no script".
     near = ranked[:10]
     if not near:
         return ("> No script entered the **top %d** by NIYTRI Score in the last %d days (%s)."
@@ -192,7 +250,6 @@ def _topn_over_days(question, db):
         "often they were in the top %d over the window.\n\n"
         "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s\n\n_Window: %s._"
         % (topn, label, topn, topn, _tbl(near), span))
-
 
 async def ask(question: str, session_id: str = "default", language: str = "en",
               user_id: int | None = None) -> AskAIResponse:
@@ -392,8 +449,17 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     }
                 # Multi-day "in the top N over the last K days" (consistency) - exact.
                 if deterministic is None:
+                    _prev_qs = []
                     try:
-                        _mdt = _topn_over_days(question, db)
+                        _pq = (db.query(ChatMessage.content)
+                               .filter(ChatMessage.session_id == session_id,
+                                       ChatMessage.role == "user")
+                               .order_by(ChatMessage.created_at.desc()).limit(6).all())
+                        _prev_qs = [r[0] for r in _pq]
+                    except Exception:
+                        _prev_qs = []
+                    try:
+                        _mdt = _topn_over_days(question, db, _prev_qs)
                     except Exception as e:
                         _mdt = None
                         log.warning("topn_over_days failed: %s", e)
