@@ -163,24 +163,35 @@ def _topn_over_days(question, db):
         min_days = min(min(daynums), ndays)
     else:
         min_days = ndays
-    hits = [(sym, c) for sym, c in counts.items() if c >= min_days]
-    hits.sort(key=lambda x: (-x[1], -(scoresum[x[0]] / x[1])))
     span = str(dates[-1]) + " to " + str(dates[0])
     label = ("every one of the last %d days" % ndays if min_days >= ndays
              else "at least %d of the last %d days" % (min_days, ndays))
-    if not hits:
-        return ("> No script stayed in the **top %d** by NIYTRI Score on %s (%s)."
-                % (topn, label, span))
-    # Markdown: a one-line takeaway + a compact bordered table (renders via md.js).
-    cap = hits[:40]
-    rows = "\n".join("| %d | **%s** | %d/%d |" % (i, sym, c, ndays)
-                     for i, (sym, c) in enumerate(cap, 1))
-    more = ("\n\n_Showing 40 of %d; ask to narrow (e.g. a higher day threshold)._" % len(hits)
-            if len(hits) > 40 else "")
+    # Rank by days-in-top-N, then average score (used for hits AND the nearest fallback).
+    ranked = sorted(counts.items(), key=lambda x: (-x[1], -(scoresum[x[0]] / max(1, x[1]))))
+
+    def _tbl(items):
+        return "\n".join("| %d | **%s** | %d/%d | %.1f |" % (i, sym, c, ndays, scoresum[sym] / max(1, c))
+                         for i, (sym, c) in enumerate(items, 1))
+
+    hits = [(sym, c) for sym, c in ranked if c >= min_days]
+    if hits:
+        cap = hits[:40]
+        more = ("\n\n_Showing 40 of %d._" % len(hits)) if len(hits) > 40 else ""
+        return (
+            "> **%d script(s)** were in the **top %d** by NIYTRI Score on %s.\n\n"
+            "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s%s\n\n_Window: %s._"
+            % (len(hits), topn, label, topn, _tbl(cap), more, span))
+    # None met the threshold — show the CLOSEST (most days in the top N) so the user
+    # still gets the best available answer instead of a bare "no script".
+    near = ranked[:10]
+    if not near:
+        return ("> No script entered the **top %d** by NIYTRI Score in the last %d days (%s)."
+                % (topn, ndays, span))
     return (
-        "> **%d script(s)** stayed in the **top %d** by NIYTRI Score on %s.\n\n"
-        "| # | Script | Days in top %d |\n|--:|---|--:|\n%s%s\n\n_Window: %s._"
-        % (len(hits), topn, label, topn, rows, more, span))
+        "> No script was in the **top %d** on %s — here are the **closest**, ranked by how "
+        "often they were in the top %d over the window.\n\n"
+        "| # | Script | Days in top %d | Avg score |\n|--:|---|--:|--:|\n%s\n\n_Window: %s._"
+        % (topn, label, topn, topn, _tbl(near), span))
 
 
 async def ask(question: str, session_id: str = "default", language: str = "en",
