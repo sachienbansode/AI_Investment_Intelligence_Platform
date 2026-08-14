@@ -138,7 +138,10 @@ def _topn_over_days(question, db):
     daynums = [int(x) for x in _re.findall(r"(\d+)\s*days?", low)]
     window = max(daynums) if daynums else 30
     window = max(2, min(window, 120))
-    matleast = _re.search(r"at\s*least\s+(\d+)\s*days?", low)
+    # Day threshold ("at least/minimum/>= M days", "M+ days", "M or more days").
+    mmin = (_re.search(r"(?:at\s*least|at\s*minimum|minimum|min\.?|>=)\s*(\d+)\s*(?:or\s*more\s*)?days?", low)
+            or _re.search(r"(\d+)\s*\+\s*days?", low)
+            or _re.search(r"(\d+)\s*or\s*more\s*days?", low))
     dates = [d[0] for d in (db.query(StockScore.score_date).distinct()
              .order_by(StockScore.score_date.desc()).limit(window).all())]
     if len(dates) < 2:
@@ -151,8 +154,15 @@ def _topn_over_days(question, db):
                         .order_by(StockScore.composite_score.desc()).limit(topn).all()):
             counts[sym] += 1
             scoresum[sym] += (sc or 0)
-    # "at least M days" if given; otherwise treat "for the last K days" as EVERY day.
-    min_days = min(int(matleast.group(1)), ndays) if matleast else ndays
+    # Threshold precedence: explicit "minimum/at least M days"; else if the question
+    # gives two day-numbers (e.g. "top 5 for 5 days in last 30 days") the smaller is
+    # the per-day threshold; otherwise "over the last K days" means EVERY day.
+    if mmin:
+        min_days = min(int(mmin.group(1)), ndays)
+    elif len(set(daynums)) >= 2:
+        min_days = min(min(daynums), ndays)
+    else:
+        min_days = ndays
     hits = [(sym, c) for sym, c in counts.items() if c >= min_days]
     hits.sort(key=lambda x: (-x[1], -(scoresum[x[0]] / x[1])))
     span = str(dates[-1]) + " to " + str(dates[0])
