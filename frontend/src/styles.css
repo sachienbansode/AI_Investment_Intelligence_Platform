@@ -534,8 +534,11 @@ textarea:focus { border-color: var(--accent); }
 /* ---------- Responsive / mobile ---------- */
 @media (max-width: 860px) {
   .shell, .shell.collapsed { grid-template-columns: 1fr; }
-  .sidenav { position: fixed; top: 0; left: 0; z-index: 60; height: 100vh; width: 260px;
-    transform: translateX(-100%); transition: transform .22s ease; padding: 18px 12px; }
+  .sidenav { position: fixed; top: 0; left: 0; z-index: 60; height: 100vh; height: 100dvh; width: 260px;
+    transform: translateX(-100%); transition: transform .22s ease; padding: 18px 12px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .sidenav nav { min-height: 0; overflow-y: auto; }
+  .sidenav-foot { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   .shell.nav-open .sidenav { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.55); }
   .shell.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 55;
     background: rgba(0,0,0,.5); }

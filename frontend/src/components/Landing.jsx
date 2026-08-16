@@ -666,7 +666,7 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-agree a{cursor:pointer;font-weight:600}
 .lp-foot-link{color:var(--or3);cursor:pointer;text-decoration:none;font-weight:600}
 @media(max-width:700px){.lp-about-grid{grid-template-columns:1fr}}
-.lp-btn{border:none;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
+.lp-btn{border:none;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
 .lp-btn-grad{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 10px 26px rgba(255,106,0,.28)}
 .lp-btn-grad:hover{filter:brightness(1.05)}
 .lp-btn.lg{padding:14px 32px;font-size:16px}
@@ -788,6 +788,10 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 @media(max-width:840px){.lp-hero{grid-template-columns:1fr;padding-top:20px}.lp-cards,.lp-steps{grid-template-columns:1fr}}
 @media(max-width:560px){.lp-word{font-size:16px;letter-spacing:.6px}}
 @media(max-width:560px){.lp-wrap{padding:0 16px}.lp-preview{padding:14px}.lp-hero h1{font-size:34px}.lp-hero p{font-size:15px}
-  .lp-nav{padding:14px 0}.lp-btn{padding:10px 14px;font-size:13px}.lp-cta-row{gap:10px}.lp-cta-row .lp-btn{flex:1}
+  .lp-nav{padding:14px 0;flex-wrap:wrap;gap:10px}
+  .lp-brand{flex:1 1 100%}
+  .lp-navbtns{flex:1 1 100%;justify-content:flex-start;gap:8px}
+  .lp-navlink{padding:8px 4px;font-size:13px}
+  .lp-btn{padding:9px 13px;font-size:13px}.lp-cta-row{gap:10px}.lp-cta-row .lp-btn{flex:1}
   .lp-modal{padding:10px}.lp-modal-card{max-height:94vh}.lp-pvtabs button{font-size:12px}}
 `
