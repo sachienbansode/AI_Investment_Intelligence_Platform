@@ -26,7 +26,7 @@ def _s(key: str) -> str:
 
 def platform_name() -> str:
     from app.services.app_settings import get_setting
-    return (get_setting("platform_label") or "NIYTRI AI").strip()
+    return (get_setting("platform_label") or "NIYTRI Investment Intelligence").strip()
 
 
 def support_email() -> str:

@@ -72,7 +72,7 @@ DEFAULTS: dict = {
     # "ABC.BO"); without one ".NS" is assumed. Empty by default.
     "yahoo_symbol_aliases": {},
     "score_label": "NIYTRI Score",    # display name for the composite score (was "AI Score")
-    "platform_label": "NIYTRI AI",    # brand shown in the assistant's answer "Basis:" tag
+    "platform_label": "NIYTRI Investment Intelligence",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "show_active_model": True,        # show the currently active AI model in the top bar
     # Self-service registration (public landing). Modes: invite_only | open | closed.

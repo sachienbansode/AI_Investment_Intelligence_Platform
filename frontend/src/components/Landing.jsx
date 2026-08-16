@@ -379,7 +379,7 @@ export default function Landing({ onLogin }) {
   }, [gReady, view, pending, modalOpen])
 
   const mode = info ? info.mode : 'invite_only'
-  const brand = (info && info.platform_label) || 'NIYTRI AI'
+  const brand = (info && info.platform_label) || 'NIYTRI Investment Intelligence'
   const inviteRequired = mode === 'invite_only'
   const closed = mode === 'closed'
   const googleOn = info && info.google_enabled

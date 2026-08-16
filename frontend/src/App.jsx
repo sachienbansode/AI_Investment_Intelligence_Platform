@@ -84,7 +84,7 @@ export default function App() {
   const [chatSeed, setChatSeed] = useState(null)
   const [scoreSeed, setScoreSeed] = useState(null)
   const [sectorSeed, setSectorSeed] = useState(null)
-  const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score', platform_label: 'NIYTRI AI' })
+  const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score', platform_label: 'NIYTRI Investment Intelligence' })
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('theme') ||
     (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
@@ -194,7 +194,7 @@ export default function App() {
     return <Maintenance message={health.maintenance_message} brand={brand}
                         onSignOut={() => { clearSession(); setUser(null) }} />
   if (user.tos_ok === false)
-    return <Consent brand={brand.platform_label || 'NIYTRI AI'}
+    return <Consent brand={brand.platform_label || 'NIYTRI Investment Intelligence'}
                     onAccept={async () => { await api.acceptTerms(); try { setUser(await api.me()) } catch {} }}
                     onSignOut={() => { clearSession(); setUser(null) }} />
 
