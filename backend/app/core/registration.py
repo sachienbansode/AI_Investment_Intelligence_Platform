@@ -518,7 +518,10 @@ def send_invites(user_id: int, emails: list[str]) -> dict:
     db = SessionLocal()
     try:
         me = db.get(User, user_id)
-        used = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        # Quota = single-use invite/share codes only; the member's own reusable
+        # referral code (max_uses>1) must NOT count against how many they can send.
+        used = (db.query(InviteCode).filter_by(owner_user_id=user_id)
+                .filter(InviteCode.max_uses == 1).count())
         remaining = max(0, max_n - used)
         clean, seen = [], set()
         for e in (emails or [])[:max_n]:
@@ -547,7 +550,8 @@ def send_invites(user_id: int, emails: list[str]) -> dict:
                               status="sent", delivered=delivered))
             sent.append({"email": e, "delivered": delivered})
         db.commit()
-        used2 = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        used2 = (db.query(InviteCode).filter_by(owner_user_id=user_id)
+                 .filter(InviteCode.max_uses == 1).count())
         return {"sent": sent, "skipped": skipped, "remaining": max(0, max_n - used2),
                 "emailed": all(x["delivered"] for x in sent) if sent else True}
     finally:
@@ -591,7 +595,8 @@ def create_share_code(user_id: int) -> dict:
     max_n = int(get_setting("invites_per_user") or 5)
     db = SessionLocal()
     try:
-        used = db.query(InviteCode).filter_by(owner_user_id=user_id).count()
+        used = (db.query(InviteCode).filter_by(owner_user_id=user_id)
+                .filter(InviteCode.max_uses == 1).count())
         if used >= max_n:
             raise HTTPException(400, "You\u2019ve used all your invites.")
         code = _mint_code(db, user_id, created_by="member-share")
@@ -619,7 +624,9 @@ def my_invites(user_id: int) -> dict:
     db = SessionLocal()
     try:
         codes = [c.code for c in db.query(InviteCode).filter_by(owner_user_id=user_id).all()]
-        used = len(codes)
+        # quota excludes the member's own reusable referral code (max_uses>1)
+        used = (db.query(InviteCode).filter_by(owner_user_id=user_id)
+                .filter(InviteCode.max_uses == 1).count())
         invs = db.query(Invitation).filter_by(inviter_user_id=user_id).order_by(
             Invitation.created_at.desc()).all()
         joined = set()
