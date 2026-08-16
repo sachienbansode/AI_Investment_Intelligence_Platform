@@ -1,7 +1,13 @@
 # NIYTRI — SEO Plan & Action List
 
-Canonical / indexed domain: **https://invest.niytri.com** (production).
-Dev host **dev-invest.niytri.com** must be kept OUT of the index (see step 1).
+Current canonical/indexed domain: **https://dev-invest.niytri.com** (the live site).
+**invest.niytri.com is NOT live yet** (it returns a blank page), so all tags now point to
+dev-invest so the live site can actually be indexed. A canonical pointing at a dead URL
+stops indexing — that was the situation before this change.
+
+WHEN invest.niytri.com goes live: switch canonical + og:url + JSON-LD urls + sitemap back
+to invest.niytri.com, and 301-redirect dev-invest -> invest so the ranking you built on dev
+transfers cleanly to prod. Until then, keep everything on dev-invest.
 
 ## What was shipped in code
 - `frontend/index.html` — keyword-rich title, meta description, keywords, canonical
@@ -19,15 +25,10 @@ are read by everyone, but the page *body* (hero copy, About, spotlight) is only 
 brand searches ("NIYTRI") this is fine; to compete on generic terms you'll want the landing
 + About + a few content pages pre-rendered as static HTML. See "Bigger wins" below.
 
-## Step 1 — keep the dev site out of Google (do this first)
-On the **dev-invest** nginx server block only, add a noindex header so the dev copy never
-competes with prod for the NIYTRI brand:
-
-```
-# in the dev-invest.niytri.com server { } block
-add_header X-Robots-Tag "noindex, nofollow" always;
-```
-Then `sudo nginx -t && sudo systemctl reload nginx`. (Do NOT add this on the prod block.)
+## Step 1 — index the LIVE host (dev-invest) for now
+invest.niytri.com is not live yet, so dev-invest.niytri.com is the canonical/indexed site
+today. Do NOT add a noindex header to dev — it must be crawlable. When prod goes live,
+follow the "WHEN invest.niytri.com goes live" note at the top (repoint tags + 301 dev->prod).
 
 ## Step 2 — verify ownership & submit (free, ~30 min, biggest early lever)
 1. **Google Search Console** (search.google.com/search-console): add invest.niytri.com,

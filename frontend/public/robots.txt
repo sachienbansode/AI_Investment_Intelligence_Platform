@@ -1,6 +1,7 @@
 # NIYTRI AI Investment Intelligence — robots
-# Production host (invest.niytri.com). The dev host (dev-invest.niytri.com)
-# is kept out of the index via an nginx X-Robots-Tag header (see docs/SEO_PLAN.md).
+# invest.niytri.com is NOT live yet, so the live host dev-invest.niytri.com is
+# the current canonical/indexed site. When invest.niytri.com goes live, switch
+# canonical + sitemap back to it and 301 dev -> prod (see docs/SEO_PLAN.md).
 
 User-agent: *
 Allow: /
@@ -8,4 +9,4 @@ Allow: /
 # Keep authenticated app views out of search (they require login anyway).
 Disallow: /api/
 
-Sitemap: https://invest.niytri.com/sitemap.xml
+Sitemap: https://dev-invest.niytri.com/sitemap.xml
