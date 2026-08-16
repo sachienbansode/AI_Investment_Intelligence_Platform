@@ -1,0 +1,11 @@
+# NIYTRI AI Investment Intelligence — robots
+# Production host (invest.niytri.com). The dev host (dev-invest.niytri.com)
+# is kept out of the index via an nginx X-Robots-Tag header (see docs/SEO_PLAN.md).
+
+User-agent: *
+Allow: /
+
+# Keep authenticated app views out of search (they require login anyway).
+Disallow: /api/
+
+Sitemap: https://invest.niytri.com/sitemap.xml
