@@ -304,3 +304,29 @@ def send_invites(req: SendInvitesRequest, user: User = Depends(get_current_user)
     res = registration.send_invites(user.id, req.emails)
     audit_log("invites_sent", user=user.email, count=len(res.get("sent", [])))
     return res
+
+
+class EmailCodeReq(BaseModel):
+    code: str
+    email: EmailStr
+
+
+@router.post("/email-invite-code")
+def email_invite_code(req: EmailCodeReq, user: User = Depends(get_current_user)):
+    """Email an existing shareable code to an address (binds it to that email)."""
+    res = registration.email_share_code(user.id, req.code, req.email)
+    audit_log("invite_code_emailed", user=user.email, to=str(req.email),
+              delivered=res.get("delivered"))
+    return res
+
+
+class DeleteCodeReq(BaseModel):
+    code: str
+
+
+@router.post("/delete-invite-code")
+def delete_invite_code(req: DeleteCodeReq, user: User = Depends(get_current_user)):
+    """Revoke an unused invite/share code and free the slot."""
+    res = registration.delete_invite_code(user.id, req.code)
+    audit_log("invite_code_deleted", user=user.email, code=req.code)
+    return res

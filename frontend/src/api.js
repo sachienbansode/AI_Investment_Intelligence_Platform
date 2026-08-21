@@ -100,6 +100,8 @@ export const api = {
   forgotPassword: (email) => http('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resendInvite: (email) => http('/auth/resend-invite', { method: 'POST', body: JSON.stringify({ email }) }),
   createInviteCode: () => http('/auth/create-invite-code', { method: 'POST' }),
+  emailInviteCode: (code, email) => http('/auth/email-invite-code', { method: 'POST', body: JSON.stringify({ code, email }) }),
+  deleteInviteCode: (code) => http('/auth/delete-invite-code', { method: 'POST', body: JSON.stringify({ code }) }),
   userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),
   referralTree: () => http('/admin/referral-tree'),
   waitlistRemove: (email) => http('/admin/waitlist/remove', { method: 'POST', body: JSON.stringify({ email }) }),

@@ -27,6 +27,7 @@ export default function Profile({ user, onUpdated }) {
   const [prefs, setPrefs] = useState(null); const [prefBusy, setPrefBusy] = useState(false)
   const [inv, setInv] = useState(null); const [emails, setEmails] = useState(['']); const [invBusy, setInvBusy] = useState(false)
   const [shareCode, setShareCode] = useState('')
+  const [emailFor, setEmailFor] = useState(''); const [emailVal, setEmailVal] = useState('')
 
   useEffect(() => { api.alertPrefs().then(setPrefs).catch(() => {}) }, [])
   const loadInv = () => api.myInvites().then(setInv).catch(() => {})
@@ -91,6 +92,20 @@ export default function Profile({ user, onUpdated }) {
         : (r.delivered ? 'Invite re-sent to ' + email : 'Couldn’t send — check email settings'))
       await loadInv()
     } catch (e) { toast('Failed: ' + (e.message || e)) }
+  }
+  async function emailCode(code) {
+    const e = emailVal.trim()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast('Enter a valid email'); return }
+    try {
+      const r = await api.emailInviteCode(code, e)
+      toast(r.delivered ? 'Code emailed to ' + e : 'Saved — couldn’t send (check email settings)')
+      setEmailFor(''); setEmailVal(''); await loadInv()
+    } catch (err) { toast('Failed: ' + (err.message || err)) }
+  }
+  async function deleteCode(code) {
+    if (!window.confirm('Remove this invite and free the slot?')) return
+    try { await api.deleteInviteCode(code); toast('Invite removed'); await loadInv() }
+    catch (e) { toast('Failed: ' + (e.message || e)) }
   }
   const initial = (name || user?.email || '?')[0].toUpperCase()
   return (
@@ -188,13 +203,34 @@ export default function Profile({ user, onUpdated }) {
                     : st === 'sent' ? { bg: 'var(--panel2)', c: 'var(--muted)', t: 'Sent' }
                     : { bg: 'rgba(212,146,15,.16)', c: 'var(--amber)', t: 'Shared' }
                   return (
-                    <div key={it.code || it.email} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--panel)' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</div>
-                        {it.code && <code style={{ fontSize: '.7rem', color: 'var(--faint)', letterSpacing: '.5px' }}>{it.code}</code>}
+                    <div key={it.code || it.email} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--panel)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 120 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</div>
+                          {it.code && <code style={{ fontSize: '.7rem', color: 'var(--faint)', letterSpacing: '.5px' }}>{it.code}</code>}
+                        </div>
+                        <span style={{ fontSize: '.72rem', fontWeight: 700, color: pill.c, background: pill.bg, padding: '3px 11px', borderRadius: 999, flex: '0 0 auto' }}>{pill.t}</span>
+                        {st !== 'joined' && (it.shareable ? (
+                          <>
+                            <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => { navigator.clipboard?.writeText(it.code); toast('Code copied') }}>Copy</button>
+                            <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => { setEmailFor(emailFor === it.code ? '' : it.code); setEmailVal('') }}>Email</button>
+                            <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => deleteCode(it.code)}>Delete</button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>
+                            <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => deleteCode(it.code)}>Delete</button>
+                          </>
+                        ))}
                       </div>
-                      <span style={{ fontSize: '.72rem', fontWeight: 700, color: pill.c, background: pill.bg, padding: '3px 11px', borderRadius: 999, flex: '0 0 auto' }}>{pill.t}</span>
-                      {st !== 'joined' && <button className="ghost sm" style={{ flex: '0 0 auto' }} onClick={() => resendInv(it.email)}>Resend</button>}
+                      {emailFor === it.code && (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input className="field" type="email" placeholder="friend@email.com" value={emailVal}
+                            onChange={e => setEmailVal(e.target.value)} style={{ flex: 1, margin: 0 }} />
+                          <button className="ghost sm" onClick={() => emailCode(it.code)}>Send</button>
+                          <button className="ghost sm" onClick={() => { setEmailFor(''); setEmailVal('') }}>Cancel</button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}

@@ -618,6 +618,74 @@ def create_share_code(user_id: int) -> dict:
     return {"delivered": delivered, "already_member": False}
 
 
+def email_share_code(user_id: int, code: str, email: str) -> dict:
+    """Email an existing shareable code to a specific address AND bind it to that
+    address (so it can no longer be forwarded) - it becomes a normal email invite.
+    Does NOT consume an extra slot: the code already exists."""
+    email = (email or "").strip().lower()
+    code = (code or "").strip().upper()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(400, f"Not a valid email address: {email}")
+    db = SessionLocal()
+    try:
+        me = db.get(User, user_id)
+        if email == (me.email or "").lower():
+            raise HTTPException(400, "You can\u2019t invite yourself.")
+        row = db.query(InviteCode).filter_by(owner_user_id=user_id, code=code).first()
+        if not row or (row.max_uses or 0) != 1:
+            raise HTTPException(404, "Shareable code not found.")
+        if (row.used_count or 0) >= (row.max_uses or 1):
+            raise HTTPException(400, "This code has already been used.")
+        if db.query(User.id).filter(User.email == email).first():
+            raise HTTPException(400, "That person is already a member.")
+        existing = db.query(Invitation).filter_by(code=code).first()
+        if existing and (existing.email or "").lower() != email:
+            raise HTTPException(400, "This code is already assigned to a different email.")
+        if not existing and db.query(Invitation.id).filter_by(
+                inviter_user_id=user_id, email=email).first():
+            raise HTTPException(400, "You\u2019ve already invited that email.")
+        name = me.full_name or ""
+        if not existing:
+            db.add(Invitation(inviter_user_id=user_id, email=email, code=code,
+                              status="sent", delivered=False))
+        db.commit()
+    finally:
+        db.close()
+    delivered = _send_invite_email(email, code, name)
+    db = SessionLocal()
+    try:
+        inv = db.query(Invitation).filter_by(code=code).first()
+        if inv and delivered and not inv.delivered:
+            inv.delivered = True
+            db.commit()
+    finally:
+        db.close()
+    return {"delivered": delivered, "email": email}
+
+
+def delete_invite_code(user_id: int, code: str) -> dict:
+    """Revoke an UNUSED invite/share code, freeing the slot. Cannot remove a code
+    that was already redeemed, nor the member's own reusable referral code."""
+    code = (code or "").strip().upper()
+    max_n = int(get_setting("invites_per_user") or 5)
+    db = SessionLocal()
+    try:
+        row = db.query(InviteCode).filter_by(owner_user_id=user_id, code=code).first()
+        if not row or (row.max_uses or 0) != 1:
+            raise HTTPException(404, "Invite code not found.")
+        if (row.used_count or 0) >= 1 or db.query(User.id).filter(
+                User.invited_by_code == code).first():
+            raise HTTPException(400, "That invite was already used and can\u2019t be removed.")
+        db.query(Invitation).filter_by(code=code).delete()
+        db.delete(row)
+        db.commit()
+        used = (db.query(InviteCode).filter_by(owner_user_id=user_id)
+                .filter(InviteCode.max_uses == 1).count())
+        return {"deleted": True, "remaining": max(0, max_n - used)}
+    finally:
+        db.close()
+
+
 def my_invites(user_id: int) -> dict:
     """Invites remaining and who they've invited (each invite has its own code)."""
     max_n = int(get_setting("invites_per_user") or 5)
@@ -647,7 +715,7 @@ def my_invites(user_id: int) -> dict:
         for c in single_use:
             if (c.code or "").upper() in inv_codes:
                 continue
-            items.append({"email": "Shareable code", "code": c.code,
+            items.append({"email": "Shareable code", "code": c.code, "shareable": True,
                           "status": "joined" if ((c.used_count or 0) >= 1 or c.code in joined_codes) else "shared",
                           "created_at": c.created_at.isoformat() if getattr(c, "created_at", None) else None})
         return {"max": max_n, "sent": len(invs), "shared": max(0, used - len(invs)),
