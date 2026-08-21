@@ -648,6 +648,31 @@ function Settings() {
       </div>
 
       <div className="panel">
+        <h4 title="Controls who can create an account on the public landing page.">
+          Registration <span className="info-i">i</span></h4>
+        <div className="toolbar">
+          <label title="How new members can sign up on the landing page.">
+            Mode:{' '}
+            <select defaultValue={s.registration_mode || 'invite_only'}
+                    onChange={e => save('registration_mode', e.target.value)}>
+              <option value="invite_only">Invite only — needs a valid invite code</option>
+              <option value="open">Open — anyone can sign up</option>
+              <option value="closed">Closed — no sign-ups (waitlist only)</option>
+            </select>
+          </label>
+          <label title="Show a waitlist form for people without a seat.">
+            <input type="checkbox" defaultChecked={!!s.waitlist_enabled}
+                   onChange={e => save('waitlist_enabled', e.target.checked)} />
+            {' '}Enable waitlist
+          </label>
+        </div>
+        <p className="hint"><strong>Invite only</strong>: visitors need an invite code (current behaviour).{' '}
+          <strong>Open</strong>: anyone can create an account directly — switch to this for public launch.{' '}
+          <strong>Closed</strong>: sign-ups are off; visitors can only join the waitlist.
+          Email verification &amp; Terms consent still apply in every mode.</p>
+      </div>
+
+      <div className="panel">
         <h4 title="When ON, the app also shows major global indices (S&P 500, Nasdaq, Dow, FTSE, Nikkei, Hang Seng) in the ticker and pulls global market news into the News feed on the next refresh.">
           Global markets <span className="info-i">i</span></h4>
         <div className="toolbar">
