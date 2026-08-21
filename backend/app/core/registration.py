@@ -623,21 +623,35 @@ def my_invites(user_id: int) -> dict:
     max_n = int(get_setting("invites_per_user") or 5)
     db = SessionLocal()
     try:
-        codes = [c.code for c in db.query(InviteCode).filter_by(owner_user_id=user_id).all()]
-        # quota excludes the member's own reusable referral code (max_uses>1)
-        used = (db.query(InviteCode).filter_by(owner_user_id=user_id)
-                .filter(InviteCode.max_uses == 1).count())
+        code_rows = db.query(InviteCode).filter_by(owner_user_id=user_id).all()
+        codes = [c.code for c in code_rows]
+        # A "slot" is any single-use code (max_uses==1): an emailed invite OR a
+        # shareable code the member created. The member's own reusable referral
+        # code (max_uses>1) does NOT count against the quota.
+        single_use = [c for c in code_rows if (c.max_uses or 0) == 1]
+        used = len(single_use)
         invs = db.query(Invitation).filter_by(inviter_user_id=user_id).order_by(
             Invitation.created_at.desc()).all()
-        joined = set()
-        redeemed = 0
+        inv_codes = {(i.code or "").upper() for i in invs}
+        joined, redeemed, joined_codes = set(), 0, set()
         if codes:
             joined = {u.email for u in db.query(User.email).filter(User.invited_by_code.in_(codes)).all()}
             redeemed = db.query(User.id).filter(User.invited_by_code.in_(codes)).count()
+            joined_codes = {c for (c,) in db.query(User.invited_by_code)
+                            .filter(User.invited_by_code.in_(codes)).all() if c}
         items = [{"email": i.email, "code": i.code,
                   "status": "joined" if i.email in joined else ("sent" if i.delivered else "shared"),
                   "created_at": i.created_at.isoformat() if i.created_at else None} for i in invs]
-        return {"max": max_n, "sent": len(invs), "remaining": max(0, max_n - used),
+        # Surface shareable codes (single-use, not tied to an emailed invite) so the
+        # list count matches "used" and 0-remaining is never a mystery.
+        for c in single_use:
+            if (c.code or "").upper() in inv_codes:
+                continue
+            items.append({"email": "Shareable code", "code": c.code,
+                          "status": "joined" if ((c.used_count or 0) >= 1 or c.code in joined_codes) else "shared",
+                          "created_at": c.created_at.isoformat() if getattr(c, "created_at", None) else None})
+        return {"max": max_n, "sent": len(invs), "shared": max(0, used - len(invs)),
+                "used": used, "remaining": max(0, max_n - used),
                 "redeemed": redeemed, "invitations": items}
     finally:
         db.close()

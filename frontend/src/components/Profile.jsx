@@ -138,7 +138,7 @@ export default function Profile({ user, onUpdated }) {
         <div className="panel">
           <h3>Invite Friends</h3>
           <p className="hint" style={{ marginTop: 2 }}>
-            You’ve sent <b style={{ color: 'var(--text)' }}>{inv.sent}</b> of {inv.max} ·{' '}
+            You’ve used <b style={{ color: 'var(--text)' }}>{inv.used ?? inv.sent}</b> of {inv.max} ·{' '}
             <b style={{ color: 'var(--text)' }}>{inv.remaining}</b> remaining.
             Add one at a time, or up to {inv.remaining} at once.
           </p>
@@ -188,7 +188,7 @@ export default function Profile({ user, onUpdated }) {
                     : st === 'sent' ? { bg: 'var(--panel2)', c: 'var(--muted)', t: 'Sent' }
                     : { bg: 'rgba(212,146,15,.16)', c: 'var(--amber)', t: 'Shared' }
                   return (
-                    <div key={it.email} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--panel)' }}>
+                    <div key={it.code || it.email} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--panel)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.email}</div>
                         {it.code && <code style={{ fontSize: '.7rem', color: 'var(--faint)', letterSpacing: '.5px' }}>{it.code}</code>}
