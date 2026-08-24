@@ -24,7 +24,7 @@ DEFAULTS: dict = {
     # Quality Agent decides. Flagged items are rejected (or held pending).
     "ai_checker_enabled": True,
     "news_refresh_minutes": 30,       # scheduler interval (restart to apply)
-    "max_news_items": 15,             # items per news refresh
+    "max_news_items": 50,             # items per news refresh
     "assistant_history_messages": 6,  # prior messages given to the LLM
     "assistant_max_tokens": 350,
     # Live DB read access for the assistant: when ON, the assistant may run

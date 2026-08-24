@@ -584,6 +584,14 @@ export default function Landing({ onLogin }) {
         </section>
 
         <section className="lp-sec">
+          <h2>How the <span className="lp-grad">scoring engine</span> works</h2>
+          <div className="lp-subh">An 8-stage rule engine, checked by people — every handoff audited.</div>
+          <div className="lp-pipe">
+            <iframe src="/pipeline.html" title="How the NIYTRI scoring pipeline works" loading="lazy" />
+          </div>
+        </section>
+
+        <section className="lp-sec">
           <h2>Your Edge, <span className="lp-grad">In One Place</span></h2>
           <div className="lp-subh">A quick look at what you get. Sign in to explore the full platform.</div>
           <div className="lp-cards">
@@ -734,6 +742,9 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pro-note{margin-top:13px;background:rgba(255,106,0,.10);border:1px dashed rgba(255,106,0,.4);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#7a4a1e;line-height:1.5}
 .lp-pro-note b{color:#b25a12}
 .lp-sec{padding:44px 0}
+.lp-pipe{position:relative;width:100%;max-width:1120px;margin:14px auto 0;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px rgba(24,29,39,.16)}
+.lp-pipe iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+@media(max-width:640px){.lp-pipe{aspect-ratio:3/4}}
 .lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
 .lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}

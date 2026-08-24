@@ -154,8 +154,29 @@ def build_pillars(q: Quote, sentiment_counts: dict | None = None) -> dict:
 
 
 def composite(pillars: dict, weights: dict | None = None) -> float:
-    """Weighted composite, 0-100. Missing pillars default to neutral 50.
-    Weights default to the BRD values; Admin can override via app settings."""
+    """Weighted composite, 0-100, self-normalizing over the provided weights
+    (so zeroing a pillar's weight cleanly re-weights the rest). Missing pillar
+    values default to neutral 50. Weights default to BRD; Admin can override."""
     w = weights or WEIGHTS
-    total = sum(w[k] * pillars.get(k, 50.0) for k in WEIGHTS)
-    return round(clamp(total), 1)
+    tw = sum(float(w.get(k, 0.0)) for k in WEIGHTS)
+    if tw <= 0:
+        return 50.0
+    total = sum(float(w.get(k, 0.0)) * pillars.get(k, 50.0) for k in WEIGHTS)
+    return round(clamp(total / tw), 1)
+
+
+def has_news(sentiment_counts: dict | None) -> bool:
+    c = sentiment_counts or {}
+    return (c.get("positive", 0) + c.get("negative", 0) + c.get("neutral", 0)) > 0
+
+
+def composite_for(pillars: dict, sentiment_counts: dict | None = None,
+                  weights: dict | None = None) -> float:
+    """Composite that DROPS the news pillar (renormalizing the other pillars)
+    when the stock has NO news for the day — so a stock with no coverage isn't
+    quietly diluted toward neutral 50 by an inert news pillar. When news IS
+    present, behaves exactly like composite()."""
+    w = weights or WEIGHTS
+    if not has_news(sentiment_counts):
+        w = {**w, "news_sentiment": 0.0}
+    return composite(pillars, w)

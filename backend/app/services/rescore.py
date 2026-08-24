@@ -35,7 +35,7 @@ async def rescore_symbol(symbol: str) -> dict | None:
     # daily pipeline supplies real sentiment). fundamental/earnings/institutional
     # now derive from the quote's fundamentals rather than a constant 50.
     pillars = scoring.build_pillars(q, None)
-    composite = scoring.composite(pillars, get_setting("scoring_weights"))
+    composite = scoring.composite_for(pillars, None, get_setting("scoring_weights"))
     today = date.today().isoformat()
 
     db = SessionLocal()

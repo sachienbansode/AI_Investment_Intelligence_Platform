@@ -167,7 +167,7 @@ async def scoring_agent(ctx: AgentContext):
         # FII/DII feed) instead of a constant 50.
         pillars = scoring.build_pillars(q, ctx.sentiments.get(sym, {}))
         ctx.pillar_scores[sym] = pillars
-        ctx.composites[sym] = scoring.composite(pillars, get_setting("scoring_weights"))
+        ctx.composites[sym] = scoring.composite_for(pillars, ctx.sentiments.get(sym, {}), get_setting("scoring_weights"))
     audit_log("agent_scoring", composites=ctx.composites)
 
 
