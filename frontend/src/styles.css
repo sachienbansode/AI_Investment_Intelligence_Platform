@@ -1054,11 +1054,20 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 [data-theme="orange"] .brand-name {
   background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-/* Active sidebar item -> orange tint (was blue) */
-[data-theme="orange"] .sidenav nav button.active {
-  background: linear-gradient(90deg, rgba(249, 76, 0, .14), rgba(255, 138, 61, .08));
-  box-shadow: inset 2px 0 0 var(--accent); color: var(--text);
+/* Sidebar: clean white menu, only the ACTIVE item highlighted.
+   Placed last + explicit so no earlier rule can fill the other items. */
+[data-theme="orange"] .sidenav nav button {
+  background: none; color: var(--muted);
 }
+[data-theme="orange"] .sidenav nav button:hover {
+  background: var(--panel2); color: var(--text);
+}
+[data-theme="orange"] .sidenav nav button.active {
+  background: var(--accent-soft);
+  color: var(--accent); font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+[data-theme="orange"] .sidenav nav button.active .nav-icon { color: var(--accent); opacity: 1; }
 /* Retune the leftover blue tints to the brand colour */
 [data-theme="orange"] ::selection { background: rgba(249, 76, 0, .22); }
 [data-theme="orange"] .tk-item.primary-index { background: var(--accent-soft); border-color: var(--accent); }
