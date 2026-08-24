@@ -3,7 +3,7 @@ SQLite for dev / PostgreSQL (AWS RDS) for production."""
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, Index, Integer, String,
+from sqlalchemy import (JSON, BigInteger, Boolean, Column, Date, DateTime, Float, Index, Integer, String,
                         Text, UniqueConstraint, create_engine, text)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -361,6 +361,22 @@ class TermsVersion(Base):
     html = Column(Text)
     created_by = Column(String, default="")
     created_at = Column(DateTime, default=utcnow)
+
+
+class StockPrice(Base):
+    """Daily EOD OHLCV history for NSE stocks (public data: backfill + daily job).
+    Powers the public price charts on the landing page. PK (symbol, price_date)."""
+    __tablename__ = "stock_prices"
+    symbol = Column(String(32), primary_key=True)
+    price_date = Column(Date, primary_key=True)
+    open = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    close = Column(Float)
+    volume = Column(BigInteger)
+    source = Column(String(16), default="yahoo")
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+    __table_args__ = (Index("ix_stock_prices_date", "price_date"),)
 
 
 _MIGRATIONS = [
