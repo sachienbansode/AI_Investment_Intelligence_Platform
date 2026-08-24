@@ -49,7 +49,7 @@ const MODEL_OPTIONS = {
   anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8',
               'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4-turbo'],
-  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'],
+  gemini: ['gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.6-flash'],
   // Groq serves open-weight models (OpenAI-compatible). Ids change over time -
   // the field is editable, so type any current id from console.groq.com/docs/models.
   groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'],
@@ -804,9 +804,9 @@ function Settings() {
 
         <h4 style={{ fontSize: '.9rem', margin: '14px 0 4px' }}>Provider priority &amp; model</h4>
         {llm.order.map((prov, idx) => {
-          const base = MODEL_OPTIONS[prov] || []
-          const opts = base.includes(llm.models[prov])
-            ? base : [llm.models[prov], ...base].filter(Boolean)
+          const known = MODEL_OPTIONS[prov] || []
+          const cur = llm.models[prov] || ''
+          const isCustom = !!cur && !known.includes(cur)
           return (
             <div className="toolbar" key={prov} style={{ margin: '4px 0' }}>
               <span style={{ minWidth: 24 }}>{idx + 1}.</span>
@@ -823,13 +823,19 @@ function Settings() {
               <button className="ghost sm" disabled={llm.order.length === 1} title="Remove from rotation"
                       onClick={() => removeProv(prov)}>Remove</button>
               <span style={{ minWidth: 44 }} className="hint">model</span>
-              <input list={`models-${prov}`} value={llm.models[prov] || ''}
-                     placeholder={opts[0] || 'model id'} style={{ minWidth: 240 }}
-                     title="Pick a suggestion or type any model id (e.g. Groq/OpenRouter open models)"
-                     onChange={e => setLlm({ ...llm, models: { ...llm.models, [prov]: e.target.value } })} />
-              <datalist id={`models-${prov}`}>
-                {opts.map(m => <option key={m} value={m} />)}
-              </datalist>
+              <select value={isCustom ? '__custom__' : cur} style={{ minWidth: 220 }}
+                      title="Pick a model for this provider"
+                      onChange={e => setLlm({ ...llm, models: { ...llm.models,
+                        [prov]: e.target.value === '__custom__' ? '' : e.target.value } })}>
+                <option value="" disabled>— select model —</option>
+                {known.map(m => <option key={m} value={m}>{m}</option>)}
+                <option value="__custom__">Custom…</option>
+              </select>
+              {(isCustom || !cur) && (
+                <input value={cur} placeholder="custom model id" style={{ minWidth: 200 }}
+                       title="Enter any model id not in the list (e.g. a brand-new release)"
+                       onChange={e => setLlm({ ...llm, models: { ...llm.models, [prov]: e.target.value } })} />
+              )}
             </div>
           )
         })}

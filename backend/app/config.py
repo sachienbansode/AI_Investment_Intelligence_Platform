@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     llm_provider_order: str = "anthropic,openai,gemini"
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4o"
-    gemini_model: str = "gemini-1.5-pro"
+    gemini_model: str = "gemini-3.5-flash"
 
     # Broker APIs
     kite_api_key: str = ""
