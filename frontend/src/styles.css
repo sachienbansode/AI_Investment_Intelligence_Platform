@@ -1076,3 +1076,14 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 [data-theme="orange"] .active-model {
   background: var(--accent-soft); border: 1px solid rgba(249, 76, 0, .3); color: var(--accent);
 }
+
+/* Score Trend chart — entrance draw-on (avg line) + band fade */
+.t2-line { stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: t2draw 1.15s cubic-bezier(.4, 0, .2, 1) forwards; }
+@keyframes t2draw { to { stroke-dashoffset: 0; } }
+.t2-band { opacity: 0; animation: t2fade .9s .2s ease forwards; }
+@keyframes t2fade { to { opacity: .12; } }
+@media (prefers-reduced-motion: reduce) {
+  .t2-line { animation: none; stroke-dashoffset: 0; }
+  .t2-band { animation: none; opacity: .12; }
+}

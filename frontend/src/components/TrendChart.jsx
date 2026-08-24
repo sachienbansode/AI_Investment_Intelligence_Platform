@@ -100,8 +100,8 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
             </g>
           ))}
 
-          <path d={bandPath} fill="var(--accent)" opacity="0.12" />
-          <polyline points={avgLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <path className="t2-band" d={bandPath} fill="var(--accent)" opacity="0.12" />
+          <polyline className="t2-line" pathLength="1" points={avgLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
 
           {daily.map((d, i) => (
             <g key={d.date}>

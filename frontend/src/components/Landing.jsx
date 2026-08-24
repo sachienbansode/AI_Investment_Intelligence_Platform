@@ -289,6 +289,78 @@ function TermsView({ brand, onBack }) {
   )
 }
 
+function StockExplorer() {
+  const [q, setQ] = useState('')
+  const [res, setRes] = useState([])
+  const [open, setOpen] = useState(false)
+  const [sel, setSel] = useState(null)
+  const [range, setRange] = useState('1Y')
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const rupee = String.fromCharCode(0x20B9)
+
+  useEffect(() => {
+    if (!q.trim() || (sel && q === sel.symbol)) { setRes([]); return }
+    const t = setTimeout(() => {
+      api.publicSymbolSearch(q).then(r => { setRes(r.results || []); setOpen(true) }).catch(() => {})
+    }, 200)
+    return () => clearTimeout(t)
+  }, [q, sel])
+
+  async function load(sym, rng) {
+    setLoading(true)
+    try { setData(await api.publicPriceHistory(sym, rng)) } catch { setData(null) }
+    setLoading(false)
+  }
+  function pick(it) { setSel(it); setQ(it.symbol); setRes([]); setOpen(false); load(it.symbol, range) }
+  useEffect(() => { if (sel) load(sel.symbol, range) }, [range])
+
+  const series = (data && data.points ? data.points : []).map(p => ({ label: fmtDate(p.d), value: p.c }))
+  const last = series.length ? series[series.length - 1].value : null
+
+  return (
+    <section className="lp-sec">
+      <h2>Explore <span className="lp-grad">any NSE stock</span></h2>
+      <div className="lp-subh">Search any script for its delayed price chart — no login needed.</div>
+      <div className="lp-explore">
+        <div className="lp-exsearch">
+          <input value={q} placeholder="Search a stock — e.g. RELIANCE, INFY, TATAMOTORS…"
+                 onChange={e => { setQ(e.target.value.toUpperCase()); setSel(null) }}
+                 onFocus={() => res.length && setOpen(true)}
+                 onBlur={() => setTimeout(() => setOpen(false), 150)} />
+          {open && res.length > 0 && (
+            <div className="lp-exdrop">
+              {res.map(it => (
+                <button key={it.symbol} onMouseDown={() => pick(it)}>
+                  <b>{it.symbol}</b> <span>{it.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {sel && (
+          <div className="lp-excard">
+            <div className="lp-pv-top">
+              <div><div className="lp-nm">{sel.symbol}</div><div className="lp-pvsub">{sel.name}</div></div>
+              {last != null && <div className="lp-exlast">{rupee}{Number(last).toLocaleString('en-IN')}<span> · delayed</span></div>}
+            </div>
+            <div className="lp-pvtabs">
+              {['1M', '3M', '1Y', '3Y'].map(r => (
+                <button key={r} className={range === r ? 'on' : ''} onClick={() => setRange(r)}>{r}</button>
+              ))}
+            </div>
+            {loading ? <div className="lp-pv-load" style={{ height: 220 }}>Loading…</div>
+              : series.length >= 2 ? <HoverChart series={series} prefix={rupee} round={0} />
+                : <div className="lp-pv-load" style={{ height: 220 }}>No chart data for {sel.symbol} yet.</div>}
+            <div className="lp-bubble" style={{ marginTop: 12 }}>
+              <b>{String.fromCharCode(0x23F1)} Delayed / EOD</b> prices, for information only — not investment advice.</div>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function Landing({ onLogin }) {
   const [info, setInfo] = useState(null)
   const [spot, setSpot] = useState(null)
@@ -533,6 +605,12 @@ export default function Landing({ onLogin }) {
           : page === 'about' ? <AboutView brand={brand} onStart={() => goAuth(closed ? 'waitlist' : 'signup')} /> : (<>
         <section className="lp-hero">
           <div className="lp-hero-l">
+            <div className="lp-herovid">
+              <div className="lp-herovid-cap">How the scoring engine works</div>
+              <div className="lp-herovid-frame">
+                <iframe src="/pipeline.html" title="How the NIYTRI scoring pipeline works" loading="lazy" />
+              </div>
+            </div>
             <span className="lp-ribbon">{String.fromCharCode(0x2726)} {inviteRequired ? 'Invite-Only Beta — Grab Your Seat' : 'Now In Beta'}</span>
             <h1>Invest Smarter,<br /><span className="lp-grad">Your Way.</span></h1>
             <p>{brand} is your AI investing companion for Indian markets — it scores every NSE stock daily,
@@ -545,12 +623,6 @@ export default function Landing({ onLogin }) {
               <button className="lp-btn lp-btn-grad" onClick={() => goAuth(closed ? 'waitlist' : 'signup')}>{closed ? 'Join Waitlist' : 'Sign Up Free'}</button>
             </div>
             <div className="lp-chips"><span><b>Explainable</b> AI</span><span><b>NSE &amp; BSE</b></span><span><b>Delayed</b> Charts</span><span><b>SEBI</b>-Compliant</span></div>
-            <div className="lp-herovid">
-              <div className="lp-herovid-cap">How the scoring engine works</div>
-              <div className="lp-herovid-frame">
-                <iframe src="/pipeline.html" title="How the NIYTRI scoring pipeline works" loading="lazy" />
-              </div>
-            </div>
           </div>
 
           <div className="lp-preview">
@@ -588,6 +660,8 @@ export default function Landing({ onLogin }) {
             </>)}
           </div>
         </section>
+
+        <StockExplorer />
 
         <section className="lp-sec">
           <h2>Your Edge, <span className="lp-grad">In One Place</span></h2>
@@ -740,10 +814,21 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pro-note{margin-top:13px;background:rgba(255,106,0,.10);border:1px dashed rgba(255,106,0,.4);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#7a4a1e;line-height:1.5}
 .lp-pro-note b{color:#b25a12}
 .lp-sec{padding:44px 0}
-.lp-herovid{margin-top:22px;max-width:520px}
+.lp-herovid{margin:0 0 22px;max-width:520px}
 .lp-herovid-cap{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b25a12;margin-bottom:8px}
 .lp-herovid-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 50px rgba(24,29,39,.14)}
 .lp-herovid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.lp-explore{max-width:760px;margin:0 auto}
+.lp-exsearch{position:relative}
+.lp-exsearch input{width:100%;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:13px 15px;font-size:15px;font-family:inherit;color:var(--ink)}
+.lp-exsearch input:focus{outline:none;border-color:var(--or2);box-shadow:0 0 0 3px rgba(255,106,0,.15)}
+.lp-exdrop{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 20px 50px rgba(24,29,39,.16);z-index:20;max-height:290px;overflow:auto}
+.lp-exdrop button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 14px;cursor:pointer;font-family:inherit;font-size:14px}
+.lp-exdrop button:last-child{border-bottom:0}
+.lp-exdrop button:hover{background:var(--soft)}
+.lp-exdrop b{color:var(--ink)}.lp-exdrop span{color:var(--mut);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lp-excard{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 50px rgba(24,29,39,.08)}
+.lp-exlast{font-weight:800;font-size:18px;white-space:nowrap;text-align:right}.lp-exlast span{color:var(--mut);font-weight:600;font-size:12px}
 .lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
 .lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}

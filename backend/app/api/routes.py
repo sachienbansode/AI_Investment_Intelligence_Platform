@@ -461,11 +461,17 @@ async def public_spotlight():
         if not latest:
             return {"available": False}
         latest_date = latest[0]
-        q = db.query(StockScore).filter(StockScore.score_date == latest_date)
+        base = db.query(StockScore).filter(StockScore.score_date == latest_date)
+        # Homepage spotlight = top stock from the NIFTY 500 only (not the whole NSE).
+        from app.data.nifty500 import NIFTY500_SYMBOLS
+        q = base.filter(StockScore.symbol.in_(NIFTY500_SYMBOLS))
         # Prefer approved scores when maker-checker is on; fall back to top composite.
         row = (q.filter(StockScore.quality_status == "approved")
                .order_by(StockScore.composite_score.desc()).first()
-               or q.order_by(StockScore.composite_score.desc()).first())
+               or q.order_by(StockScore.composite_score.desc()).first()
+               or base.filter(StockScore.quality_status == "approved")
+               .order_by(StockScore.composite_score.desc()).first()
+               or base.order_by(StockScore.composite_score.desc()).first())
         if not row:
             return {"available": False}
         sym = row.symbol
