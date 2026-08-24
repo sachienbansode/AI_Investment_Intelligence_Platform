@@ -105,6 +105,7 @@ export const api = {
   pricesSummary: () => http('/admin/prices/summary'),
   pricesBackfill: (years) => http('/admin/prices/backfill?years=' + (years || 3), { method: 'POST' }),
   pricesDailyNow: () => http('/admin/prices/daily-now', { method: 'POST' }),
+  universeRefresh: () => http('/admin/universe/refresh', { method: 'POST' }),
   publicPriceHistory: (symbol, range) => http('/public/price-history?symbol=' + encodeURIComponent(symbol) + '&range=' + (range || '1Y')),
   publicSymbolSearch: (q) => http('/public/symbol-search?q=' + encodeURIComponent(q || '')),
   userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),

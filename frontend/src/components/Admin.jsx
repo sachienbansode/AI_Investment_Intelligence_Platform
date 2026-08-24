@@ -494,6 +494,17 @@ function PriceData() {
     catch (e) { toast(e.message || String(e), { type: 'error' }) }
     setBusy('')
   }
+  async function refreshMaster() {
+    setBusy('master')
+    try {
+      const r = await api.universeRefresh()
+      const n5 = r && r.NIFTY500 ? r.NIFTY500.members : '?'
+      const src = r && r.NIFTY500 ? r.NIFTY500.source : ''
+      toast('Index master refreshed — NIFTY 500: ' + n5 + ' members (' + src + ')')
+      load()
+    } catch (e) { toast(e.message || String(e), { type: 'error' }) }
+    setBusy('')
+  }
   const num = n => (n == null ? '…' : Number(n).toLocaleString('en-IN'))
   return (
     <div className="panel">
@@ -514,7 +525,10 @@ function PriceData() {
         <button onClick={start} disabled={st.running || !!busy}>
           {st.running && st.mode === 'backfill' ? 'Loading…' : 'Load history'}</button>
         <button className="ghost" onClick={daily} disabled={st.running || !!busy}>
-          {st.running && st.mode === 'daily' ? 'Refreshing…' : 'Refresh today'}</button>
+          {st.running && st.mode === 'incremental' ? 'Refreshing…' : 'Refresh today'}</button>
+        <button className="ghost" onClick={refreshMaster} disabled={!!busy}
+                title="Re-sync NIFTY 50 / 500 constituents in the instruments master (runs automatically before daily scoring).">
+          {busy === 'master' ? 'Refreshing…' : 'Refresh index master'}</button>
       </div>
       {st.running && (
         <div style={{ marginTop: 10 }}>

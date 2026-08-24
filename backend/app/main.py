@@ -26,6 +26,18 @@ from app.services.news_intel import refresh_news
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+
+async def refresh_then_score(*args, **kwargs):
+    """Daily job: refresh the NIFTY 50 / 500 master, THEN run the scoring pipeline
+    on the fresh universe. A refresh failure never blocks scoring."""
+    try:
+        import asyncio as _a
+        from app.services import universe
+        await _a.to_thread(universe.refresh_universe)
+    except Exception as e:
+        log.warning("universe refresh failed (continuing to score): %s", e)
+    await run_daily_pipeline(*args, **kwargs)
+
 IST = ZoneInfo("Asia/Kolkata")
 scheduler = AsyncIOScheduler(timezone=IST)
 
@@ -84,7 +96,7 @@ async def lifespan(app: FastAPI):
     hour = int(get_setting("daily_scoring_hour"))
     every = int(get_setting("news_refresh_minutes"))
     # Daily agentic scoring at the configured hour in IST, tolerant of restarts.
-    scheduler.add_job(run_daily_pipeline,
+    scheduler.add_job(refresh_then_score,
                       CronTrigger(hour=hour, minute=0, timezone=IST),
                       id="daily_scoring", replace_existing=True,
                       misfire_grace_time=6 * 3600, coalesce=True)
@@ -101,7 +113,7 @@ async def lifespan(app: FastAPI):
     # run hasn't happened yet, kick one off shortly after boot.
     try:
         if datetime.now(IST).hour >= hour and not _ran_today():
-            scheduler.add_job(run_daily_pipeline, DateTrigger(run_date=datetime.now(IST)),
+            scheduler.add_job(refresh_then_score, DateTrigger(run_date=datetime.now(IST)),
                               id="daily_scoring_catchup", misfire_grace_time=3600)
             log.info("Catch-up scoring run scheduled (today's %02d:00 IST was missed)", hour)
     except Exception:

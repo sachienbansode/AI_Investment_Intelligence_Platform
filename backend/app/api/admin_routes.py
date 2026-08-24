@@ -1595,3 +1595,14 @@ def prices_daily_now():
     threading.Thread(target=lambda: asyncio.run(prices.daily_update()), daemon=True).start()
     audit_log("prices_daily_now")
     return {"started": True}
+
+
+# ── Index master — refresh NIFTY 50 / 500 constituents (then daily scoring uses it) ─
+@router.post("/universe/refresh")
+def universe_refresh():
+    """Refresh the NIFTY 50 / 500 membership in the instruments master (NSE with
+    fallback to the bundled lists). Runs automatically before daily scoring too."""
+    from app.services import universe
+    res = universe.refresh_universe()
+    audit_log("universe_refresh", result=res)
+    return res
