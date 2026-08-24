@@ -301,6 +301,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     if not mentioned and _re.match(
             r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql):
         wants_scores = wants_sector = wants_multiday = wants_news = False
+    # WEB intent: current events / macro / regulatory / company news the DB & RSS
+    # can't cover. Fires only on an explicit "fresh/external" signal (not on pure
+    # score/top-N questions, which the DB answers, nor on plain definitions).
+    _is_def = bool(_re.match(r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql))
+    wants_web = bool(get_setting("web_search_enabled")) and not _is_def and (
+        bool(_re.search(r"\b(latest|today|current|currently|now|recent|yesterday|this week|breaking|update|updates|happening|news)\b", _ql))
+        or bool(_re.search(r"\bwhy\s+(did|is|are|has|have|was|were)\b", _ql))
+        or any(k in _ql for k in (
+            " rbi", " sebi", "budget", "repo rate", "interest rate", "inflation", "cpi ",
+            " gdp", " fii", " dii", "crude", "brent", "rupee", "results", "earnings",
+            "quarterly", "dividend", "record date", "bonus issue", "stock split", "buyback",
+            " ipo", "listing", "merger", "acquisition", "circular", "penalty", "announce",
+            "announcement", "monetary policy", "policy")))
     quotes, indices = await asyncio.gather(
         asyncio.gather(*[_safe(md.get_quote(s)) for s in mentioned]),
         _safe(md.get_indices(), {}),
@@ -760,6 +773,30 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         except Exception as e:
             log.warning("assistant SQL tool failed: %s", e)
 
+    # ---- Live web search layer (fills the current-events gap) --------------------
+    if wants_web:
+        hits = []
+        try:
+            from app.services import web_search
+            hits = await _safe(web_search.search(question), default=[], timeout=9.0)
+        except Exception as e:
+            log.warning("web search failed: %s", e)
+        if hits:
+            ans = hits[0].get("answer")
+            lines = ["- %s (%s): %s [%s]" % (h["title"], h["source"],
+                     (h.get("snippet") or "")[:280], h["url"]) for h in hits[:5]]
+            context_parts.append(
+                "WEB_RESULTS (LIVE internet from Indian finance/regulator sources, fetched just "
+                "now; use for current facts/events the platform data doesn't cover. Attribute to "
+                "the named source; these are external and time-sensitive; still NO buy/sell advice "
+                "or price targets. When you rely on these, add 'web' to your Basis line, e.g. "
+                "\"Basis: " + platform_label + " + web\")."
+                + (("\nWeb summary: " + ans) if ans else "")
+                + "\n" + "\n".join(lines))
+            for h in hits[:5]:
+                sources.append({"type": "web", "title": h["title"], "link": h["url"],
+                                "source": h["source"]})
+
     context = "\n\n".join(context_parts) if context_parts else "(no live context available)"
 
     # The global context (all-scores summary, indices, recent news) is attached to
@@ -796,6 +833,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     conf = 0.35
     conf += 0.30 if "computed" in types else 0.0          # exact, code-computed
     conf += 0.25 if "db_query" in types else 0.0          # exact, live DB read
+    conf += 0.12 if "web" in types else 0.0               # live external corroboration
     conf += 0.20 if ({"quote", "ai_score"} & types) else 0.0
     conf += 0.15 if "ai_scores_summary" in types else 0.0
     conf += 0.10 if "research" in types else 0.0

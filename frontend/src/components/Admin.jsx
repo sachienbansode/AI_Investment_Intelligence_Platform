@@ -673,6 +673,45 @@ function Settings() {
       </div>
 
       <div className="panel">
+        <h4 title="Let the assistant pull LIVE web results from Indian finance/regulator sources for current events the platform data and RSS don't cover. Cited and kept under the same no-advice guardrails.">
+          Web search (live internet) <span className="info-i">i</span></h4>
+        <div className="toolbar">
+          <label title="Turn the live web layer on/off. Needs a provider API key below.">
+            <input type="checkbox" defaultChecked={!!s.web_search_enabled}
+                   onChange={e => save('web_search_enabled', e.target.checked)} />
+            {' '}Enable live web search
+          </label>
+          <label>Provider:{' '}
+            <select defaultValue={s.web_search_provider || 'tavily'}
+                    onChange={e => save('web_search_provider', e.target.value)}>
+              <option value="tavily">Tavily (recommended)</option>
+              <option value="serpapi">SerpAPI</option>
+              <option value="brave">Brave</option>
+            </select>
+          </label>
+        </div>
+        <div className="toolbar">
+          <input id="ws-key" type="password" placeholder="Provider API key"
+                 defaultValue={s.web_search_api_key || ''} style={{ minWidth: 240 }} />
+          <button onClick={() => save('web_search_api_key', document.getElementById('ws-key').value.trim())}>Save key</button>
+          <label title="How many web results to feed the assistant (1–10).">Max results:{' '}
+            <input id="ws-max" type="number" min="1" max="10"
+                   defaultValue={s.web_search_max_results || 5} style={{ width: 64 }} />
+          </label>
+          <button onClick={() => save('web_search_max_results', Math.max(1, Math.min(10, parseInt(document.getElementById('ws-max').value || '5', 10))))}>Save</button>
+        </div>
+        <label className="hint" style={{ display: 'block', marginTop: 8 }}>
+          Allowed domains (comma-separated; blank = built-in India allowlist)</label>
+        <textarea id="ws-domains" rows={2} style={{ width: '100%' }}
+                  defaultValue={(s.web_search_domains || []).join(', ')} />
+        <button style={{ marginTop: 6 }}
+                onClick={() => save('web_search_domains', document.getElementById('ws-domains').value.split(',').map(x => x.trim()).filter(Boolean))}>Save domains</button>
+        <p className="hint">Get a key from your provider (e.g. a free tier at tavily.com). Results are
+          India-scoped and cited; the assistant only uses them for current facts the platform data
+          doesn't have, and never for buy/sell advice.</p>
+      </div>
+
+      <div className="panel">
         <h4 title="When ON, the app also shows major global indices (S&P 500, Nasdaq, Dow, FTSE, Nikkei, Hang Seng) in the ticker and pulls global market news into the News feed on the next refresh.">
           Global markets <span className="info-i">i</span></h4>
         <div className="toolbar">

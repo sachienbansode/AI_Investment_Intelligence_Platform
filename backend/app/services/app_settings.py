@@ -78,6 +78,13 @@ DEFAULTS: dict = {
     # Self-service registration (public landing). Modes: invite_only | open | closed.
     "registration_mode": "invite_only",
     "invites_per_user": 5,            # invite codes each member can share
+    # Live web search (fills the current-events gap the DB/RSS don't cover).
+    # Provider + key are admin-set; empty key => silently disabled.
+    "web_search_enabled": False,
+    "web_search_provider": "tavily",   # tavily | serpapi | brave
+    "web_search_api_key": "",
+    "web_search_max_results": 5,
+    "web_search_domains": [],           # empty => service's India allowlist
     "invite_expiry_days": 30,         # invite codes auto-expire this many days after creation
     "support_email": "admin@niytri.com",   # contact email shown in emails + T&C
     "tos_version": "1.0",             # current Terms&Conditions version label
@@ -318,6 +325,21 @@ def _validate(key: str, value) -> None:
     elif key == "invite_expiry_days":
         if not (isinstance(value, int) and 1 <= value <= 365):
             raise ValueError("invite_expiry_days must be an integer 1-365")
+    elif key == "web_search_enabled":
+        if not isinstance(value, bool):
+            raise ValueError("web_search_enabled must be true or false")
+    elif key == "web_search_provider":
+        if value not in ("tavily", "serpapi", "brave", "none"):
+            raise ValueError("web_search_provider must be tavily, serpapi, brave or none")
+    elif key == "web_search_api_key":
+        if not (isinstance(value, str) and len(value) <= 400):
+            raise ValueError("web_search_api_key must be a string")
+    elif key == "web_search_max_results":
+        if not (isinstance(value, int) and 1 <= value <= 10):
+            raise ValueError("web_search_max_results must be an integer 1-10")
+    elif key == "web_search_domains":
+        if not (isinstance(value, list) and all(isinstance(x, str) for x in value)):
+            raise ValueError("web_search_domains must be a list of domain strings")
     elif key == "tos_version":
         if not (isinstance(value, str) and 1 <= len(value) <= 20):
             raise ValueError("tos_version must be a short string")
