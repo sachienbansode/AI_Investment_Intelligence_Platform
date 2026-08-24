@@ -42,7 +42,7 @@
   .kicker{font-size:11.5px;letter-spacing:3px;text-transform:uppercase;color:var(--faint);font-weight:600}
 
   /* camera-followed conveyor */
-  .stagewrap{position:absolute;left:0;right:0;top:47%;transform:translateY(-50%);overflow:hidden;z-index:4}
+  .stagewrap{position:absolute;left:0;right:0;top:47%;transform:translateY(-50%);overflow:visible;z-index:4}
   .rail{position:absolute;left:0;right:0;top:50%;height:2px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
   .flow{position:absolute;top:50%;left:0;height:2px;width:180px;transform:translateY(-50%);
     background:linear-gradient(90deg,transparent,var(--or1),var(--or3),transparent);filter:blur(.3px);
@@ -58,7 +58,7 @@
   .node.done{opacity:.6;transform:scale(.86);filter:grayscale(.2)}
   .node.done .ring{border-color:rgba(34,193,123,.5);box-shadow:0 0 0 1px rgba(34,193,123,.25)}
   .node.done .ring b{color:var(--green)}
-  .node.active{opacity:1;transform:scale(1.12);filter:none}
+  .node.active{opacity:1;transform:scale(1.1);filter:none}
   .node.active .ring{border-color:transparent;background:var(--grad);
     box-shadow:0 0 0 6px rgba(255,106,0,.14),0 0 44px rgba(255,106,0,.55);animation:pulse 1.6s ease-in-out infinite}
   .node.active .ring b{color:#fff}

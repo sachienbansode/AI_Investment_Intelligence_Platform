@@ -17,10 +17,16 @@ def get_spotlight() -> dict:
         if not latest:
             return {"available": False}
         d = latest[0]
-        q = db.query(StockScore).filter(StockScore.score_date == d)
+        base = db.query(StockScore).filter(StockScore.score_date == d)
+        # Homepage spotlight = top stock from the NIFTY 500 (not the whole NSE).
+        from app.data.nifty500 import NIFTY500_SYMBOLS
+        q = base.filter(StockScore.symbol.in_(NIFTY500_SYMBOLS))
         row = (q.filter(StockScore.quality_status == "approved")
                .order_by(StockScore.composite_score.desc()).first()
-               or q.order_by(StockScore.composite_score.desc()).first())
+               or q.order_by(StockScore.composite_score.desc()).first()
+               or base.filter(StockScore.quality_status == "approved")
+               .order_by(StockScore.composite_score.desc()).first()
+               or base.order_by(StockScore.composite_score.desc()).first())
         if not row:
             return {"available": False}
         sym = row.symbol

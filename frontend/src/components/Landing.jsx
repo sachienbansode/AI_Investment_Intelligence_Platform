@@ -545,6 +545,12 @@ export default function Landing({ onLogin }) {
               <button className="lp-btn lp-btn-grad" onClick={() => goAuth(closed ? 'waitlist' : 'signup')}>{closed ? 'Join Waitlist' : 'Sign Up Free'}</button>
             </div>
             <div className="lp-chips"><span><b>Explainable</b> AI</span><span><b>NSE &amp; BSE</b></span><span><b>Delayed</b> Charts</span><span><b>SEBI</b>-Compliant</span></div>
+            <div className="lp-herovid">
+              <div className="lp-herovid-cap">How the scoring engine works</div>
+              <div className="lp-herovid-frame">
+                <iframe src="/pipeline.html" title="How the NIYTRI scoring pipeline works" loading="lazy" />
+              </div>
+            </div>
           </div>
 
           <div className="lp-preview">
@@ -580,14 +586,6 @@ export default function Landing({ onLogin }) {
                     <div className="lp-bubble"><b>{String.fromCharCode(0x23F1)} ~15-min delayed</b> price for {spot.symbol}, shown beside its AI score.{spot.demo && <span className="lp-demoflag"> Sample preview.</span>}</div></>
                 : <div className="lp-pv-load" style={{ height: 160 }}>Delayed price chart unavailable right now.</div>)}
             </>)}
-          </div>
-        </section>
-
-        <section className="lp-sec">
-          <h2>How the <span className="lp-grad">scoring engine</span> works</h2>
-          <div className="lp-subh">An 8-stage rule engine, checked by people — every handoff audited.</div>
-          <div className="lp-pipe">
-            <iframe src="/pipeline.html" title="How the NIYTRI scoring pipeline works" loading="lazy" />
           </div>
         </section>
 
@@ -742,9 +740,10 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-pro-note{margin-top:13px;background:rgba(255,106,0,.10);border:1px dashed rgba(255,106,0,.4);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#7a4a1e;line-height:1.5}
 .lp-pro-note b{color:#b25a12}
 .lp-sec{padding:44px 0}
-.lp-pipe{position:relative;width:100%;max-width:1120px;margin:14px auto 0;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px rgba(24,29,39,.16)}
-.lp-pipe iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
-@media(max-width:640px){.lp-pipe{aspect-ratio:3/4}}
+.lp-herovid{margin-top:22px;max-width:520px}
+.lp-herovid-cap{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b25a12;margin-bottom:8px}
+.lp-herovid-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 50px rgba(24,29,39,.14)}
+.lp-herovid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 .lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
 .lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
