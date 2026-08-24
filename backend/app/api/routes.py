@@ -218,7 +218,12 @@ async def index_constituents(user: User = Depends(get_current_user)):
     if not n50:
         n50 = [sym for sym, _n, _s in NIFTY50_SEED]
     if not n500:
-        n500 = allnse                       # current table is the Nifty 500 universe
+        # Use the bundled NIFTY 500 constituent list intersected with the
+        # instruments we actually hold — so the filter is the real ~500 even after
+        # importing all NSE (and even when the DB tags were never applied). Only if
+        # nothing matches do we fall back to the whole table.
+        from app.data.nifty500 import NIFTY500_SYMBOLS
+        n500 = [s for s in allnse if s in NIFTY500_SYMBOLS] or allnse
     out = {"Nifty 50": n50, "Nifty 500": n500}
     if len(allnse) > len(n500):
         out["All NSE"] = allnse             # only show when broader than Nifty 500
