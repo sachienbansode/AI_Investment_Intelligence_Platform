@@ -501,8 +501,9 @@ function PriceData() {
         Price data — chart history <span className="info-i">i</span></h4>
       <div className="toolbar" style={{ marginTop: 0 }}>
         <span className="hint">Coverage:</span>
-        <span><b>{num(info && info.symbols)}</b> symbols · <b>{num(info && info.rows)}</b> daily rows</span>
-        {info && info.from && <span className="hint">· {info.from} → {info.to}</span>}
+        <span><b>{num(info && info.symbols)}</b> symbols · <b>{num(info && info.rows)}</b> rows ·{' '}
+          <b>{num(info && info.days)}</b> trading days</span>
+        {info && info.to && <span className="hint">· last available: <b>{info.to}</b> (from {info.from})</span>}
       </div>
       <div className="toolbar">
         <label title="How many years of history to fetch.">Years:{' '}

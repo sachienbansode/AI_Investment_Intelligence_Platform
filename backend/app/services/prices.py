@@ -88,6 +88,21 @@ def _upsert_recent(db, symbol: str, rows: list[dict]) -> None:
     db.commit()
 
 
+def _insert_missing(db, symbol: str, rows: list[dict]) -> int:
+    """Insert ONLY the dates we don't already have for this symbol (true
+    incremental - no rewrite of existing rows). Returns rows added."""
+    if not rows:
+        return 0
+    dates = [r["price_date"] for r in rows]
+    have = {d for (d,) in db.query(StockPrice.price_date).filter(
+        StockPrice.symbol == symbol, StockPrice.price_date.in_(dates)).all()}
+    new = [r for r in rows if r["price_date"] not in have]
+    if new:
+        db.bulk_insert_mappings(StockPrice, new)
+        db.commit()
+    return len(new)
+
+
 def _already_current(db, symbol: str, days: int = 5) -> bool:
     last = (db.query(StockPrice.price_date).filter_by(symbol=symbol)
             .order_by(StockPrice.price_date.desc()).first())
@@ -161,23 +176,26 @@ def start_backfill_bg(years: int = 3, force: bool = False) -> bool:
 # ---- daily incremental (scheduler) ------------------------------------------
 
 async def daily_update(concurrency: int = 8) -> dict:
-    """Refresh the last ~month for every symbol (cheap upsert). Run after close."""
+    """INCREMENTAL refresh: skip symbols already up to date, and for the rest add
+    ONLY the missing recent dates. Run after close (cheap; no rewrites)."""
     db = SessionLocal()
     try:
         syms = _universe(db, None)
+        todo = [s for s in syms if not _already_current(db, s, days=3)]
         STATE.update({"running": True, "ok": 0, "fail": 0, "rows": 0, "done": 0,
-                      "total": len(syms), "last": "", "mode": "daily",
+                      "total": len(todo), "last": "", "mode": "incremental",
                       "started": dt.datetime.utcnow().isoformat(), "finished": None})
+        log.info("price incremental: universe=%d stale=%d", len(syms), len(todo))
         async with httpx.AsyncClient(timeout=25, headers=_HEADERS) as client:
-            for i in range(0, len(syms), concurrency):
-                chunk = syms[i:i + concurrency]
+            for i in range(0, len(todo), concurrency):
+                chunk = todo[i:i + concurrency]
                 results = await asyncio.gather(*[fetch_history(client, s, "1mo") for s in chunk])
                 for s, rows in zip(chunk, results):
                     if rows:
                         try:
-                            _upsert_recent(db, s, rows)
+                            added = _insert_missing(db, s, rows)
                             STATE["ok"] += 1
-                            STATE["rows"] += len(rows)
+                            STATE["rows"] += added
                         except Exception:
                             db.rollback()
                             STATE["fail"] += 1
@@ -221,9 +239,10 @@ def summary() -> dict:
     try:
         total = db.query(func.count()).select_from(StockPrice).scalar() or 0
         nsyms = db.query(func.count(func.distinct(StockPrice.symbol))).scalar() or 0
+        days = db.query(func.count(func.distinct(StockPrice.price_date))).scalar() or 0
         lo, hi = db.query(func.min(StockPrice.price_date),
                           func.max(StockPrice.price_date)).first()
-        return {"rows": int(total), "symbols": int(nsyms),
+        return {"rows": int(total), "symbols": int(nsyms), "days": int(days),
                 "from": lo.isoformat() if lo else None,
                 "to": hi.isoformat() if hi else None}
     finally:
