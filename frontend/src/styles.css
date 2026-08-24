@@ -1037,13 +1037,11 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
     var(--bg);
   background-attachment: fixed;
 }
-/* Primary buttons use the landing gradient; ghost/link/icon stay as-is */
-[data-theme="orange"] .shell button:not(.ghost):not(.link-btn):not(.icon-btn) {
-  background: var(--grad);
-  box-shadow: 0 8px 20px rgba(255, 106, 0, .22);
-}
+/* Buttons keep the theme's solid orange (--accent). We deliberately do NOT
+   gradient-fill every <button>, because nav items and tab toggles are also
+   plain buttons and would all light up. Primary actions stay solid orange. */
 [data-theme="orange"] .shell button:not(.ghost):not(.link-btn):not(.icon-btn):hover:not(:disabled) {
-  filter: brightness(1.03);
+  filter: brightness(1.04);
 }
 /* Cards get the soft warm shadow the landing panels use */
 [data-theme="orange"] .panel,
