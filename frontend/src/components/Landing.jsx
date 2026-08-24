@@ -818,6 +818,7 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-herovid-cap{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b25a12;margin-bottom:8px}
 .lp-herovid-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 50px rgba(24,29,39,.14)}
 .lp-herovid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+@media(max-width:640px){.lp-herovid,.lp-explore{max-width:none}.lp-herovid-frame{aspect-ratio:3/4}}
 .lp-explore{max-width:760px;margin:0 auto}
 .lp-exsearch{position:relative}
 .lp-exsearch input{width:100%;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:13px 15px;font-size:15px;font-family:inherit;color:var(--ink)}
