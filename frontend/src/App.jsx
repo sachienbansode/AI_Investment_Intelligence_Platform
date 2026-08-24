@@ -86,8 +86,7 @@ export default function App() {
   const [sectorSeed, setSectorSeed] = useState(null)
   const [brand, setBrand] = useState({ logo: '', score_label: 'NIYTRI Score', platform_label: 'NIYTRI Investment Intelligence' })
   const [theme, setTheme] = useState(() =>
-    localStorage.getItem('theme') ||
-    (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'))
+    localStorage.getItem('theme') || 'orange')
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1')
   const [navOpen, setNavOpen] = useState(false)
   const [alertUnread, setAlertUnread] = useState(0)
