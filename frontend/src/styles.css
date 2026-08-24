@@ -1038,11 +1038,11 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
   background-attachment: fixed;
 }
 /* Primary buttons use the landing gradient; ghost/link/icon stay as-is */
-[data-theme="orange"] button:not(.ghost):not(.link-btn):not(.icon-btn) {
+[data-theme="orange"] .shell button:not(.ghost):not(.link-btn):not(.icon-btn) {
   background: var(--grad);
   box-shadow: 0 8px 20px rgba(255, 106, 0, .22);
 }
-[data-theme="orange"] button:not(.ghost):not(.link-btn):not(.icon-btn):hover:not(:disabled) {
+[data-theme="orange"] .shell button:not(.ghost):not(.link-btn):not(.icon-btn):hover:not(:disabled) {
   filter: brightness(1.03);
 }
 /* Cards get the soft warm shadow the landing panels use */
