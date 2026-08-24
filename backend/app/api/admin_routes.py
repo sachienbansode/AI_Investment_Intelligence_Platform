@@ -1564,3 +1564,34 @@ def email_logs(kind: str = "", limit: int = 300):
                 "created_at": fmt_ist(r.created_at)} for r in rows]}
     finally:
         db.close()
+
+
+# ── Price data — EOD OHLCV backfill / daily refresh / coverage ──────────────
+@router.get("/prices/summary")
+def prices_summary():
+    """Coverage stats + current load progress for the Admin price panel."""
+    from app.services import prices
+    return {**prices.summary(), "status": prices.STATE}
+
+
+@router.post("/prices/backfill")
+def prices_backfill(years: int = 3):
+    """Start a full (resumable) history backfill in the background."""
+    from app.services import prices
+    if not prices.start_backfill_bg(years=max(1, min(int(years), 10))):
+        raise HTTPException(409, "A price load is already running.")
+    audit_log("prices_backfill_started", years=years)
+    return {"started": True, "years": years}
+
+
+@router.post("/prices/daily-now")
+def prices_daily_now():
+    """Run the daily incremental refresh now (last ~month per symbol)."""
+    import asyncio
+    import threading
+    from app.services import prices
+    if prices.STATE.get("running"):
+        raise HTTPException(409, "A price load is already running.")
+    threading.Thread(target=lambda: asyncio.run(prices.daily_update()), daemon=True).start()
+    audit_log("prices_daily_now")
+    return {"started": True}

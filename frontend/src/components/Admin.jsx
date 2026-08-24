@@ -459,6 +459,83 @@ function Instruments() {
   )
 }
 
+function fmtEta(sec) {
+  sec = Math.max(0, Math.round(sec))
+  if (sec < 60) return sec + 's'
+  const m = Math.floor(sec / 60), s = sec % 60
+  if (m < 60) return m + 'm ' + s + 's'
+  const h = Math.floor(m / 60)
+  return h + 'h ' + (m % 60) + 'm'
+}
+
+function PriceData() {
+  const [info, setInfo] = useState(null)
+  const [years, setYears] = useState(3)
+  const [busy, setBusy] = useState('')
+  const load = () => api.pricesSummary().then(setInfo).catch(() => {})
+  useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t) }, [])
+  const st = (info && info.status) || {}
+  const pct = st.total ? Math.min(100, Math.round((st.done / st.total) * 100)) : 0
+  let eta = ''
+  if (st.running && st.started && st.done > 0 && st.total > st.done) {
+    const elapsed = (Date.now() - new Date(st.started + 'Z').getTime()) / 1000
+    const rate = st.done / Math.max(elapsed, 1)
+    eta = fmtEta((st.total - st.done) / Math.max(rate, 0.0001))
+  }
+  async function start() {
+    setBusy('load')
+    try { await api.pricesBackfill(years); toast('History load started'); load() }
+    catch (e) { toast(e.message || String(e), { type: 'error' }) }
+    setBusy('')
+  }
+  async function daily() {
+    setBusy('daily')
+    try { await api.pricesDailyNow(); toast('Daily refresh started'); load() }
+    catch (e) { toast(e.message || String(e), { type: 'error' }) }
+    setBusy('')
+  }
+  const num = n => (n == null ? '…' : Number(n).toLocaleString('en-IN'))
+  return (
+    <div className="panel">
+      <h4 title="Stored daily EOD OHLCV that powers the public and post-login price charts. Source: Yahoo (delayed/EOD). Universe = your Instruments list.">
+        Price data — chart history <span className="info-i">i</span></h4>
+      <div className="toolbar" style={{ marginTop: 0 }}>
+        <span className="hint">Coverage:</span>
+        <span><b>{num(info && info.symbols)}</b> symbols · <b>{num(info && info.rows)}</b> daily rows</span>
+        {info && info.from && <span className="hint">· {info.from} → {info.to}</span>}
+      </div>
+      <div className="toolbar">
+        <label title="How many years of history to fetch.">Years:{' '}
+          <select value={years} onChange={e => setYears(+e.target.value)} disabled={st.running}>
+            {[1, 2, 3, 5, 10].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <button onClick={start} disabled={st.running || !!busy}>
+          {st.running && st.mode === 'backfill' ? 'Loading…' : 'Load history'}</button>
+        <button className="ghost" onClick={daily} disabled={st.running || !!busy}>
+          {st.running && st.mode === 'daily' ? 'Refreshing…' : 'Refresh today'}</button>
+      </div>
+      {st.running && (
+        <div style={{ marginTop: 10 }}>
+          <div className="bar slim"><div style={{ width: pct + '%', background: 'var(--accent)' }} /></div>
+          <div className="hint" style={{ marginTop: 6 }}>
+            {st.mode === 'daily' ? 'Daily refresh' : 'Backfill'} — <b>{pct}%</b>{' '}
+            ({num(st.done)}/{num(st.total)}) · ok {num(st.ok)} · fail {num(st.fail)} ·{' '}
+            {num(st.rows)} rows{eta ? ' · ~' + eta + ' left' : ''}{st.last ? ' · ' + st.last : ''}
+          </div>
+        </div>
+      )}
+      {!st.running && st.finished && (
+        <p className="hint" style={{ marginTop: 8 }}>Last run: {st.mode || 'load'} — ok {num(st.ok)},
+          fail {num(st.fail)}, {num(st.rows)} rows.</p>
+      )}
+      <p className="hint" style={{ marginTop: 8 }}>Universe = your <strong>Instruments</strong> list —
+        import the full NSE list there first for complete coverage. Safe to re-run; already-current
+        symbols are skipped. The daily refresh also runs automatically after market close.</p>
+    </div>
+  )
+}
+
 function Settings() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
@@ -646,6 +723,8 @@ function Settings() {
           written without the LLM and the AI checker is skipped. Per-script LLM rationales are
           still produced on-demand via Refresh on Stock Scores.</p>
       </div>
+
+      <PriceData />
 
       <div className="panel">
         <h4 title="Controls who can create an account on the public landing page.">

@@ -90,6 +90,12 @@ async def lifespan(app: FastAPI):
                       misfire_grace_time=6 * 3600, coalesce=True)
     scheduler.add_job(refresh_news, "interval", minutes=every,
                       id="news_refresh", replace_existing=True)
+    # Daily EOD price refresh (~18:30 IST, after close + delayed-data settle).
+    from app.services.prices import daily_update as _daily_prices
+    scheduler.add_job(_daily_prices,
+                      CronTrigger(hour=18, minute=30, timezone=IST),
+                      id="daily_prices", replace_existing=True,
+                      misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
     scheduler.start()
     # Catch-up: if the box was down/restarted past the scheduled hour and today's
     # run hasn't happened yet, kick one off shortly after boot.
@@ -131,7 +137,7 @@ app.add_middleware(
 # so admins can still sign in and the client can detect maintenance.
 _MAINT_ALLOW = ("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
                 "/api/v1/auth/registration-info", "/api/v1/health", "/api/v1/branding",
-                "/api/v1/public/spotlight-chart.png")
+                "/api/v1/public/")
 
 
 def _request_is_admin(request) -> bool:

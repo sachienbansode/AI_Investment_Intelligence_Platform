@@ -516,6 +516,45 @@ async def price_history(symbol: str, range: str = "1M", user: User = Depends(get
     return {**data, "ranges": ph.ranges(), "disclaimer": AI_DISCLAIMER}
 
 
+# ── Public price charts (no login) — served from the stored EOD history ──────
+_PUBHIST_CACHE: dict = {}      # (symbol,range) -> (ts, payload)
+_PUBHIST_TTL = 300
+
+
+@router.get("/public/price-history")
+async def public_price_history(symbol: str, range: str = "1Y"):
+    """Any-stock daily history for the landing chart, from our stock_prices DB.
+    Falls back to delayed Yahoo intraday if the DB has no rows for it yet."""
+    import time as _t
+    from app.services import prices
+    sym = (symbol or "").strip().upper()
+    key = (sym, (range or "1Y").upper())
+    hit = _PUBHIST_CACHE.get(key)
+    if hit and _t.time() - hit[0] < _PUBHIST_TTL:
+        return hit[1]
+    data = prices.get_series(sym, range)
+    if not data.get("points"):
+        try:
+            from app.data import price_history as ph
+            live = await ph.get_price_history(sym, "1Y" if key[1] in ("3Y", "5Y", "MAX") else key[1])
+            pts = live.get("points") or []
+            import datetime as _dt
+            data = {"symbol": sym, "range": key[1], "delayed": True, "source": "live",
+                    "points": [{"d": _dt.datetime.utcfromtimestamp(p["t"]).date().isoformat(),
+                                "c": p["c"]} for p in pts if p.get("c") is not None]}
+        except Exception:
+            pass
+    _PUBHIST_CACHE[key] = (_t.time(), data)
+    return data
+
+
+@router.get("/public/symbol-search")
+def public_symbol_search(q: str = ""):
+    """Typeahead for the public stock picker (from the instruments master)."""
+    from app.services import prices
+    return {"results": prices.search_symbols(q, 10)}
+
+
 @router.get("/news")
 async def news_summary(limit: int = 20, refresh: bool = False):
     if refresh:
