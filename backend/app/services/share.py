@@ -52,6 +52,11 @@ def resolve_chart(spec: dict) -> dict | None:
     render with no live/authenticated calls. Returns normalized {kind, ...}."""
     if not spec:
         return None
+    if spec.get("src") == "portfolio":
+        return {"kind": "portfolio", "amount": spec.get("amount"),
+                "invested": spec.get("invested"), "cash": spec.get("cash"),
+                "weighted_score": spec.get("weighted_score"), "sectors": spec.get("sectors"),
+                "rows": spec.get("rows") or []}
     if spec.get("src") == "data":
         k = spec.get("kind", "bar")
         title = _title(spec.get("title") or "Illustrative")

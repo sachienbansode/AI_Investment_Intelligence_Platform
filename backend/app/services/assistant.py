@@ -974,8 +974,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             answer_text, provider = builder_answer, "computed"
             confidence = max(confidence, 0.9)
         else:
-            resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
-                                      max_tokens=int(get_setting("assistant_max_tokens")))
+            _maxtok = int(get_setting("assistant_max_tokens"))
+            if _wants_build(ql):        # portfolio/what-to-buy answers are long — give room
+                _maxtok = max(_maxtok, 900)
+            resp = await llm.complete(system_prompt(), prompt, task="ask_ai", max_tokens=_maxtok)
             answer_text, provider = resp.text, resp.provider
     except Exception as e:
         # Every LLM provider failed (e.g. account usage-limit / quota errors). Stay
@@ -1128,6 +1130,7 @@ def _guard_stale_price(question: str, answer: str, web_text: str) -> str:
 
 _CHART_RE = re.compile(r"\[\[CHART\]\](.*?)\[\[/CHART\]\]", re.DOTALL | re.IGNORECASE)
 _CHARTDATA_RE = re.compile(r"\[\[CHARTDATA\]\](.*?)\[\[/CHARTDATA\]\]", re.DOTALL | re.IGNORECASE)
+_PORTFOLIO_RE = re.compile(r"\[\[PORTFOLIO\]\](.*?)\[\[/PORTFOLIO\]\]", re.DOTALL | re.IGNORECASE)
 _BOUND_TYPES = {"score_history", "price_history", "pillars", "compare", "sector", "distribution"}
 
 
@@ -1179,14 +1182,22 @@ def _extract_charts(text: str):
             charts.append({"src": "data", "kind": kind if kind in ("bar", "line", "pie") else "bar",
                            "title": (d.get("title") or "Illustrative")[:80],
                            "x": x[:n], "y": yv[:n]})
+    for m in _PORTFOLIO_RE.finditer(text):
+        try:
+            data = json.loads(m.group(1))
+            if isinstance(data, dict) and data.get("rows"):
+                charts.append({"src": "portfolio", **data})
+        except Exception:
+            pass
     clean = _CHART_RE.sub("", text)
     clean = _CHARTDATA_RE.sub("", clean)
+    clean = _PORTFOLIO_RE.sub("", clean)
     # Robustly remove any UNCLOSED / malformed directive the model left behind
     # (e.g. "[[CHART]]\ntype: pillars\nsymbol: X" with no [[/CHART]]) up to the
     # next blank line, plus any stray bare tokens, so they never show as text.
     clean = re.sub(r"\[\[CHARTDATA\]\][\s\S]*?(?=\n\s*\n|\Z)", "", clean, flags=re.IGNORECASE)
     clean = re.sub(r"\[\[CHART\]\][\s\S]*?(?=\n\s*\n|\Z)", "", clean, flags=re.IGNORECASE)
-    clean = re.sub(r"\[\[/?CHART(?:DATA)?\]\]", "", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\[\[/?(?:CHART(?:DATA)?|PORTFOLIO)\]\]", "", clean, flags=re.IGNORECASE)
     clean = re.sub(r"\n{3,}", "\n\n", clean).strip()
     return clean, charts[:3]
 
@@ -1346,35 +1357,58 @@ def _portfolio_builder(question, history, user_id):
                 + "[[ASK]]\nq: How much would you like to invest?\ntype: input\n[[/ASK]]\n\n"
                 + f"Basis: {brand}")
 
-    # Step 2 — allocate the amount equal-weight by current price.
+    # Step 2 — allocate the amount by current price (equal-weight seed), then use
+    # the leftover cash by topping up the cheapest strong names so the budget is
+    # actually deployed. book[symbol] = [symbol, score, sector, ltp, qty].
+    order = sorted(picks, key=lambda x: ltp[x[0]])   # cheapest first
     per = amount / len(picks)
-    alloc = []
+    book = {}
     for s, sc, sec in picks:
-        qty = int(per // ltp[s])
-        if qty >= 1:
-            alloc.append((s, sc, sec, ltp[s], qty, qty * ltp[s]))
-    if not alloc:
+        q = int(per // ltp[s])
+        if q >= 1:
+            book[s] = [s, sc, sec, ltp[s], q]
+    if not book:
+        s, sc, sec = order[0]
+        if ltp[s] <= amount:
+            book[s] = [s, sc, sec, ltp[s], 1]
+    if not book:
         return (f"> {rs}{amount:,.0f} is below the price of one share of these names. "
                 "Try a larger amount.\n\n" + PORTFOLIO_DISCLAIMER + f"\n\nBasis: {brand}")
-    invested = sum(a[5] for a in alloc)
-    wscore = round(sum(a[5] * a[1] for a in alloc) / invested, 1) if invested else 0
-    nsec = len(set(a[2] for a in alloc))
-    table = ("| Stock | Sector | " + score_label + " | LTP | Qty | Amount | Weight |\n"
-             "|---|---|---|---|---|---|---|\n"
-             + "\n".join(f"| **{s}** | {sec} | {sc} | {rs}{p:,.0f} | {qty} | {rs}{amt:,.0f} | {round(amt/invested*100,1)}% |"
-                        for (s, sc, sec, p, qty, amt) in alloc))
-    pie = ("[[CHARTDATA]]\nkind: pie\ntitle: Suggested Allocation\nx: "
-           + ", ".join(a[0] for a in alloc) + "\ny: "
-           + ", ".join(str(int(round(a[5]))) for a in alloc) + "\n[[/CHARTDATA]]")
-    return (f"> A diversified starter basket for **{rs}{amount:,.0f}** — **{len(alloc)}** stocks across "
-            f"**{nsec}** sectors, value-weighted **{score_label} {wscore}**.\n\n"
-            + table + "\n\n"
-            + f"- Deploys **{rs}{invested:,.0f}** ({round(invested/amount*100)}% of {rs}{amount:,.0f}); the rest stays as cash for lot rounding.\n"
-            + f"- Every name is in the strong band on the {score_label}, spread across {nsec} sectors to reduce single-sector risk.\n\n"
-            + pie + "\n\n"
-            + "Load this in **Portfolio** to save it and get the full analysis (health, concentration, per-holding scores).\n\n"
-            + PORTFOLIO_DISCLAIMER + "\n\n"
-            + f"Basis: {brand}")
+
+    def _spent():
+        return sum(v[3] * v[4] for v in book.values())
+
+    guard = 0
+    while guard < 10000:
+        guard += 1
+        cash = amount - _spent()
+        cand = next((p for p in order if ltp[p[0]] <= cash), None)
+        if not cand:
+            break
+        s, sc, sec = cand
+        if s in book:
+            book[s][4] += 1
+        else:
+            book[s] = [s, sc, sec, ltp[s], 1]
+
+    invested = _spent()
+    cash = round(amount - invested)
+    wscore = round(sum(v[3] * v[4] * v[1] for v in book.values()) / invested, 1) if invested else 0
+    alloc = sorted(book.values(), key=lambda v: -(v[3] * v[4]))
+    nsec = len(set(v[2] for v in alloc))
+    payload_rows = [{"symbol": s, "sector": sec, "score": sc, "ltp": round(p, 2),
+                     "qty": qty, "amount": round(p * qty), "weight": round(p * qty / invested * 100, 1)}
+                    for (s, sc, sec, p, qty) in alloc]
+    payload = {"amount": round(amount), "invested": round(invested), "cash": cash,
+               "weighted_score": wscore, "sectors": nsec, "rows": payload_rows}
+    card = "[[PORTFOLIO]]" + json.dumps(payload) + "[[/PORTFOLIO]]"
+    head = (f"> A diversified starter basket for **{rs}{amount:,.0f}** — **{len(alloc)}** stocks across "
+            f"**{nsec}** sectors, value-weighted **{score_label} {wscore}**. Deployed "
+            f"**{rs}{invested:,.0f}** ({round(invested/amount*100)}%), cash left {rs}{cash:,.0f}.")
+    return (head + "\n\n" + card + "\n\n"
+            + "Quantities are calculated from your amount and each stock's current price. "
+            + "Load this in **Portfolio** to save it and get the full health & concentration analysis.\n\n"
+            + PORTFOLIO_DISCLAIMER + "\n\n" + f"Basis: {brand}")
 
 
 def _pct_in_range(last, lo, hi):

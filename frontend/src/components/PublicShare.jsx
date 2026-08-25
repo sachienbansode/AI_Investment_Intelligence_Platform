@@ -15,6 +15,36 @@ const sDate = d => (d && d.length >= 10 ? `${d.slice(8, 10)}-${MON[(+d.slice(5, 
 function StaticChart({ c }) {
   if (!c) return null
   const W = 640
+  if (c.kind === 'portfolio') {
+    const inr = v => RUPEE + Number(v || 0).toLocaleString('en-IN')
+    const bandc = v => (v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)')
+    return (
+      <div className="chart-block">
+        <div className="pf-chips">
+          <div><span>Amount</span><b>{inr(c.amount)}</b></div>
+          <div><span>Invested</span><b>{inr(c.invested)}</b></div>
+          <div><span>Cash left</span><b>{inr(c.cash)}</b></div>
+          <div><span>NIYTRI Score</span><b style={{ color: bandc(c.weighted_score) }}>{c.weighted_score}</b></div>
+          <div><span>Sectors</span><b>{c.sectors}</b></div>
+        </div>
+        <div className="md-table-wrap"><table className="md-table">
+          <thead><tr><th>Stock</th><th>Sector</th><th style={{ textAlign: 'right' }}>NIYTRI</th>
+            <th style={{ textAlign: 'right' }}>LTP</th><th style={{ textAlign: 'right' }}>Qty</th>
+            <th style={{ textAlign: 'right' }}>Amount</th><th style={{ textAlign: 'right' }}>Weight</th></tr></thead>
+          <tbody>
+            {(c.rows || []).map(r => (
+              <tr key={r.symbol}><td><strong>{r.symbol}</strong></td><td>{r.sector}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: bandc(r.score) }}>{r.score}</td>
+                <td style={{ textAlign: 'right' }}>{inr(r.ltp)}</td>
+                <td style={{ textAlign: 'right' }}>{r.qty}</td>
+                <td style={{ textAlign: 'right' }}>{inr(r.amount)}</td>
+                <td style={{ textAlign: 'right' }}>{r.weight}%</td></tr>
+            ))}
+          </tbody>
+        </table></div>
+      </div>
+    )
+  }
   if (c.kind === 'pillars') {
     return (
       <div className="chart-block">

@@ -738,6 +738,12 @@ textarea:focus { border-color: var(--accent); }
 
 .pillar-chart { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
 
+/* ── In-chat portfolio basket card ── */
+.pf-chips { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.pf-chips > div { display: flex; flex-direction: column; }
+.pf-chips span { font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; }
+.pf-chips b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
 /* ── Portfolio NIYTRI score card + verdict ── */
 .pf-scorecard { display: flex; gap: 16px; align-items: center; margin: 6px 0 14px;
   padding: 14px 16px; background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; }

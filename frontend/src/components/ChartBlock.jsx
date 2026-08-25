@@ -218,8 +218,53 @@ function Pillars({ symbol }) {
   )
 }
 
+function PortfolioCard({ p }) {
+  const rows = p.rows || []
+  const inr = v => RS + Number(v || 0).toLocaleString('en-IN')
+  const sec = {}
+  rows.forEach(r => { sec[r.sector] = (sec[r.sector] || 0) + Number(r.amount || 0) })
+  const bars = Object.entries(sec).sort((a, b) => b[1] - a[1])
+  return (
+    <div className="chart-block pf-basket">
+      <div className="pf-chips">
+        <div><span>Amount</span><b>{inr(p.amount)}</b></div>
+        <div><span>Invested</span><b>{inr(p.invested)}</b></div>
+        <div><span>Cash left</span><b>{inr(p.cash)}</b></div>
+        <div><span>NIYTRI Score</span><b style={{ color: band(p.weighted_score) }}>{p.weighted_score}</b></div>
+        <div><span>Sectors</span><b>{p.sectors}</b></div>
+        <div><span>Stocks</span><b>{rows.length}</b></div>
+      </div>
+      <div className="md-table-wrap">
+        <table className="md-table">
+          <thead><tr>
+            <th>Stock</th><th>Sector</th>
+            <th style={{ textAlign: 'right' }}>NIYTRI</th><th style={{ textAlign: 'right' }}>LTP</th>
+            <th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Amount</th>
+            <th style={{ textAlign: 'right' }}>Weight</th>
+          </tr></thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.symbol}>
+                <td><strong>{r.symbol}</strong></td><td>{r.sector}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: band(r.score) }}>{r.score}</td>
+                <td style={{ textAlign: 'right' }}>{inr(r.ltp)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.qty}</td>
+                <td style={{ textAlign: 'right' }}>{inr(r.amount)}</td>
+                <td style={{ textAlign: 'right' }}>{r.weight}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {bars.length > 0 && <div className="chart-title" style={{ marginTop: 10 }}>Allocation by sector</div>}
+      {bars.length > 0 && <BarChart labels={bars.map(x => x[0])} values={bars.map(x => Math.round(x[1]))} fmtY={v => RS + v} />}
+    </div>
+  )
+}
+
 export default function ChartBlock({ spec }) {
   if (!spec) return null
+  if (spec.src === 'portfolio') return <PortfolioCard p={spec} />
   if (spec.src === 'bound') {
     if (spec.type === 'score_history') return <Wrap><ScoreHistoryPanel symbol={spec.symbol} /></Wrap>
     if (spec.type === 'price_history') return <PriceHistory symbol={spec.symbol} />
