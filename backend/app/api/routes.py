@@ -566,6 +566,21 @@ def public_symbol_search(q: str = ""):
     return {"results": prices.search_symbols(q, 10)}
 
 
+@router.get("/public/score-value-add")
+def public_score_value_add(horizon: int = 10):
+    """Informational back-study: avg forward return by score band (hypothetical,
+    not advice). Public for the landing summary."""
+    from app.services import score_value_add
+    return score_value_add.summary(max(3, min(int(horizon), 30)))
+
+
+@router.get("/score-perf/{symbol}")
+def score_perf(symbol: str, horizon: int = 10, user: User = Depends(get_current_user)):
+    """Per-stock NIYTRI Score vs subsequent price move (hypothetical, not advice)."""
+    from app.services import score_value_add
+    return score_value_add.for_symbol(symbol, max(3, min(int(horizon), 30)))
+
+
 @router.get("/news")
 async def news_summary(limit: int = 20, refresh: bool = False):
     if refresh:

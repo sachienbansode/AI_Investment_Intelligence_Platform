@@ -25,7 +25,7 @@ _BASE = "https://query1.finance.yahoo.com/v8/finance/chart/"
 # Live progress for the Admin panel / status endpoint.
 STATE: dict = {"running": False, "ok": 0, "fail": 0, "rows": 0, "done": 0,
                "total": 0, "last": "", "started": None, "finished": None,
-               "mode": "", "years": 3}
+               "mode": "", "years": 3, "failed_symbols": []}
 
 
 # ---- fetch + write ----------------------------------------------------------
@@ -129,7 +129,7 @@ async def run_backfill(years: int = 3, symbols: list[str] | None = None,
             syms = syms[:limit]
         todo = syms if force else [s for s in syms if not _already_current(db, s)]
         STATE.update({"running": True, "ok": 0, "fail": 0, "rows": 0, "done": 0,
-                      "total": len(todo), "last": "", "mode": "backfill",
+                      "total": len(todo), "last": "", "mode": "backfill", "failed_symbols": [],
                       "years": years, "started": dt.datetime.utcnow().isoformat(),
                       "finished": None})
         log.info("price backfill: universe=%d to_fetch=%d range=%s", len(syms), len(todo), rng)
@@ -149,6 +149,7 @@ async def run_backfill(years: int = 3, symbols: list[str] | None = None,
                             log.warning("write %s failed: %s", s, e)
                     else:
                         STATE["fail"] += 1
+                        if len(STATE["failed_symbols"]) < 400: STATE["failed_symbols"].append(s)
                     STATE["done"] += 1
                     STATE["last"] = s
                 await asyncio.sleep(0.4)
@@ -183,7 +184,7 @@ async def daily_update(concurrency: int = 8) -> dict:
         syms = _universe(db, None)
         todo = [s for s in syms if not _already_current(db, s, days=3)]
         STATE.update({"running": True, "ok": 0, "fail": 0, "rows": 0, "done": 0,
-                      "total": len(todo), "last": "", "mode": "incremental",
+                      "total": len(todo), "last": "", "mode": "incremental", "failed_symbols": [],
                       "started": dt.datetime.utcnow().isoformat(), "finished": None})
         log.info("price incremental: universe=%d stale=%d", len(syms), len(todo))
         async with httpx.AsyncClient(timeout=25, headers=_HEADERS) as client:
@@ -201,6 +202,7 @@ async def daily_update(concurrency: int = 8) -> dict:
                             STATE["fail"] += 1
                     else:
                         STATE["fail"] += 1
+                        if len(STATE["failed_symbols"]) < 400: STATE["failed_symbols"].append(s)
                     STATE["done"] += 1
                     STATE["last"] = s
                 await asyncio.sleep(0.3)

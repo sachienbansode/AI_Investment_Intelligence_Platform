@@ -110,11 +110,13 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
   const [range, setRange] = useState('1M')
   const [ph, setPh] = useState(null)
   const [phLoad, setPhLoad] = useState(false)
+  const [perf, setPerf] = useState(null)
 
   useEffect(() => {
     if (!symbol) return
-    setD(null); setErr('')
+    setD(null); setErr(''); setPerf(null)
     api.stockDetail(symbol).then(setD).catch(e => setErr(e.message))
+    api.scorePerf(symbol).then(setPerf).catch(() => setPerf(null))
   }, [symbol])
   useEffect(() => {
     if (!symbol) return
@@ -181,6 +183,35 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
         {phLoad ? <div className="sd-nochart">Loading chart…</div> : <Chart points={ph?.points} prevClose={prev} up={up} />}
       </div>
 
+      {(() => {
+        const pts = (perf?.points || []).filter(p => p.fwd_return != null)
+        const avgFwd = pts.length ? pts.reduce((s, p) => s + p.fwd_return, 0) / pts.length : null
+        const since = perf?.since_first_scored
+        if (!since && avgFwd == null) return null
+        const cls = v => (v >= 0 ? 'up' : 'down'); const sgn = v => (v >= 0 ? '+' : '')
+        return (
+          <div className="panel sd-va">
+            <div className="sd-va-h">NIYTRI Score — value-add <span className="hint">· hypothetical, not advice</span></div>
+            <div className="sd-va-row">
+              {since && (
+                <div className="sd-va-stat">
+                  <span>Since first scored ({since.from}, score {since.score_then})</span>
+                  <b className={cls(since.return_pct)}>{sgn(since.return_pct)}{since.return_pct}%</b>
+                </div>
+              )}
+              {avgFwd != null && (
+                <div className="sd-va-stat">
+                  <span>Avg {perf.horizon_days}-day move after each score</span>
+                  <b className={cls(avgFwd)}>{sgn(avgFwd)}{avgFwd.toFixed(2)}%</b>
+                </div>
+              )}
+            </div>
+            <div className="sd-va-note">Informational back-study of this stock's real NIYTRI Scores vs its subsequent price
+              move. Early window; past performance is not indicative of future results; not investment advice.</div>
+          </div>
+        )
+      })()}
+
       <div className="sd-cols">
         <div className="panel sd-score">
           <div className="sd-score-top">
@@ -245,6 +276,14 @@ const CSS = `
 .sd-ask{margin-left:auto}
 .sd-chartwrap{padding:12px}
 .sd-chart{width:100%;height:260px;display:block}
+.sd-va{margin-top:14px;background:linear-gradient(135deg,rgba(255,138,61,.06),rgba(249,76,0,.05));border-color:rgba(255,106,0,.22)}
+.sd-va-h{font-weight:700;font-size:14px;margin-bottom:12px}
+.sd-va-row{display:flex;gap:34px;flex-wrap:wrap}
+.sd-va-stat{display:flex;flex-direction:column;gap:3px}
+.sd-va-stat span{font-size:12px;color:var(--muted)}
+.sd-va-stat b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.sd-va-stat b.up{color:var(--green)}.sd-va-stat b.down{color:var(--red)}
+.sd-va-note{margin-top:12px;font-size:11.5px;color:var(--faint);line-height:1.55}
 .sd-nochart{height:240px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .sd-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .sd-score-top{display:flex;justify-content:space-between;align-items:flex-start}

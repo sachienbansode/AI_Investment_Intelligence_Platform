@@ -361,6 +361,39 @@ function StockExplorer() {
   )
 }
 
+function ValueAdd() {
+  const [d, setD] = useState(null)
+  useEffect(() => { api.scoreValueAdd().then(setD).catch(() => {}) }, [])
+  if (!d || !d.available) return null
+  const b = d.bands || {}
+  const f = v => (v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%')
+  const cards = [['Strong 65+', b.strong, 'g'], ['Neutral 50–64', b.neutral, 'a'], ['Weak <50', b.weak, 'r']]
+  return (
+    <section className="lp-sec">
+      <h2>Does the <span className="lp-grad">NIYTRI Score</span> add value?</h2>
+      <div className="lp-subh">Average {d.horizon_days}-trading-day move after each score, by band — from our live scores ({d.from} → {d.to}).</div>
+      <div className="lp-va">
+        {cards.map(([lab, x, c]) => (
+          <div className={'lp-va-c ' + c} key={lab}>
+            <div className="lp-va-lab">{lab}</div>
+            <div className="lp-va-num">{f(x && x.avg_return)}</div>
+            <div className="lp-va-sub">{(x && x.samples) || 0} observations</div>
+          </div>
+        ))}
+        {d.spread != null && (
+          <div className="lp-va-c spread">
+            <div className="lp-va-lab">Strong − Weak spread</div>
+            <div className="lp-va-num">{f(d.spread)}</div>
+            <div className="lp-va-sub">market avg {f(d.market_avg)}</div>
+          </div>
+        )}
+      </div>
+      <p className="lp-va-disc">Hypothetical, informational back-study over an early window ({d.samples} observations since we began scoring).
+        Past performance is not indicative of future results. This is not investment advice.</p>
+    </section>
+  )
+}
+
 export default function Landing({ onLogin }) {
   const [info, setInfo] = useState(null)
   const [spot, setSpot] = useState(null)
@@ -661,6 +694,8 @@ export default function Landing({ onLogin }) {
           </div>
         </section>
 
+        <ValueAdd />
+
         <StockExplorer />
 
         <section className="lp-sec">
@@ -829,6 +864,16 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 .lp-exdrop button:hover{background:var(--soft)}
 .lp-exdrop b{color:var(--ink)}.lp-exdrop span{color:var(--mut);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lp-excard{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 50px rgba(24,29,39,.08)}
+.lp-va{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:940px;margin:0 auto}
+.lp-va-c{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;text-align:center;box-shadow:0 10px 30px rgba(24,29,39,.05)}
+.lp-va-lab{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+.lp-va-num{font-size:30px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+.lp-va-c.g .lp-va-num{color:#12a06b}.lp-va-c.a .lp-va-num{color:#c07d0a}.lp-va-c.r .lp-va-num{color:#e0503f}
+.lp-va-c.spread{background:linear-gradient(135deg,rgba(255,138,61,.10),rgba(249,76,0,.08));border-color:rgba(255,106,0,.28)}
+.lp-va-c.spread .lp-va-num{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp-va-sub{font-size:11.5px;color:var(--faint);margin-top:4px}
+.lp-va-disc{max-width:820px;margin:16px auto 0;text-align:center;font-size:12px;color:#9aa3b2;line-height:1.6}
+@media(max-width:640px){.lp-va{grid-template-columns:1fr 1fr}}
 .lp-exlast{font-weight:800;font-size:18px;white-space:nowrap;text-align:right}.lp-exlast span{color:var(--mut);font-weight:600;font-size:12px}
 .lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
 .lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}

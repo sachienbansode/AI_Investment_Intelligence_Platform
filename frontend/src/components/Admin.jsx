@@ -471,6 +471,7 @@ function fmtEta(sec) {
 function PriceData() {
   const [info, setInfo] = useState(null)
   const [years, setYears] = useState(3)
+  const [force, setForce] = useState(false)
   const [busy, setBusy] = useState('')
   const load = () => api.pricesSummary().then(setInfo).catch(() => {})
   useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t) }, [])
@@ -484,7 +485,7 @@ function PriceData() {
   }
   async function start() {
     setBusy('load')
-    try { await api.pricesBackfill(years); toast('History load started'); load() }
+    try { await api.pricesBackfill(years, force); toast(force ? 'Full re-fetch started' : 'History load started'); load() }
     catch (e) { toast(e.message || String(e), { type: 'error' }) }
     setBusy('')
   }
@@ -522,6 +523,9 @@ function PriceData() {
             {[1, 2, 3, 5, 10].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </label>
+        <label className="hint" title="Re-fetch every symbol, even ones already up to date.">
+          <input type="checkbox" checked={force} onChange={e => setForce(e.target.checked)} disabled={st.running} /> Force reload
+        </label>
         <button onClick={start} disabled={st.running || !!busy}>
           {st.running && st.mode === 'backfill' ? 'Loading…' : 'Load history'}</button>
         <button className="ghost" onClick={daily} disabled={st.running || !!busy}>
@@ -543,6 +547,14 @@ function PriceData() {
       {!st.running && st.finished && (
         <p className="hint" style={{ marginTop: 8 }}>Last run: {st.mode || 'load'} — ok {num(st.ok)},
           fail {num(st.fail)}, {num(st.rows)} rows.</p>
+      )}
+      {st.failed_symbols && st.failed_symbols.length > 0 && (
+        <details style={{ marginTop: 8 }}>
+          <summary className="hint" style={{ cursor: 'pointer' }}>
+            {st.failed_symbols.length} symbol(s) couldn’t be fetched (delisted / renamed / thinly-traded) — view</summary>
+          <div className="hint" style={{ marginTop: 6, fontFamily: 'monospace', fontSize: '.78rem', lineHeight: 1.7, wordBreak: 'break-word' }}>
+            {st.failed_symbols.join(', ')}</div>
+        </details>
       )}
       <p className="hint" style={{ marginTop: 8 }}>Universe = your <strong>Instruments</strong> list —
         import the full NSE list there first for complete coverage. Safe to re-run; already-current

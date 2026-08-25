@@ -1575,13 +1575,14 @@ def prices_summary():
 
 
 @router.post("/prices/backfill")
-def prices_backfill(years: int = 3):
-    """Start a full (resumable) history backfill in the background."""
+def prices_backfill(years: int = 3, force: bool = False):
+    """Start a history backfill in the background. force=True re-fetches every
+    symbol (ignores the already-current skip)."""
     from app.services import prices
-    if not prices.start_backfill_bg(years=max(1, min(int(years), 10))):
+    if not prices.start_backfill_bg(years=max(1, min(int(years), 10)), force=force):
         raise HTTPException(409, "A price load is already running.")
-    audit_log("prices_backfill_started", years=years)
-    return {"started": True, "years": years}
+    audit_log("prices_backfill_started", years=years, force=force)
+    return {"started": True, "years": years, "force": force}
 
 
 @router.post("/prices/daily-now")
