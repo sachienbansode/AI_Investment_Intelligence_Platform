@@ -72,8 +72,48 @@ def build_portfolio_pdf(analysis: dict, holdings: list[dict],
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
     el.append(t)
 
-    # Holdings
-    if holdings:
+    # NIYTRI Score quality overlay
+    ps = analysis.get("portfolio_score") or {}
+    if ps.get("weighted_score") is not None:
+        bw = ps.get("band_weight_pct") or {}
+        el.append(Paragraph("NIYTRI Score quality", h2))
+        el.append(Paragraph(
+            f"Value-weighted NIYTRI Score: <b>{ps.get('weighted_score')}</b> "
+            f"({ps.get('band','-')}) &nbsp;|&nbsp; Coverage: <b>{ps.get('coverage_pct','-')}%</b><br/>"
+            f"Strong <b>{bw.get('strong',0)}%</b> &nbsp; Neutral <b>{bw.get('neutral',0)}%</b> "
+            f"&nbsp; Weak <b>{bw.get('weak',0)}%</b> of value", body))
+
+    # Verdict
+    v = analysis.get("verdict") or {}
+    if v.get("strengths") or v.get("watchouts"):
+        el.append(Paragraph("Verdict: " + _md(v.get("label", "")), h2))
+        if v.get("strengths"):
+            el.append(Paragraph("<b>Strengths</b>", body))
+            for t2 in v["strengths"]:
+                el.append(Paragraph("&bull; " + _md(t2), bullet))
+        if v.get("watchouts"):
+            el.append(Paragraph("<b>Watch-outs</b>", body))
+            for t2 in v["watchouts"]:
+                el.append(Paragraph("&bull; " + _md(t2), bullet))
+
+    # Holdings (rich, with NIYTRI Score when available)
+    ah = analysis.get("holdings") or []
+    if ah:
+        el.append(Paragraph("Holdings", h2))
+        rows = [["Symbol", "Weight", "Value (Rs)", "P&L", "Sector", "NIYTRI"]]
+        for h in ah:
+            rows.append([h.get("symbol", ""), f"{h.get('weight_pct','-')}%",
+                         f"{float(h.get('value', 0)):,.0f}",
+                         f"{h.get('pnl_pct','-')}%", str(h.get("sector", ""))[:18],
+                         "-" if h.get("score") is None else str(h.get("score"))])
+        ht = Table(rows, colWidths=[26*mm, 18*mm, 30*mm, 18*mm, 44*mm, 18*mm])
+        ht.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _BRAND), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5), ("GRID", (0, 0), (-1, -1), 0.4, colors.lightgrey),
+            ("ALIGN", (1, 0), (3, -1), "RIGHT"), ("ALIGN", (5, 0), (5, -1), "RIGHT"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f6fa")])]))
+        el.append(ht)
+    elif holdings:
         el.append(Paragraph("Holdings", h2))
         rows = [["Symbol", "Qty", "Avg price (Rs)"]]
         for h in holdings:

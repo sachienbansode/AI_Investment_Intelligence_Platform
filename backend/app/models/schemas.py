@@ -80,6 +80,10 @@ class PortfolioResponse(BaseModel):
     sector_exposure: dict
     insights: str
     disclaimer: str
+    # NIYTRI Score overlay + verdict (added in the quality upgrade)
+    holdings: list[dict] = []       # per-holding: symbol, weight_pct, value, pnl_pct, sector, score, band
+    portfolio_score: dict = {}      # weighted_score, coverage_pct, band_weight_pct, band_count, strongest, weakest, band
+    verdict: dict = {}              # label, strengths[], watchouts[]
 
 
 class WatchlistRequest(BaseModel):

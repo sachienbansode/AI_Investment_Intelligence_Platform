@@ -2,6 +2,54 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 
+const RS = String.fromCharCode(0x20B9)
+const bandColor = v => v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)'
+const PIE = ['#f94c00', '#ff8a3d', '#12a06b', '#c07d0a', '#4f8ef7', '#7c5cfc', '#e0503f', '#2f6fe0']
+const inr = v => RS + Math.round(v).toLocaleString('en-IN')
+
+// Compact donut + legend for sector allocation.
+function PieMini({ data }) {
+  const total = data.reduce((a, [, v]) => a + v, 0) || 1
+  let acc = 0
+  const R = 70, r0 = 40, C = 80
+  const segs = data.map(([lab, v], i) => {
+    const a0 = acc / total * 2 * Math.PI; acc += v
+    const a1 = acc / total * 2 * Math.PI
+    const large = a1 - a0 > Math.PI ? 1 : 0
+    const p = (rad, ang) => [C + rad * Math.sin(ang), C - rad * Math.cos(ang)]
+    const [x0, y0] = p(R, a0), [x1, y1] = p(R, a1), [x2, y2] = p(r0, a1), [x3, y3] = p(r0, a0)
+    return <path key={i} d={`M${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 ${large} 0 ${x3},${y3} Z`}
+                 fill={PIE[i % PIE.length]} stroke="var(--panel)" strokeWidth="1" />
+  })
+  return (
+    <div className="pie-wrap">
+      <svg viewBox="0 0 160 160" className="pie-svg">{segs}</svg>
+      <div className="pie-legend">
+        {data.map(([lab, v], i) => (
+          <div key={lab}><i style={{ background: PIE[i % PIE.length] }} />{lab} <b>{v}%</b></div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Horizontal score bars for each holding (coloured by NIYTRI band).
+function HoldingScoreBars({ holdings }) {
+  const scored = holdings.filter(h => h.score != null)
+  if (!scored.length) return <p className="hint">No NIYTRI Scores available for these holdings yet.</p>
+  return (
+    <div className="pillar-chart">
+      {scored.map(h => (
+        <div key={h.symbol} className="pillar">
+          <span>{h.symbol}</span>
+          <div className="bar"><div style={{ width: h.score + '%', background: bandColor(h.score) }} /></div>
+          <span>{h.score}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Portfolio() {
   const [rows, setRows] = useState([{ symbol: 'RELIANCE', quantity: 10, avg_price: 2500 }])
   const [all, setAll] = useState([])
@@ -184,6 +232,51 @@ export default function Portfolio() {
           )}
           {result.headline && <p className="hint" style={{ marginTop: 0, marginBottom: 12 }}>{result.headline}</p>}
 
+          {result.portfolio_score && result.portfolio_score.weighted_score != null && (
+            <div className="pf-scorecard">
+              <div className="pf-score-big" style={{ background: bandColor(result.portfolio_score.weighted_score) }}>
+                {result.portfolio_score.weighted_score}
+                <small>NIYTRI Score</small>
+              </div>
+              <div className="pf-score-meta">
+                <div className="pf-score-label" style={{ color: bandColor(result.portfolio_score.weighted_score) }}>
+                  {result.portfolio_score.band === 'strong' ? 'Strong quality' : result.portfolio_score.band === 'weak' ? 'Weak quality' : 'Neutral quality'}
+                </div>
+                <div className="pf-bandbar" title="Share of portfolio value by NIYTRI Score band">
+                  {['strong', 'neutral', 'weak'].map(b => {
+                    const w = result.portfolio_score.band_weight_pct?.[b] || 0
+                    const c = b === 'strong' ? 'var(--green)' : b === 'neutral' ? 'var(--amber)' : 'var(--red)'
+                    return w > 0 ? <span key={b} style={{ width: w + '%', background: c }} title={`${b}: ${w}%`} /> : null
+                  })}
+                </div>
+                <div className="hint">
+                  Strong <b>{result.portfolio_score.band_weight_pct?.strong || 0}%</b> ·
+                  Neutral <b>{result.portfolio_score.band_weight_pct?.neutral || 0}%</b> ·
+                  Weak <b>{result.portfolio_score.band_weight_pct?.weak || 0}%</b> · Coverage {result.portfolio_score.coverage_pct}%
+                </div>
+              </div>
+            </div>
+          )}
+
+          {result.verdict && (result.verdict.strengths?.length > 0 || result.verdict.watchouts?.length > 0) && (
+            <div className="pf-verdict">
+              <div className="pf-vcol">
+                <h4 className="up">Strengths</h4>
+                <ul>{(result.verdict.strengths || []).map((t, i) =>
+                  <li key={i} dangerouslySetInnerHTML={{ __html: mdToHtml(t).replace(/^<p>|<\/p>$/g, '') }} />)}
+                  {(!result.verdict.strengths || !result.verdict.strengths.length) && <li className="hint">—</li>}
+                </ul>
+              </div>
+              <div className="pf-vcol">
+                <h4 className="down">Watch-outs</h4>
+                <ul>{(result.verdict.watchouts || []).map((t, i) =>
+                  <li key={i} dangerouslySetInnerHTML={{ __html: mdToHtml(t).replace(/^<p>|<\/p>$/g, '') }} />)}
+                  {(!result.verdict.watchouts || !result.verdict.watchouts.length) && <li className="hint">—</li>}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {result.deductions?.length > 0 && (
             <div className="deductions">
               <h4 title="Exactly why points were deducted from 100">Why this score? <span className="info-i">i</span></h4>
@@ -216,6 +309,46 @@ export default function Portfolio() {
               </ul>
             </div>
           </div>
+
+          <div className="grid2" style={{ marginTop: 6 }}>
+            <div>
+              <h4>Sector allocation</h4>
+              {Object.keys(result.sector_exposure || {}).length > 0
+                ? <PieMini data={Object.entries(result.sector_exposure).sort((a, b) => b[1] - a[1])} />
+                : <p className="hint">No sector data.</p>}
+            </div>
+            <div>
+              <h4 title="Each holding's latest NIYTRI Score (green ≥65, amber 50–64, red <50)">NIYTRI Score by holding</h4>
+              {result.holdings ? <HoldingScoreBars holdings={result.holdings} /> : null}
+            </div>
+          </div>
+
+          {result.holdings?.length > 0 && (
+            <>
+              <h4>Holdings</h4>
+              <div className="md-table-wrap">
+                <table className="md-table">
+                  <thead><tr><th>Symbol</th><th style={{ textAlign: 'right' }}>Weight</th>
+                    <th style={{ textAlign: 'right' }}>Value</th><th style={{ textAlign: 'right' }}>P&L</th>
+                    <th>Sector</th><th style={{ textAlign: 'right' }}>NIYTRI Score</th></tr></thead>
+                  <tbody>
+                    {result.holdings.map(h => (
+                      <tr key={h.symbol}>
+                        <td><strong>{h.symbol}</strong></td>
+                        <td style={{ textAlign: 'right' }}>{h.weight_pct}%</td>
+                        <td style={{ textAlign: 'right' }}>{inr(h.value)}</td>
+                        <td style={{ textAlign: 'right' }} className={h.pnl_pct >= 0 ? 'up' : 'down'}>
+                          {h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct}%</td>
+                        <td>{h.sector}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: bandColor(h.score) }}>
+                          {h.score != null ? h.score : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <h4>AI insights</h4>
           <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(result.insights) }} />

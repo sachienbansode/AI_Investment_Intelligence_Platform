@@ -736,6 +736,26 @@ textarea:focus { border-color: var(--accent); }
 
 .pillar-chart { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
 
+/* ── Portfolio NIYTRI score card + verdict ── */
+.pf-scorecard { display: flex; gap: 16px; align-items: center; margin: 6px 0 14px;
+  padding: 14px 16px; background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; }
+.pf-score-big { flex: none; width: 92px; height: 92px; border-radius: 14px; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; }
+.pf-score-big small { font-size: .58rem; font-weight: 600; opacity: .95; margin-top: 2px; letter-spacing: .04em; }
+.pf-score-meta { flex: 1; min-width: 0; }
+.pf-score-label { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+.pf-bandbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden;
+  background: var(--track); margin-bottom: 6px; }
+.pf-bandbar span { display: block; height: 100%; }
+.pf-verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0 14px; }
+.pf-verdict .pf-vcol { background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; }
+.pf-verdict h4 { margin: 0 0 6px; font-size: .9rem; }
+.pf-verdict ul { margin: 0; padding-left: 18px; }
+.pf-verdict li { margin: 3px 0; font-size: .86rem; }
+@media (max-width: 720px) { .pf-verdict { grid-template-columns: 1fr; } .pf-scorecard { flex-direction: column; align-items: flex-start; } }
+
 /* ── Share menu on an answer ── */
 .share-wrap { position: relative; display: inline-block; margin-left: auto; }
 .share-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30;
