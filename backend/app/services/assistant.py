@@ -67,6 +67,27 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   read-through for Indian markets (safe-haven flows, gold-financing / jewellery
   names, inflation and rate implications). Use current internet / WEB_RESULTS data
   whenever the figure or trend is time-sensitive.
+- FRESHNESS & HONESTY (all data, not just prices): never present stale or uncertain
+  information as current fact. If platform data is missing / old, or you are not sure
+  it is current, and no live WEB_RESULTS cover it, give the CLOSEST answer you
+  reasonably can BUT clearly flag it: say it is the closest available and WHY (e.g.
+  "based on platform data as of <date>" or "I don't have the live figure right now"),
+  and avoid precise numbers you cannot verify. A caveated, qualitative answer always
+  beats a confident wrong one.
+- ASK FOR INPUT (use SPARINGLY): if you truly cannot help without ONE specific missing
+  detail (e.g. which stock, which period, or a value), you MAY ask ONE short
+  clarifying question instead of guessing. NEVER ask more than one question, and never
+  ask when you can reasonably answer or infer. Still give any partial help ABOVE the
+  block. When you ask, append EXACTLY this block at the VERY END (it is removed before
+  display and shown to the user as buttons / an input box):
+  [[ASK]]
+  q: <one short question>
+  type: select | input | mixed
+  options: <opt1> | <opt2> | <opt3>
+  [[/ASK]]
+  Use "select" when the sensible answers are a small finite set (2-4 options), "input"
+  for a free value (a number or name, omit options), "mixed" when common options AND a
+  free value both make sense.
 - LIVE FIGURES (critical - prevents stale prices): for ANY time-sensitive PRICE or
   LEVEL that is not the platform's own data - gold and commodity prices, crude/Brent,
   index levels, USD/INR and other FX, or a non-platform quote - take the number ONLY
@@ -920,6 +941,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 "review the API limits and keys in Admin -> Integrations.")
             confidence = 0.3
             sources = []
+    answer_text, clarify = _extract_ask(answer_text)
     latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
@@ -961,7 +983,39 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
               n_sources=len(sources), confidence=confidence)
 
     return AskAIResponse(answer=answer_text, sources=sources, confidence=round(confidence, 2),
-                         provider=provider, disclaimer=AI_DISCLAIMER)
+                         provider=provider, disclaimer=AI_DISCLAIMER, clarify=clarify)
+
+
+
+_ASK_RE = _re.compile(r"\[\[ASK\]\](.*?)\[\[/ASK\]\]", _re.DOTALL | _re.IGNORECASE)
+
+
+def _extract_ask(text: str):
+    """Pull an optional trailing [[ASK]]...[[/ASK]] block out of the model reply.
+    Returns (clean_text, clarify_dict_or_None). clarify = {q, type, options}."""
+    if not text:
+        return text, None
+    m = _ASK_RE.search(text)
+    if not m:
+        return text, None
+    body = m.group(1)
+    q, typ, opts = "", "select", []
+    for line in body.splitlines():
+        line = line.strip()
+        low = line.lower()
+        if low.startswith("q:"):
+            q = line[2:].strip()
+        elif low.startswith("type:"):
+            typ = line[5:].strip().lower()
+        elif low.startswith("options:"):
+            opts = [o.strip() for o in line[8:].split("|") if o.strip()]
+    if typ not in ("select", "input", "mixed"):
+        typ = "select" if opts else "input"
+    clean = (text[:m.start()] + text[m.end():]).strip()
+    if not q:
+        return clean, None
+    clarify = {"q": q, "type": typ, "options": opts[:4]}
+    return clean, clarify
 
 
 def _pct_in_range(last, lo, hi):

@@ -14,6 +14,9 @@ class AskAIResponse(BaseModel):
     confidence: float = Field(ge=0, le=1)
     provider: str
     disclaimer: str
+    # Optional one-shot request for user input (rendered as chips / an input box).
+    # Shape: {"q": str, "type": "select"|"input"|"mixed", "options": [str]}
+    clarify: dict | None = None
 
 
 class PillarScores(BaseModel):

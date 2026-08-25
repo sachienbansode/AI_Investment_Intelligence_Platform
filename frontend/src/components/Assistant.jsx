@@ -41,6 +41,36 @@ const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'US
   'GLOBAL', 'DOLLAR', 'GOLD', 'SILVER', 'OIL', 'CRUDE', 'BRENT', 'INDIA', 'FED',
   'RATE', 'RATES', 'WAR', 'RBI', 'SEBI'])
 
+// One-shot input request from the assistant: option chips (select), a text box
+// (input), or both (mixed). Clicking a chip or submitting sends it as the reply.
+function ClarifyBox({ clarify, onSend, disabled }) {
+  const [val, setVal] = useState('')
+  const { q, type = 'select', options = [] } = clarify || {}
+  const showChips = (type === 'select' || type === 'mixed') && options.length > 0
+  const showInput = type === 'input' || type === 'mixed'
+  const go = v => { const t = String(v || '').trim(); if (t) { onSend(t); setVal('') } }
+  return (
+    <div className="clarify">
+      {q && <div className="clarify-q">{q}</div>}
+      {showChips && (
+        <div className="chip-row">
+          {options.map(o => (
+            <button key={o} className="chip" disabled={disabled} onClick={() => go(o)}>{o}</button>
+          ))}
+        </div>
+      )}
+      {showInput && (
+        <div className="clarify-input">
+          <input value={val} placeholder="Type your answer…" disabled={disabled}
+                 onChange={e => setVal(e.target.value)}
+                 onKeyDown={e => e.key === 'Enter' && go(val)} />
+          <button className="sm" disabled={disabled || !val.trim()} onClick={() => go(val)}>Send</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Assistant({ seed, clearSeed, go }) {
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(newSession())
@@ -250,7 +280,7 @@ export default function Assistant({ seed, clearSeed, go }) {
       const r = await api.ask(q, sessionId, lang)
       setMessages(m => [...m, {
         role: 'assistant', text: r.answer, sources: r.sources,
-        confidence: r.confidence, provider: r.provider,
+        confidence: r.confidence, provider: r.provider, clarify: r.clarify,
       }])
       setFollowups(buildFollowups(q, r.answer, r.sources))
       loadSessions()
@@ -343,6 +373,9 @@ export default function Assistant({ seed, clearSeed, go }) {
                       </ul>
                     </details>
                   </div>
+                )}
+                {m.role === 'assistant' && m.clarify && (
+                  <ClarifyBox clarify={m.clarify} onSend={send} disabled={busy} />
                 )}
                 {m.role === 'assistant' && !m.text.startsWith('Error:') && (
                   <div className="fb-row">

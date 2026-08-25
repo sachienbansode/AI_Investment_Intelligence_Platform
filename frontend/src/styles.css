@@ -14,7 +14,7 @@
 :root[data-theme="light"] {
   --bg: #eef1f7; --bg2: #ffffff; --panel: #ffffff; --panel2: #f2f5fb;
   --border: #e4e9f2; --border2: #cfd8e6;
-  --text: #1b2434; --muted: #5d6779; --faint: #93a0b4;
+  --text: #161e2c; --muted: #505a6d; --faint: #8894a8;
   --accent: #2f6fe0; --accent2: #6d4ff0;
   --green: #15825a; --amber: #b07608; --red: #d23b3b;
   --topbar-bg: rgba(255,255,255,.88); --track: #e1e7f1; --tag-bg: #e7ecf5;
@@ -24,7 +24,7 @@
 :root[data-theme="orange"] {
   --bg: #fbf7f3; --bg2: #ffffff; --panel: #ffffff; --panel2: #fff3ea;
   --border: #f0e6dc; --border2: #ecdfd2;
-  --text: #181d27; --muted: #6b7280; --faint: #9aa3b2;
+  --text: #12161d; --muted: #525c6e; --faint: #808a99;
   --accent: #f94c00; --accent2: #ff8a3d;
   --green: #12a06b; --amber: #c07d0a; --red: #e0503f;
   --topbar-bg: rgba(255,255,255,.9); --track: #f0e6dc; --tag-bg: #fff0e3;
@@ -33,7 +33,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--bg); color: var(--text); font-size: 14.5px; line-height: 1.5;
+body { background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.55;
   transition: background .2s, color .2s; }
 ::selection { background: rgba(79,142,247,.35); }
 h2, h3, h4 { margin: 0 0 10px; font-weight: 650; }
@@ -50,18 +50,18 @@ a { color: var(--accent); }
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 1.05rem; color: #fff; }
-.brand-name { font-size: .82rem; font-weight: 700; line-height: 1.25;
+.brand-name { font-size: .9rem; font-weight: 700; line-height: 1.25;
   letter-spacing: .02em; }
 
 .sidenav nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .sidenav nav button { display: flex; align-items: center; gap: 10px;
   background: none; border: none; color: var(--muted); text-align: left;
-  padding: 10px 12px; border-radius: 9px; font-size: .92rem; cursor: pointer;
-  font-weight: 500; transition: background .12s, color .12s; }
+  padding: 10px 12px; border-radius: 9px; font-size: .96rem; cursor: pointer;
+  font-weight: 600; transition: background .12s, color .12s; }
 .sidenav nav button:hover { background: var(--panel); color: var(--text); }
 .sidenav nav button.active { background: linear-gradient(90deg, rgba(79,142,247,.16), rgba(124,92,252,.10));
   color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
-.nav-icon { width: 18px; text-align: center; opacity: .85; }
+.nav-icon { width: 18px; text-align: center; opacity: 1; }
 
 .sidenav-foot { border-top: 1px solid var(--border); padding-top: 12px;
   display: flex; flex-direction: column; gap: 10px; }
@@ -718,6 +718,14 @@ textarea:focus { border-color: var(--accent); }
 .followup-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
   color: var(--faint); font-weight: 700; margin-left: 2px; }
 .followups .chip-row { justify-content: flex-start; margin-top: 6px; }
+
+/* ── Assistant "ask for input" prompt (chips / text / mixed) ── */
+.clarify { margin: 10px 0 2px; padding: 10px 12px; background: var(--panel2);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; }
+.clarify-q { font-weight: 600; font-size: .88rem; margin-bottom: 8px; color: var(--text); }
+.clarify .chip-row { justify-content: flex-start; }
+.clarify-input { display: flex; gap: 8px; margin-top: 8px; }
+.clarify-input input { flex: 1; min-width: 0; }
 
 /* ── Mobile-only History trigger (desktop keeps the sidebar list) ── */
 .mobile-only { display: none !important; }

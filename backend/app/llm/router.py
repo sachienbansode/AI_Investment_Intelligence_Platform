@@ -1,8 +1,7 @@
 """Multi-LLM router with admin-configurable provider order, per-provider model,
 and failover or round-robin strategy. Every call is audit-logged (governance)."""
+import asyncio
 import logging
-
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
 from app.core.compliance import audit_log
@@ -14,6 +13,21 @@ log = logging.getLogger(__name__)
 
 _REGISTRY = {"anthropic": AnthropicProvider, "openai": OpenAIProvider,
              "gemini": GeminiProvider, "groq": GroqProvider}
+
+# Error signatures that are worth retrying on the SAME provider. Everything else
+# (quota / rate-limit / auth / invalid model) fails over to the next provider.
+_TRANSIENT = ("timeout", "timed out", "connection", "connect", "temporarily",
+              "overloaded", "503", "502", "504", "reset by peer", "read error")
+
+
+def _is_transient(e: Exception) -> bool:
+    m = str(e).lower()
+    if any(k in m for k in ("quota", "rate limit", "rate_limit", "429",
+                            "insufficient", "unauthorized", "401", "403",
+                            "invalid api key", "authentication", "not found",
+                            "404", "model")):
+        return False
+    return any(k in m for k in _TRANSIENT)
 
 
 class LLMRouter:
@@ -98,10 +112,22 @@ class LLMRouter:
         raise RuntimeError("All LLM providers failed. Tried: " + tried + ". "
                            + " | ".join(errors))
 
-    @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4), reraise=True)
     async def _call(self, provider, system, prompt, max_tokens, temperature, cache=False):
-        return await provider.complete(system, prompt, max_tokens=max_tokens,
-                                       temperature=temperature, cache=cache)
+        # Retry the SAME provider only for genuinely transient errors (network /
+        # timeout / 5xx / overloaded). For quota, rate-limit or auth errors there is
+        # no point retrying the same provider - reraise at once so complete() fails
+        # over to the NEXT provider immediately.
+        last = None
+        for attempt in range(2):
+            try:
+                return await provider.complete(system, prompt, max_tokens=max_tokens,
+                                               temperature=temperature, cache=cache)
+            except Exception as e:
+                last = e
+                if not _is_transient(e):
+                    raise
+                await asyncio.sleep(1.0 * (attempt + 1))
+        raise last
 
 
 _router: LLMRouter | None = None
