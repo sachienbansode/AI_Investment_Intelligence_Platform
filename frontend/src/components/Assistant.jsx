@@ -35,7 +35,11 @@ const NOT_TICKERS = new Set(['AI', 'PE', 'P', 'E', 'NSE', 'BSE', 'IT', 'US', 'US
   'EBITDA', 'YOY', 'QOQ', 'NIYTRI', 'NITRI', 'AND', 'THE', 'FOR',
   // statistical abbreviations the assistant prints (e.g. "avg", "max") that can
   // collide with a real ticker symbol - don't build stock follow-ups for these.
-  'AVG', 'AVERAGE', 'MIN', 'MAX', 'SUM', 'TOP', 'BOTTOM', 'MEAN', 'MEDIAN', 'TOTAL', 'SCORE'])
+  'AVG', 'AVERAGE', 'MIN', 'MAX', 'SUM', 'TOP', 'BOTTOM', 'MEAN', 'MEDIAN', 'TOTAL', 'SCORE',
+  // common macro / English words that also happen to be real NSE tickers
+  // (e.g. DOLLAR = Dollar Industries) - avoid false stock follow-ups from prose.
+  'GLOBAL', 'DOLLAR', 'GOLD', 'SILVER', 'OIL', 'CRUDE', 'BRENT', 'INDIA', 'FED',
+  'RATE', 'RATES', 'WAR', 'RBI', 'SEBI'])
 
 export default function Assistant({ seed, clearSeed, go }) {
   const [sessions, setSessions] = useState([])
@@ -84,8 +88,11 @@ export default function Assistant({ seed, clearSeed, go }) {
   // abbreviations / non-tickers are excluded (see NOT_TICKERS).
   function symbolsFrom(question, answer, sources) {
     const out = []
+    // Case-SENSITIVE: only pick tokens already in UPPERCASE in the text (how real
+    // tickers appear). This stops lowercase prose words like "dollar"/"global"
+    // from matching same-spelled tickers (DOLLAR, GLOBAL).
     const addText = t => {
-      for (const w of (String(t || '').toUpperCase().match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])) {
+      for (const w of (String(t || '').match(/\b[A-Z][A-Z&-]{2,14}\b/g) || [])) {
         if (!NOT_TICKERS.has(w) && symSet.has(w) && !out.includes(w)) out.push(w)
       }
     }

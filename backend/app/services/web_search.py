@@ -57,8 +57,18 @@ def _in_allowlist(url: str, allow: list[str]) -> bool:
 
 
 def _india_query(q: str) -> str:
-    """Bias the query to Indian markets when it isn't already explicit."""
+    """Bias the query to Indian markets when it isn't already explicit. Commodity /
+    FX / macro queries are steered to the CURRENT India figure so a live price
+    actually comes back (rather than a generic stock-market page)."""
     low = (q or "").lower()
+    if any(k in low for k in ("gold", "silver", "crude", "brent", "oil", "dollar",
+                              "usd", "rupee", "inr", "commodit", "bullion")):
+        base = (q or "").strip()
+        if "india" not in low:
+            base += " India"
+        if not any(k in low for k in ("price", "rate", "today", "level")):
+            base += " price today"
+        return base
     if any(k in low for k in ("india", "nse", "bse", "sensex", "nifty", "sebi",
                               "rbi", "rupee", "₹")):
         return q
