@@ -194,7 +194,7 @@ def _pillar_rationale(comp: float, pillars: dict) -> str:
     if neutral:
         labels = ", ".join(_PILLAR_LABELS.get(k, k).lower() for k in neutral)
         bullets.append(f"- {labels[:1].upper() + labels[1:]} sit neutral (~50/100), pending dedicated data feeds.")
-    bullets.append("- AI-generated from pillar analytics; informational only, not investment advice.")
+    bullets.append("- Internal analysis from pillar analytics; informational only, not investment advice.")
     return "\n".join(bullets)
 
 

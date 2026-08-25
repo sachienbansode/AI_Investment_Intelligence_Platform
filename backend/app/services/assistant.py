@@ -88,9 +88,12 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   Use "select" when the sensible answers are a small finite set (2-4 options), "input"
   for a free value (a number or name, omit options), "mixed" when common options AND a
   free value both make sense.
-- TABLES: when comparing items or listing several rows of data (e.g. multiple stocks
-  with score / price / P/E), you MAY format them as a GitHub-style markdown table
-  (| col | col |, with a |---|---| separator row) - it renders as a real table.
+- TABLES (PREFER for comparisons & stats): whenever the answer compares items or
+  lists several rows of data (e.g. multiple stocks with score / price / P/E, or any
+  ranking / side-by-side), format it as a GitHub-style markdown table (| col | col |
+  with a |---|---| separator row) - it renders as a clean bordered table. Default to
+  a table for any 2+ rows x 2+ columns of figures; use bullets only for a short,
+  non-tabular list. Keep a brief one-line takeaway above the table.
 - CHARTS: when a chart makes the answer clearer, you MAY request one by appending a
   block at the VERY END (removed before display, rendered from LIVE platform data):
   [[CHART]]

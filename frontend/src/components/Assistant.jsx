@@ -95,7 +95,16 @@ function ShareMenu({ question, answer, charts }) {
   const onPdf = () => wrap(async () => { await api.sharePdf(question || '', answer || '') })
   return (
     <div className="share-wrap">
-      <button className="fb-btn" onClick={() => setOpen(o => !o)} disabled={busy}>{busy ? '…' : 'Share'}</button>
+      <button className="fb-btn share-btn" title="Share" aria-label="Share"
+              onClick={() => setOpen(o => !o)} disabled={busy}>
+        {busy ? '…' : (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" /><line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+          </svg>
+        )}
+      </button>
       {open && (
         <div className="share-menu">
           <button onClick={onWhatsApp}>WhatsApp</button>
@@ -113,6 +122,7 @@ export default function Assistant({ seed, clearSeed, go }) {
   const [sessionId, setSessionId] = useState(newSession())
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
+  const taRef = useRef(null)
   const [lang, setLang] = useState('en')
   const [busy, setBusy] = useState(false)
   const [suggestions, setSuggestions] = useState([])
@@ -310,6 +320,7 @@ export default function Assistant({ seed, clearSeed, go }) {
     const q = (text ?? input).trim()
     if (!q || busy) return
     setInput('')
+    if (taRef.current) taRef.current.style.height = 'auto'
     setFollowups([])
     setMessages(m => [...m, { role: 'user', text: q }])
     setBusy(true)
@@ -452,9 +463,10 @@ export default function Assistant({ seed, clearSeed, go }) {
         </div>
 
         <div className="chat-input">
-          <input value={input} onChange={e => setInput(e.target.value)}
-                 onKeyDown={e => e.key === 'Enter' && send()}
-                 placeholder="Ask anything — e.g. top stocks by AI score…" disabled={busy} />
+          <textarea ref={taRef} value={input} rows={1}
+                 onChange={e => { setInput(e.target.value); const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px' }}
+                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                 placeholder="Ask anything — Shift+Enter for a new line…" disabled={busy} />
           <button onClick={() => send()} disabled={busy || !input.trim()}>Send</button>
         </div>
       </div>

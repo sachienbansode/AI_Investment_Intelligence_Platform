@@ -11,7 +11,7 @@ import uuid
 from logging.handlers import RotatingFileHandler
 
 AI_DISCLAIMER = (
-    "This output is AI-generated and must be reviewed and approved before "
+    "This output is Internal Analysis and must be reviewed and approved before "
     "business or regulatory use. It is for informational purposes only and "
     "is not investment advice or a recommendation to buy or sell securities. "
     "Investments in securities markets are subject to market risks. "

@@ -319,7 +319,7 @@ export default function App() {
         </main>
 
         <footer>
-          AI-generated content for information only - not investment advice. Investments in
+          Internal Analysis for information only - not investment advice. Investments in
           securities markets are subject to market risks. Consult a SEBI-registered
           investment adviser before investing.
         </footer>

@@ -10,7 +10,7 @@ Exposes a curated, advice-free subset for partner/mobile integrations:
   GET  /api/partner/v1/me                   any valid key
   GET  /api/partner/v1/health               no auth
 
-All outputs are AI-generated, informational only and NOT investment advice
+All outputs are Internal Analysis, informational only and NOT investment advice
 (SEBI guardrails enforced in the underlying services).
 """
 from datetime import date

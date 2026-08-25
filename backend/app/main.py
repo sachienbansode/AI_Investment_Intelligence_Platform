@@ -127,7 +127,7 @@ app = FastAPI(
     title="AI Investment Intelligence Platform",
     description="Conversational investment intelligence, agentic stock scoring, "
                 "news intelligence and portfolio analytics for an Indian broking app. "
-                "All outputs are AI-generated, informational only, not investment advice.",
+                "All outputs are Internal Analysis, informational only, not investment advice.",
     version="0.3.0",
     lifespan=lifespan,
 )

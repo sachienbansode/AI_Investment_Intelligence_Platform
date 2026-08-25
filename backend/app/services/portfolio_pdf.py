@@ -130,7 +130,7 @@ def build_portfolio_pdf(analysis: dict, holdings: list[dict],
 
     el.append(Spacer(1, 10))
     el.append(Paragraph(_md(analysis.get("disclaimer", "")), foot))
-    el.append(Paragraph("This output is AI-generated and must be reviewed before business use. "
+    el.append(Paragraph("This output is Internal Analysis and must be reviewed before business use. "
                         "v1.1 &middot; Created By NIYTRI Technologies", foot))
 
     doc.build(el)

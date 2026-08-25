@@ -40,7 +40,7 @@ export default function PublicShare({ token }) {
             {d.question && <div className="ps-q"><span>Question</span><p>{d.question}</p></div>}
             <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(d.answer || '') }} />
             <div className="ps-actions">
-              <a className="ps-cta" href={appUrl}>Get your own AI insights on Indian stocks</a>
+              <a className="ps-cta" href={appUrl}>Get your own insights on Indian stocks</a>
             </div>
             <p className="ps-disc">{d.disclaimer}</p>
           </div>
@@ -48,7 +48,7 @@ export default function PublicShare({ token }) {
       </main>
 
       <footer className="ps-foot">
-        <a href={appUrl}>{appUrl.replace(/^https?:\/\//, '')}</a> · AI-generated market intelligence · not investment advice
+        <a href={appUrl}>{appUrl.replace(/^https?:\/\//, '')}</a> · Internal analysis · not investment advice
       </footer>
     </div>
   )

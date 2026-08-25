@@ -327,8 +327,12 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
 .meta { margin-top: 9px; font-size: .73rem; color: var(--muted);
   border-top: 1px solid var(--border); padding-top: 7px; }
 .meta a { color: var(--accent); }
-.chat-input { display: flex; gap: 8px; }
+.chat-input { display: flex; gap: 8px; align-items: flex-end; }
 .chat-input input { flex: 1; padding: 12px 14px; border-radius: 10px; }
+.chat-input textarea { flex: 1; padding: 12px 14px; border-radius: 10px; resize: none;
+  font-family: inherit; font-size: inherit; line-height: 1.4; max-height: 140px; overflow-y: auto; }
+.share-btn { display: inline-flex; align-items: center; justify-content: center; }
+.share-btn svg { display: block; }
 .chat-toolbar { display: flex; justify-content: flex-end; color: var(--muted);
   font-size: .82rem; }
 

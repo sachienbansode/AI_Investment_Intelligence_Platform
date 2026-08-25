@@ -77,7 +77,7 @@ DEFAULTS: dict = {
     "show_active_model": True,        # show the currently active AI model in the top bar
     # Public sharing of a chat answer (WhatsApp / email / PDF / link).
     "app_public_url": "https://dev-invest.niytri.com",   # base URL used in shares
-    "share_intro": "Shared from NIYTRI Investment Intelligence — AI-powered insights on Indian stocks.",
+    "share_intro": "Shared from NIYTRI Investment Intelligence — internal analysis and insights on Indian stocks.",
     "share_link_days": 30,            # public share link lifetime (days)
     # Self-service registration (public landing). Modes: invite_only | open | closed.
     "registration_mode": "invite_only",
@@ -102,7 +102,7 @@ DEFAULTS: dict = {
         "approved before business or regulatory use. Investments in securities markets are subject to market risks. "
         "Please consult a SEBI-registered investment adviser before investing.</p>"
         "<h3>2. Nature of the service</h3><p>The Platform provides information and analytics about listed securities "
-        "in Indian markets, including AI-generated scores, explanations, news summaries and a conversational "
+        "in Indian markets, including internally generated scores, explanations, news summaries and a conversational "
         "assistant. It is not an investment adviser, research analyst, portfolio manager, broker or distributor, and "
         "nothing on the Platform constitutes investment, legal, tax or financial advice, or an offer or solicitation "
         "to buy or sell any security.</p>"
