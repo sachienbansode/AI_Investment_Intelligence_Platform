@@ -987,7 +987,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
 
 
-_ASK_RE = _re.compile(r"\[\[ASK\]\](.*?)\[\[/ASK\]\]", _re.DOTALL | _re.IGNORECASE)
+_ASK_RE = re.compile(r"\[\[ASK\]\](.*?)\[\[/ASK\]\]", re.DOTALL | re.IGNORECASE)
 
 
 def _extract_ask(text: str):
