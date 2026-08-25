@@ -17,6 +17,9 @@ class AskAIResponse(BaseModel):
     # Optional one-shot request for user input (rendered as chips / an input box).
     # Shape: {"q": str, "type": "select"|"input"|"mixed", "options": [str]}
     clarify: dict | None = None
+    # Optional multi-field form (rendered as a small form; submitted as one message).
+    # Shape: {"title","submit","fields":[{"key","type","label","options":[],"default"}]}
+    form: dict | None = None
     # Optional charts to render under the reply. Each is either data-bound
     # {"src":"bound","type":"score_history|price_history|compare|sector|distribution",
     #  "symbol":..., "symbols":[...]} or illustrative

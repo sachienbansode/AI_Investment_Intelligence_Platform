@@ -803,6 +803,10 @@ textarea:focus { border-color: var(--accent); }
 .clarify .chip-row { justify-content: flex-start; }
 .clarify-input { display: flex; gap: 8px; margin-top: 8px; }
 .clarify-input input { flex: 1; min-width: 0; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.form-field { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+.form-field span { color: var(--muted); font-weight: 600; }
+.form-field select, .form-field input { width: 100%; }
 
 /* ── Mobile-only History trigger (desktop keeps the sidebar list) ── */
 .mobile-only { display: none !important; }

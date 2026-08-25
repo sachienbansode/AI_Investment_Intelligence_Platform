@@ -111,14 +111,13 @@ function ShareMenu({ question, answer, charts }) {
           <button onClick={onWhatsApp}>WhatsApp</button>
           <button onClick={onEmail}>Email</button>
           <button onClick={onCopy}>Copy link</button>
-          <button onClick={onPdf}>Download PDF</button>
         </div>
       )}
     </div>
   )
 }
 
-// Share the WHOLE chat session (public expiring link / WhatsApp / Email / PDF).
+// Share the WHOLE chat session (public expiring link / WhatsApp / Email).
 function SessionShareMenu({ sessionId, hasMessages }) {
   const [open, setOpen] = useState(false)
   const [link, setLink] = useState(null)
@@ -148,9 +147,41 @@ function SessionShareMenu({ sessionId, hasMessages }) {
           <button onClick={onWhatsApp}>WhatsApp</button>
           <button onClick={onEmail}>Email</button>
           <button onClick={onCopy}>Copy link</button>
-          <button onClick={onPdf}>Download PDF</button>
         </div>
       )}
+    </div>
+  )
+}
+
+// Multi-field intake form (e.g. portfolio setup). Submits all answers as one
+// message so the deterministic builder can act on them in a single turn.
+function FormBox({ form, onSubmit, disabled }) {
+  const fields = form.fields || []
+  const [vals, setVals] = useState(() =>
+    Object.fromEntries(fields.map(f => [f.key, f.default || (f.options && f.options[0]) || ''])))
+  const set = (k, v) => setVals(s => ({ ...s, [k]: v }))
+  const submit = () => {
+    const parts = fields.map(f => `${f.key}: ${vals[f.key]}`).join(' | ')
+    onSubmit((form.submit || 'Submit') + ' — ' + parts)
+  }
+  return (
+    <div className="clarify">
+      {form.title && <div className="clarify-q">{form.title}</div>}
+      <div className="form-grid">
+        {fields.map(f => (
+          <label key={f.key} className="form-field">
+            <span>{f.label}</span>
+            {f.type === 'select'
+              ? <select value={vals[f.key]} disabled={disabled} onChange={e => set(f.key, e.target.value)}>
+                  {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              : <input type={f.type === 'number' ? 'number' : 'text'} value={vals[f.key]}
+                       disabled={disabled} onChange={e => set(f.key, e.target.value)} />}
+          </label>
+        ))}
+      </div>
+      <button className="sm" disabled={disabled} onClick={submit} style={{ marginTop: 10 }}>
+        {form.submit || 'Submit'}</button>
     </div>
   )
 }
@@ -367,7 +398,7 @@ export default function Assistant({ seed, clearSeed, go }) {
       setMessages(m => [...m, {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider, clarify: r.clarify,
-        charts: r.charts,
+        charts: r.charts, form: r.form,
       }])
       setFollowups(buildFollowups(q, r.answer, r.sources))
       loadSessions()
@@ -466,6 +497,9 @@ export default function Assistant({ seed, clearSeed, go }) {
                 )}
                 {m.role === 'assistant' && m.clarify && (
                   <ClarifyBox clarify={m.clarify} onSend={send} disabled={busy} />
+                )}
+                {m.role === 'assistant' && m.form && (
+                  <FormBox form={m.form} onSubmit={send} disabled={busy} />
                 )}
                 {m.role === 'assistant' && !m.text.startsWith('Error:') && (
                   <div className="fb-row">

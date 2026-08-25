@@ -1005,6 +1005,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             confidence = 0.3
             sources = []
     answer_text, clarify = _extract_ask(answer_text)
+    answer_text, form = _extract_form(answer_text)
     answer_text, charts = _extract_charts(answer_text)
     charts = _auto_charts(question, mentioned, charts)
     answer_text = _guard_stale_price(question, answer_text, web_text)
@@ -1051,11 +1052,43 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     return AskAIResponse(answer=answer_text, sources=sources, confidence=round(confidence, 2),
                          provider=provider, disclaimer=AI_DISCLAIMER, clarify=clarify,
-                         charts=charts)
+                         charts=charts, form=form)
 
 
 
 _ASK_RE = re.compile(r"\[\[ASK\]\](.*?)\[\[/ASK\]\]", re.DOTALL | re.IGNORECASE)
+
+
+_FORM_RE = re.compile(r"\[\[FORM\]\](.*?)\[\[/FORM\]\]", re.DOTALL | re.IGNORECASE)
+
+
+def _extract_form(text: str):
+    """Pull an optional [[FORM]] block into a structured multi-field form spec.
+    Field lines: 'field: key|type|label|opt1,opt2|default'. Returns (clean, form|None)."""
+    if not text:
+        return text, None
+    m = _FORM_RE.search(text)
+    if not m:
+        return text, None
+    title, submit, fields = "", "Submit", []
+    for line in m.group(1).splitlines():
+        line = line.strip()
+        low = line.lower()
+        if low.startswith("title:"):
+            title = line[6:].strip()
+        elif low.startswith("submit:"):
+            submit = line[7:].strip()
+        elif low.startswith("field:"):
+            parts = [p.strip() for p in line[6:].split("|")]
+            if len(parts) >= 3:
+                f = {"key": parts[0], "type": parts[1].lower(), "label": parts[2],
+                     "options": [o.strip() for o in parts[3].split(",")] if len(parts) > 3 and parts[3] else [],
+                     "default": parts[4] if len(parts) > 4 else ""}
+                fields.append(f)
+    clean = _FORM_RE.sub("", text).strip()
+    if not fields:
+        return clean, None
+    return clean, {"title": title, "submit": submit, "fields": fields}
 
 
 def _extract_ask(text: str):
@@ -1264,13 +1297,17 @@ _BUILD_CUES = (
     "stocks across sectors", "top strong stocks", "strong stocks from all",
     "diversified portfolio", "diversified basket", "invest my money")
 
-_STEP1_MARKER = "amount you want to invest"
+_STEP1_MARKER = "set up your portfolio"
 
 
 def _parse_amount(text):
-    """Parse an investment amount from free text (supports k / lakh / crore)."""
+    """Parse an investment amount from free text (supports k / lakh / crore). Prefers
+    a value explicitly labelled 'amount:' (from the intake form) so it doesn't grab a
+    stray number like the '500' in 'NIFTY 500'."""
     t = (text or "").lower().replace(",", "")
-    m = re.search(r"(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)\s*(crore|cr|lakhs?|lac|lakh|k|thousand|l)?\b", t)
+    m = re.search(r"amount\s*[:=]?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)\s*(crore|cr|lakhs?|lac|lakh|k|thousand|l)?", t)
+    if not m:
+        m = re.search(r"(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)\s*(crore|cr|lakhs?|lac|lakh|k|thousand|l)?\b", t)
     if not m:
         return None
     val = float(m.group(1)); unit = (m.group(2) or "")
@@ -1284,30 +1321,69 @@ def _wants_build(ql):
     return any(k in ql for k in _BUILD_CUES)
 
 
-def _select_strong_diversified(db, max_stocks=10):
-    """Top-scoring approved stock per sector, preferring the strong band (>=80,
-    then 70, then 65). Returns [(symbol, score, sector)]."""
+def _parse_universe(text):
+    t = (text or "").lower()
+    if any(k in t for k in ("nifty 50", "nifty50", "nifty-50", "nse50", "nse 50", "top 50")):
+        return "nifty50"
+    if any(k in t for k in ("all nse", "all stock", "entire", "whole market", "all listed", "everything")):
+        return "all"
+    if any(k in t for k in ("nifty 500", "nifty500", "nifty-500", "nse500", "nse 500")):
+        return "nifty500"
+    return None
+
+
+def _parse_count(text):
+    t = (text or "").lower()
+    m = re.search(r"count\s*[:=]?\s*(\d{1,2})", t) or re.search(r"(\d{1,2})\s*stocks?\b", t)
+    if m:
+        return max(3, min(int(m.group(1)), 20))
+    return None
+
+
+def _select_strong_diversified(db, universe="nifty500", count=10):
+    """Top-scoring approved stocks within the chosen universe, spread across sectors:
+    one per sector first, then fill up to `count` (max 2 per sector), then relax.
+    Returns [(symbol, score, sector)] of length <= count."""
+    allow = None
+    if universe == "nifty50":
+        from app.db.database import NIFTY50_SEED
+        allow = {s for s, _n, _sec in NIFTY50_SEED}
+    elif universe == "nifty500":
+        from app.data.nifty500 import NIFTY500_SYMBOLS
+        allow = set(NIFTY500_SYMBOLS)
     rows = (db.query(StockScore.symbol, StockScore.composite_score)
             .filter(StockScore.quality_status == "approved")
-            .order_by(StockScore.score_date.desc()).limit(6000).all())
+            .order_by(StockScore.score_date.desc()).limit(8000).all())
     latest = {}
     for sym, sc in rows:
-        if sym not in latest and sc is not None:
-            latest[sym] = round(float(sc), 1)
+        if sym in latest or sc is None:
+            continue
+        if allow is not None and sym not in allow:
+            continue
+        latest[sym] = round(float(sc), 1)
     secmap = {r.symbol: (r.sector or "Other") for r in db.query(Instrument).all()}
-    picks = []
-    for thr in (80, 70, 65):
-        by_sector = {}
-        for sym, sc in latest.items():
-            if sc < thr:
-                continue
-            sec = secmap.get(sym, "Other")
-            if sec not in by_sector or sc > by_sector[sec][1]:
-                by_sector[sec] = (sym, sc, sec)
-        picks = sorted(by_sector.values(), key=lambda x: -x[1])[:max_stocks]
-        if len(picks) >= 4:
+    ranked = sorted(latest.items(), key=lambda x: -x[1])
+    picked, chosen, per_sec = [], set(), {}
+
+    def _add(sym, sc, cap):
+        sec = secmap.get(sym, "Other")
+        if sym in chosen or per_sec.get(sec, 0) >= cap:
+            return
+        picked.append((sym, sc, sec)); chosen.add(sym); per_sec[sec] = per_sec.get(sec, 0) + 1
+
+    for sym, sc in ranked:                       # pass 1: one per sector
+        if len(picked) >= count:
             break
-    return picks
+        _add(sym, sc, 1)
+    for sym, sc in ranked:                        # pass 2: up to 2 per sector
+        if len(picked) >= count:
+            break
+        _add(sym, sc, 2)
+    for sym, sc in ranked:                        # pass 3: relax (few sectors)
+        if len(picked) >= count:
+            break
+        _add(sym, sc, 99)
+    return picked[:count]
 
 
 def _ltp_map(db, syms):
@@ -1329,42 +1405,46 @@ def _portfolio_builder(question, history, user_id, build_pending=False):
     Returns markdown answer text, or None to fall through to the LLM."""
     ql = (question or "").lower()
     amount = _parse_amount(question)
+    universe = _parse_universe(question) or "nifty500"
+    count = _parse_count(question) or 10
     is_build = _wants_build(ql)
-    step2 = amount is not None and (build_pending or _STEP1_MARKER in (history or "").lower())
+    is_form = ("universe:" in ql) or ("amount:" in ql and "count:" in ql)
+    step2 = is_form or (amount is not None and (build_pending or _STEP1_MARKER in (history or "").lower()))
     if not (is_build or step2):
         return None
 
     rs = "₹"
     score_label = get_setting("score_label") or "NIYTRI Score"
     brand = get_setting("platform_label") or "NIYTRI Investment Intelligence"
+
+    # Fresh build request (or a form submission missing the amount): show the intake
+    # form so we gather universe + count + amount UP FRONT, before any suggestion.
+    if not step2 or amount is None:
+        deflt = int(amount) if amount else 100000
+        form = ("[[FORM]]\n"
+                "title: Let's set up your portfolio\n"
+                "submit: Build my portfolio\n"
+                "field: universe|select|Which universe?|NIFTY 50,NIFTY 500,All NSE|NIFTY 500\n"
+                "field: count|number|How many stocks?|10\n"
+                f"field: amount|number|Amount to invest ({rs})|{deflt}\n"
+                "[[/FORM]]")
+        return ("> Let's set up your portfolio from stocks that screen strongly on the "
+                f"**{score_label}**. Pick your preferences and I'll build it by current price.\n\n"
+                + form + "\n\n" + PORTFOLIO_DISCLAIMER + "\n\n" + f"Basis: {brand}")
+
     db = SessionLocal()
     try:
-        picks = _select_strong_diversified(db)
+        picks = _select_strong_diversified(db, universe, count)
         syms = [p[0] for p in picks]
         ltp = _ltp_map(db, syms) if syms else {}
     finally:
         db.close()
-    picks = [(s, sc, sec) for (s, sc, sec) in picks if s in ltp][:10]
+    picks = [(s, sc, sec) for (s, sc, sec) in picks if s in ltp][:count]
     if len(picks) < 3:
         return None
 
-    if amount is None:
-        avg = round(sum(sc for _s, sc, _sec in picks) / len(picks), 1)
-        head = (f"> Here are **{len(picks)} strong-scoring stocks** across sectors "
-                f"(average {score_label} **{avg}**) to seed a diversified portfolio.")
-        table = ("| # | Stock | Sector | " + score_label + " | LTP |\n|---|---|---|---|---|\n"
-                 + "\n".join(f"| {i+1} | **{s}** | {sec} | {sc} | {rs}{ltp[s]:,.0f} |"
-                            for i, (s, sc, sec) in enumerate(picks)))
-        return (head + "\n\n" + table + "\n\n"
-                + f"Reply with the **amount you want to invest** (e.g. 1,00,000) and I'll build "
-                + "the allocation by current price and show a full analysis.\n\n"
-                + PORTFOLIO_DISCLAIMER + "\n\n"
-                + "[[ASK]]\nq: How much would you like to invest?\ntype: input\n[[/ASK]]\n\n"
-                + f"Basis: {brand}")
-
-    # Step 2 — allocate the amount by current price (equal-weight seed), then use
-    # the leftover cash by topping up the cheapest strong names so the budget is
-    # actually deployed. book[symbol] = [symbol, score, sector, ltp, qty].
+    # Allocate the amount equal-weight by current price, then deploy leftover cash by
+    # topping up (capped at ~1.8x equal weight so no single name balloons).
     order = sorted(picks, key=lambda x: ltp[x[0]])   # cheapest first
     per = amount / len(picks)
     book = {}
@@ -1383,12 +1463,19 @@ def _portfolio_builder(question, history, user_id, build_pending=False):
     def _spent():
         return sum(v[3] * v[4] for v in book.values())
 
+    def _cur(sym):
+        v = book.get(sym)
+        return v[3] * v[4] if v else 0
+
+    cap = per * 1.8
     guard = 0
     while guard < 10000:
         guard += 1
         cash = amount - _spent()
-        cand = next((p for p in order if ltp[p[0]] <= cash), None)
-        if not cand:
+        cand = next((p for p in order if ltp[p[0]] <= cash and _cur(p[0]) + ltp[p[0]] <= cap), None)
+        if cand is None:
+            cand = next((p for p in order if ltp[p[0]] <= cash), None)   # relax cap if nothing fits
+        if cand is None:
             break
         s, sc, sec = cand
         if s in book:
