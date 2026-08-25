@@ -94,11 +94,20 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   with a |---|---| separator row) - it renders as a clean bordered table. Default to
   a table for any 2+ rows x 2+ columns of figures; use bullets only for a short,
   non-tabular list. Keep a brief one-line takeaway above the table.
-- CHARTS: when a chart makes the answer clearer, you MAY request one by appending a
-  block at the VERY END (removed before display, rendered from LIVE platform data):
+- CHARTS (use PROACTIVELY - users love them): whenever a chart would make the answer
+  clearer, ADD one - don't wait to be asked. Default to a chart for: a single stock's
+  trend / progress / performance / score or price history ("how is X doing", "show me
+  X", "X over N days") -> score_history (add price_history too if price is relevant);
+  comparing two stocks -> compare; "which sectors / sector strength" -> sector; the
+  market's score spread / "how many strong" -> distribution;
+  "what's driving X's score" / "why is X's score" / pillar breakdown -> pillars.
+  Skip charts only for pure
+  definitions, refusals, or when there is no relevant stock/market series. Request one
+  by appending a block at the VERY END (removed before display, rendered from LIVE
+  platform data):
   [[CHART]]
-  type: score_history | price_history | compare | sector | distribution
-  symbol: <ONE symbol>            (for score_history / price_history)
+  type: score_history | price_history | pillars | compare | sector | distribution
+  symbol: <ONE symbol>            (for score_history / price_history / pillars)
   symbols: <SYM_A>, <SYM_B>       (for compare, exactly two)
   [[/CHART]]
   Use score_history / price_history for one stock, compare for two, sector for
@@ -972,6 +981,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             sources = []
     answer_text, clarify = _extract_ask(answer_text)
     answer_text, charts = _extract_charts(answer_text)
+    charts = _auto_charts(question, mentioned, charts)
     answer_text = _guard_stale_price(question, answer_text, web_text)
     latency_ms = int((time.time() - _t0) * 1000)
 
@@ -1099,7 +1109,7 @@ def _guard_stale_price(question: str, answer: str, web_text: str) -> str:
 
 _CHART_RE = re.compile(r"\[\[CHART\]\](.*?)\[\[/CHART\]\]", re.DOTALL | re.IGNORECASE)
 _CHARTDATA_RE = re.compile(r"\[\[CHARTDATA\]\](.*?)\[\[/CHARTDATA\]\]", re.DOTALL | re.IGNORECASE)
-_BOUND_TYPES = {"score_history", "price_history", "compare", "sector", "distribution"}
+_BOUND_TYPES = {"score_history", "price_history", "pillars", "compare", "sector", "distribution"}
 
 
 def _kv(body: str) -> dict:
@@ -1123,7 +1133,7 @@ def _extract_charts(text: str):
         if t not in _BOUND_TYPES:
             continue
         spec = {"src": "bound", "type": t}
-        if t in ("score_history", "price_history"):
+        if t in ("score_history", "price_history", "pillars"):
             sym = (d.get("symbol") or "").upper().strip()
             if not sym:
                 continue
@@ -1153,6 +1163,47 @@ def _extract_charts(text: str):
     clean = _CHART_RE.sub("", text)
     clean = _CHARTDATA_RE.sub("", clean).strip()
     return clean, charts[:3]
+
+
+
+def _auto_charts(question: str, mentioned, existing: list) -> list:
+    """Deterministically add the most relevant chart(s) so they appear reliably
+    (the LLM often forgets the [[CHART]] block). Merges with any it did emit,
+    de-duplicates, and caps at 3. Only fires when a real stock/market intent is
+    present, so definitions / refusals stay chart-free."""
+    ql = (question or "").lower()
+    out = list(existing or [])
+    have = {(c.get("type"), c.get("symbol")) for c in out if c.get("src") == "bound"}
+    have_types = {c.get("type") for c in out if c.get("src") == "bound"}
+
+    def add(spec):
+        t = spec.get("type")
+        if t in ("sector", "distribution") and t in have_types:
+            return
+        key = (t, spec.get("symbol"))
+        if key in have:
+            return
+        out.append(spec); have.add(key); have_types.add(t)
+
+    syms = [str(x).upper() for x in (mentioned or [])][:2]
+    if len(syms) >= 2 and any(k in ql for k in ("compare", " vs", "versus", " or ", "stronger", "better", "which")):
+        add({"src": "bound", "type": "compare", "symbols": syms[:2]})
+    elif syms:
+        s0 = syms[0]
+        if any(k in ql for k in ("driv", "why", "pillar", "breakdown", "behind", "strength", "weak", "factor", "reason")):
+            add({"src": "bound", "type": "pillars", "symbol": s0})
+        elif any(k in ql for k in ("price", "ltp")):
+            add({"src": "bound", "type": "price_history", "symbol": s0})
+        elif any(k in ql for k in ("trend", "progress", "history", "perform", "moved", "move", "over the", "last ", "past ", "recent", "day", "week", "month", "chart", "graph")):
+            add({"src": "bound", "type": "score_history", "symbol": s0})
+        elif any(k in ql for k in ("score", "rating", "how is", "how's", "how are", "doing", "about", "cheap", "expensive", "valuation", "fundamental")):
+            add({"src": "bound", "type": "score_history", "symbol": s0})
+    else:
+        if "sector" in ql:
+            add({"src": "bound", "type": "sector"})
+        elif any(k in ql for k in ("distribution", "how many strong", "spread", "bands", "below 50", "above 65", "below 45")):
+            add({"src": "bound", "type": "distribution"})
+    return out[:3]
 
 
 def _pct_in_range(last, lo, hi):

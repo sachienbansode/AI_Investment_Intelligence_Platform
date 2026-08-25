@@ -795,6 +795,32 @@ async def chat_share_pdf(req: _ShareReq, user: User = Depends(get_current_user))
         headers={"Content-Disposition": 'attachment; filename="niytri-ai-answer.pdf"'})
 
 
+class _SessionShareReq(BaseModel):
+    session_id: str
+
+
+@router.post("/chat/share-session")
+async def chat_share_session(req: _SessionShareReq, user: User = Depends(get_current_user)):
+    """Create a public, expiring link for an entire chat session (the user's own)."""
+    from app.services import share as sh
+    out = sh.create_session_share(req.session_id, user_id=user.id)
+    audit_log("chat_share_session", user_id=user.id, token=out["token"])
+    return out
+
+
+@router.post("/chat/share-session.pdf")
+async def chat_share_session_pdf(req: _SessionShareReq, user: User = Depends(get_current_user)):
+    """Branded PDF of an entire chat session."""
+    from app.services import share as sh
+    import io
+    transcript = sh.session_transcript(req.session_id, user_id=user.id)
+    pdf = sh.build_share_pdf("Chat with NIYTRI AI", transcript)
+    audit_log("chat_share_session_pdf", user_id=user.id)
+    return StreamingResponse(
+        io.BytesIO(pdf), media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="niytri-ai-chat.pdf"'})
+
+
 @router.get("/public/share/{token}")
 async def public_share(token: str):
     """Public (no-login) read-only view of a shared answer. 404 when expired."""

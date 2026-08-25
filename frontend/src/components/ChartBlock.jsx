@@ -193,11 +193,36 @@ function Distribution() {
   )
 }
 
+const PILLAR_ORDER = ['fundamental', 'technical', 'valuation', 'momentum', 'earnings', 'news_sentiment', 'institutional', 'risk']
+
+function Pillars({ symbol }) {
+  const [d, setD] = useState(null)
+  useEffect(() => { let a = true; api.stockScore(symbol).then(r => a && setD(r)).catch(() => a && setD({ error: true })); return () => { a = false } }, [symbol])
+  if (!d) return <p className="hint">Loading pillars…</p>
+  if (d.error || !d.pillar_scores) return <p className="hint">No pillar breakdown for {symbol} yet.</p>
+  const rows = PILLAR_ORDER.filter(k => d.pillar_scores[k] != null).map(k => [k.replace('_', ' '), Math.round(d.pillar_scores[k])])
+  return (
+    <Wrap title={`${symbol} — NIYTRI Score pillars (composite ${Math.round(d.composite_score)}/100)`}
+          note="Each pillar 0–100; higher = stronger. Green ≥65, amber 50–64, red <50.">
+      <div className="pillar-chart">
+        {rows.map(([lab, v]) => (
+          <div key={lab} className="pillar">
+            <span>{lab}</span>
+            <div className="bar"><div style={{ width: v + '%', background: band(v) }} /></div>
+            <span>{v}</span>
+          </div>
+        ))}
+      </div>
+    </Wrap>
+  )
+}
+
 export default function ChartBlock({ spec }) {
   if (!spec) return null
   if (spec.src === 'bound') {
     if (spec.type === 'score_history') return <Wrap><ScoreHistoryPanel symbol={spec.symbol} /></Wrap>
     if (spec.type === 'price_history') return <PriceHistory symbol={spec.symbol} />
+    if (spec.type === 'pillars') return <Pillars symbol={spec.symbol} />
     if (spec.type === 'compare') return <CompareMini symbols={spec.symbols} />
     if (spec.type === 'sector') return <SectorBars />
     if (spec.type === 'distribution') return <Distribution />

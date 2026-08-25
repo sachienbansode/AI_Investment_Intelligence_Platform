@@ -14,7 +14,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from app.core.compliance import AI_DISCLAIMER
-from app.db.database import ChatShare, SessionLocal
+from app.db.database import ChatMessage, ChatShare, SessionLocal
 from app.services.app_settings import get_setting
 
 
@@ -43,6 +43,35 @@ def create_share(question: str, answer: str, charts=None, user_id=None) -> dict:
     url = f"{b['url']}/s/{token}"
     return {"token": token, "url": url, "intro": b["intro"],
             "platform_label": b["platform_label"], "expires_days": days}
+
+
+def session_transcript(session_id: str, user_id=None) -> str:
+    """Build a markdown transcript of one chat session (the user's own)."""
+    db = SessionLocal()
+    try:
+        q = db.query(ChatMessage).filter_by(session_id=session_id)
+        if user_id is not None:
+            q = q.filter(ChatMessage.user_id == user_id)
+        rows = q.order_by(ChatMessage.created_at).all()
+    finally:
+        db.close()
+    parts = []
+    for m in rows:
+        c = (m.content or "").strip()
+        if not c:
+            continue
+        if m.role == "user":
+            parts.append("**You:** " + c)
+        elif m.role == "assistant":
+            parts.append("**NIYTRI AI:** " + c)
+    return "\n\n".join(parts) or "(This conversation is empty.)"
+
+
+def create_session_share(session_id: str, user_id=None) -> dict:
+    """Create a public share for a whole chat session."""
+    return create_share("Chat with NIYTRI AI",
+                        session_transcript(session_id, user_id),
+                        charts=None, user_id=user_id)
 
 
 def get_share(token: str) -> dict | None:
