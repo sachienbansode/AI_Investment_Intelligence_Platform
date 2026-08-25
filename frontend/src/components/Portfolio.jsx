@@ -61,6 +61,11 @@ export default function Portfolio() {
   const [uploading, setUploading] = useState(false)
   const [tplBusy, setTplBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [showEditor, setShowEditor] = useState(true)   // collapse holdings editor after analysis
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareBusy, setShareBusy] = useState(false)
+  const shareLink = useRef(null)
+  const reportRef = useRef(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -92,9 +97,44 @@ export default function Portfolio() {
       if (!holdings.length) throw new Error('Add at least one valid holding')
       if (persist) await api.savePortfolio(holdings)    // persist for this user
       setResult(await api.analyzePortfolio(holdings))
+      shareLink.current = null                          // new analysis -> new share link
+      setShowEditor(false)                              // collapse editor, focus the report
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120)
     } catch (e) { setErr(e.message) }
     setBusy(false)
   }
+
+  // ---- share this analysis (public link / WhatsApp / Email / PDF) -----------
+  function shareText() {
+    const ps = result?.portfolio_score || {}, v = result?.verdict || {}
+    let md = `> ${v.label || 'Portfolio analysis'} — health **${result.health_score}/100**`
+    if (ps.weighted_score != null) md += `, NIYTRI Score **${ps.weighted_score}**`
+    md += '.\n\n'
+    if (v.strengths?.length) md += '**Strengths**\n' + v.strengths.map(s => '- ' + s).join('\n') + '\n\n'
+    if (v.watchouts?.length) md += '**Watch-outs**\n' + v.watchouts.map(s => '- ' + s).join('\n') + '\n\n'
+    if (result.holdings?.length) {
+      md += '| Symbol | Weight | P&L | NIYTRI |\n|---|---|---|---|\n'
+      md += result.holdings.map(h => `| ${h.symbol} | ${h.weight_pct}% | ${h.pnl_pct}% | ${h.score ?? '—'} |`).join('\n') + '\n'
+    }
+    return md
+  }
+  function shareCharts() {
+    const charts = []
+    const sec = Object.entries(result.sector_exposure || {}).sort((a, b) => b[1] - a[1])
+    if (sec.length) charts.push({ src: 'data', kind: 'pie', real: true, title: 'Sector Allocation', x: sec.map(s => s[0]), y: sec.map(s => s[1]) })
+    const scored = (result.holdings || []).filter(h => h.score != null)
+    if (scored.length) charts.push({ src: 'data', kind: 'bar', real: true, title: 'NIYTRI Score by Holding', x: scored.map(h => h.symbol), y: scored.map(h => h.score) })
+    return charts
+  }
+  async function ensureShare() {
+    if (shareLink.current) return shareLink.current
+    const r = await api.shareCreate('My portfolio analysis', shareText(), shareCharts())
+    shareLink.current = r; return r
+  }
+  const shareWrap = async fn => { setShareBusy(true); try { await fn() } catch (e) { setErr(e.message) } finally { setShareBusy(false); setShareOpen(false) } }
+  const shareWhatsApp = () => shareWrap(async () => { const r = await ensureShare(); window.open('https://wa.me/?text=' + encodeURIComponent((r.intro || '') + '\n\n' + r.url), '_blank') })
+  const shareEmail = () => shareWrap(async () => { const r = await ensureShare(); window.location.href = 'mailto:?subject=' + encodeURIComponent('My portfolio analysis') + '&body=' + encodeURIComponent((r.intro || '') + '\n\n' + r.url) })
+  const shareCopy = () => shareWrap(async () => { const r = await ensureShare(); try { await navigator.clipboard.writeText(r.url) } catch {} })
 
   async function analyze() {
     setMsg('')
@@ -177,41 +217,72 @@ export default function Portfolio() {
         </div>
       )}
 
-      <datalist id="pf-inst">
-        {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name} · {i.sector}</option>)}
-      </datalist>
+      {showEditor && (
+        <>
+          <datalist id="pf-inst">
+            {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name} · {i.sector}</option>)}
+          </datalist>
 
-      <table className="holdings">
-        <thead><tr>
-          <th title="NSE trading symbol — type to search the instruments master">Symbol (NSE)</th>
-          <th title="Number of shares you hold">Qty</th>
-          <th title="Your average buy price per share in rupees">Avg price ₹</th>
-          <th />
-        </tr></thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td><input list="pf-inst" value={r.symbol} placeholder="Type to search…"
-                         onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} /></td>
-              <td><input type="number" value={r.quantity} onChange={e => update(i, 'quantity', e.target.value)} /></td>
-              <td><input type="number" value={r.avg_price} onChange={e => update(i, 'avg_price', e.target.value)} /></td>
-              <td><button className="ghost" onClick={() => remove(i)} title="Remove this holding">✕</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <table className="holdings">
+            <thead><tr>
+              <th title="NSE trading symbol — type to search the instruments master">Symbol (NSE)</th>
+              <th title="Number of shares you hold">Qty</th>
+              <th title="Your average buy price per share in rupees">Avg price ₹</th>
+              <th />
+            </tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td><input list="pf-inst" value={r.symbol} placeholder="Type to search…"
+                             onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} /></td>
+                  <td><input type="number" value={r.quantity} onChange={e => update(i, 'quantity', e.target.value)} /></td>
+                  <td><input type="number" value={r.avg_price} onChange={e => update(i, 'avg_price', e.target.value)} /></td>
+                  <td><button className="ghost" onClick={() => remove(i)} title="Remove this holding">✕</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="toolbar"><button onClick={add}>+ Add holding</button></div>
+        </>
+      )}
+
       <div className="toolbar">
-        <button onClick={add}>+ Add holding</button>
+        {result && (
+          <button className="ghost" onClick={() => setShowEditor(s => !s)}>
+            {showEditor ? '▲ Hide holdings' : `▾ Edit holdings (${rows.length})`}</button>
+        )}
         <button onClick={analyze} disabled={busy}>{busy ? 'Analyzing…' : 'Analyze & save portfolio'}</button>
         {result && (
           <button className="ghost" onClick={downloadPdf} disabled={pdfBusy}
                   title="Download a shareable PDF of this analysis for your client">
-            {pdfBusy ? 'Preparing PDF…' : '⤓ Export analysis as PDF'}</button>
+            {pdfBusy ? 'Preparing PDF…' : '⤓ Export as PDF'}</button>
+        )}
+        {result && (
+          <div className="share-wrap">
+            <button className="ghost share-btn" title="Share analysis" aria-label="Share" disabled={shareBusy}
+                    onClick={() => setShareOpen(o => !o)}>
+              {shareBusy ? '…' : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" /><line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+                </svg>
+              )}
+            </button>
+            {shareOpen && (
+              <div className="share-menu down">
+                <button onClick={shareWhatsApp}>WhatsApp</button>
+                <button onClick={shareEmail}>Email</button>
+                <button onClick={shareCopy}>Copy link</button>
+                <button onClick={() => { setShareOpen(false); downloadPdf() }}>Download PDF</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {result && (
-        <div className="panel">
+        <div className="panel" ref={reportRef}>
           <h3 title="Portfolio health out of 100. Starts at 100; loses points for concentration and lack of diversification — see the deduction breakdown below.">
             Health score: {result.health_score}/100 <span className="info-i">i</span></h3>
 

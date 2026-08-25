@@ -1009,7 +1009,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 
 /* ───────── Full-screen Assistant (chat fills the viewport, web + mobile) ───────── */
 .shell.chat-active main { display: flex; flex-direction: column; min-height: 0; }
-.shell.chat-active footer { display: none; }
+.shell.chat-active footer { padding: 8px 26px; font-size: .68rem; }
 .shell.chat-active .chat-layout { flex: 1 1 auto; height: auto; min-height: 0; }
 .shell.chat-active .page-title { margin-bottom: 10px; }
 @media (max-width: 860px) {

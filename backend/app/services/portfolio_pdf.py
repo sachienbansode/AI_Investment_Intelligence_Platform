@@ -3,6 +3,9 @@ import io
 import re
 from datetime import datetime
 
+from reportlab.graphics.charts.barcharts import HorizontalBarChart
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics.shapes import Drawing, String
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -16,6 +19,52 @@ _GREEN = colors.HexColor("#16a34a")
 _AMBER = colors.HexColor("#d97706")
 _RED = colors.HexColor("#dc2626")
 _RAG = {"green": _GREEN, "amber": _AMBER, "red": _RED}
+_PIE_COLORS = [colors.HexColor(c) for c in
+               ("#f94c00", "#ff8a3d", "#12a06b", "#c07d0a", "#4f8ef7", "#7c5cfc", "#e0503f", "#2f6fe0")]
+
+
+def _band_c(v):
+    return _GREEN if v >= 65 else _AMBER if v >= 50 else _RED
+
+
+def _pie_drawing(pairs):
+    """Donut-ish pie of (label, pct) with a side legend."""
+    d = Drawing(430, 170)
+    pie = Pie()
+    pie.x, pie.y, pie.width, pie.height = 10, 15, 140, 140
+    pie.data = [max(0.01, float(v)) for _, v in pairs]
+    pie.labels = None
+    pie.slices.strokeWidth = 0.5
+    for i in range(len(pairs)):
+        pie.slices[i].fillColor = _PIE_COLORS[i % len(_PIE_COLORS)]
+    d.add(pie)
+    ly = 150
+    for i, (lab, v) in enumerate(pairs):
+        d.add(String(170, ly, f"{lab}: {v}%", fontSize=9,
+                     fillColor=_PIE_COLORS[i % len(_PIE_COLORS)]))
+        ly -= 16
+    return d
+
+
+def _hbar_drawing(pairs):
+    """Horizontal bars of (label, value 0-100), coloured by NIYTRI band."""
+    n = max(1, len(pairs))
+    d = Drawing(470, max(70, 22 * n + 30))
+    bc = HorizontalBarChart()
+    bc.x, bc.y, bc.width, bc.height = 110, 12, 320, 22 * n
+    bc.data = [[float(v) for _, v in pairs]]
+    bc.categoryAxis.categoryNames = [lab for lab, _ in pairs]
+    bc.valueAxis.valueMin, bc.valueAxis.valueMax, bc.valueAxis.valueStep = 0, 100, 25
+    bc.barLabels.nudge = 8
+    bc.barLabelFormat = "%d"
+    bc.barLabels.fontSize = 8
+    bc.categoryAxis.labels.fontSize = 8
+    bc.valueAxis.labels.fontSize = 7
+    bc.bars[0].fillColor = _BRAND
+    for i, (_, v) in enumerate(pairs):
+        bc.bars[(0, i)].fillColor = _band_c(float(v))
+    d.add(bc)
+    return d
 
 
 def _md(text: str) -> str:
@@ -96,8 +145,25 @@ def build_portfolio_pdf(analysis: dict, holdings: list[dict],
             for t2 in v["watchouts"]:
                 el.append(Paragraph("&bull; " + _md(t2), bullet))
 
-    # Holdings (rich, with NIYTRI Score when available)
+    # Charts (match the HTML report): sector allocation pie + NIYTRI Score by holding
     ah = analysis.get("holdings") or []
+    sec = analysis.get("sector_exposure", {}) or {}
+    if sec:
+        el.append(Paragraph("Sector allocation", h2))
+        pairs = sorted(sec.items(), key=lambda kv: kv[1], reverse=True)[:8]
+        try:
+            el.append(_pie_drawing(pairs))
+        except Exception:
+            pass
+    scored = [(h.get("symbol", ""), h.get("score")) for h in ah if h.get("score") is not None]
+    if scored:
+        el.append(Paragraph("NIYTRI Score by holding", h2))
+        try:
+            el.append(_hbar_drawing(scored))
+        except Exception:
+            pass
+
+    # Holdings (rich, with NIYTRI Score when available)
     if ah:
         el.append(Paragraph("Holdings", h2))
         rows = [["Symbol", "Weight", "Value (Rs)", "P&L", "Sector", "NIYTRI"]]

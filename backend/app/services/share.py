@@ -54,8 +54,11 @@ def resolve_chart(spec: dict) -> dict | None:
         return None
     if spec.get("src") == "data":
         k = spec.get("kind", "bar")
+        title = _title(spec.get("title") or "Illustrative")
+        if not spec.get("real"):
+            title += " (illustrative)"
         return {"kind": {"bar": "bars", "line": "line", "pie": "pie"}.get(k, "bars"),
-                "title": _title(spec.get("title") or "Illustrative") + " (illustrative)",
+                "title": title,
                 "labels": [str(x) for x in (spec.get("x") or [])],
                 "values": [float(v) for v in (spec.get("y") or [])]}
     t = spec.get("type")
