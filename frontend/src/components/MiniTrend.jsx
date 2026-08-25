@@ -6,7 +6,7 @@ import { useState } from 'react'
 
 const RS = String.fromCharCode(0x20B9)                 // rupee sign (avoid literal glyph)
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const fmtDate = d => `${d.slice(8, 10)}-${MON[(+d.slice(5, 7) || 1) - 1]}`
+const fmtDate = d => `${d.slice(8, 10)}-${MON[(+d.slice(5, 7) || 1) - 1]}-${d.slice(2, 4)}`
 const band = v => (v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)')
 
 export default function MiniTrend({ data, color = 'var(--accent)', scoreLabel = 'NIYTRI Score' }) {

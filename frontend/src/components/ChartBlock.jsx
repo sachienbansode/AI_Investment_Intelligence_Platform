@@ -10,7 +10,8 @@ const RS = String.fromCharCode(0x20B9)
 const band = v => (v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)')
 const PALETTE = ['#f94c00', '#ff8a3d', '#12a06b', '#c07d0a', '#4f8ef7', '#7c5cfc', '#e0503f']
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const shortDate = d => (d && d.length >= 10 ? `${d.slice(8, 10)}-${MON[(+d.slice(5, 7) || 1) - 1]}` : d)
+const shortDate = d => (d && d.length >= 10 ? `${d.slice(8, 10)}-${MON[(+d.slice(5, 7) || 1) - 1]}-${d.slice(2, 4)}` : d)
+const titleCase = s => String(s || '').replace(/\b\w/g, c => c.toUpperCase())
 
 function Wrap({ title, note, children }) {
   return (
@@ -128,7 +129,7 @@ function PriceHistory({ symbol }) {
   const pts = (d.points || []).filter(p => p && p.c != null)
   if (pts.length < 2) return <p className="hint">No stored price history for {symbol} yet.</p>
   return (
-    <Wrap title={`${symbol} — price (LTP), 1Y`} note="Delayed / end-of-day price from stored history.">
+    <Wrap title={`${symbol} — Price (LTP), 1Y`} note="Delayed / end-of-day price from stored history.">
       <LineChart labels={pts.map(p => shortDate(p.d))} values={pts.map(p => p.c)} color="var(--accent)" fmtY={v => RS + v} />
     </Wrap>
   )
@@ -170,7 +171,7 @@ function SectorBars() {
   arr = arr.sort((a, b) => b[1] - a[1]).slice(0, 10)
   if (!arr.length) return <p className="hint">No sector data.</p>
   return (
-    <Wrap title="Sector strength — average NIYTRI Score" note="Average of approved scores per sector (top 10).">
+    <Wrap title="Sector Strength — Average NIYTRI Score" note="Average of approved scores per sector (top 10).">
       <BarChart labels={arr.map(x => x[0])} values={arr.map(x => Math.round(x[1] * 10) / 10)}
                 colors={arr.map(x => band(x[1]))} />
     </Wrap>
@@ -186,7 +187,7 @@ function Distribution() {
   const weak = rows.filter(s => s.composite_score != null && s.composite_score < 50).length
   if (!(strong + neutral + weak)) return <p className="hint">No scores available.</p>
   return (
-    <Wrap title="Market score distribution" note="Count of stocks by score band (today).">
+    <Wrap title="Market Score Distribution" note="Count of stocks by score band (today).">
       <BarChart labels={['Strong 65+', 'Neutral 50–64', 'Weak <50']} values={[strong, neutral, weak]}
                 colors={['var(--green)', 'var(--amber)', 'var(--red)']} fmtY={v => Math.round(v)} />
     </Wrap>
@@ -200,9 +201,9 @@ function Pillars({ symbol }) {
   useEffect(() => { let a = true; api.stockScore(symbol).then(r => a && setD(r)).catch(() => a && setD({ error: true })); return () => { a = false } }, [symbol])
   if (!d) return <p className="hint">Loading pillars…</p>
   if (d.error || !d.pillar_scores) return <p className="hint">No pillar breakdown for {symbol} yet.</p>
-  const rows = PILLAR_ORDER.filter(k => d.pillar_scores[k] != null).map(k => [k.replace('_', ' '), Math.round(d.pillar_scores[k])])
+  const rows = PILLAR_ORDER.filter(k => d.pillar_scores[k] != null).map(k => [titleCase(k.replace('_', ' ')), Math.round(d.pillar_scores[k])])
   return (
-    <Wrap title={`${symbol} — NIYTRI Score pillars (composite ${Math.round(d.composite_score)}/100)`}
+    <Wrap title={`${symbol} — NIYTRI Score Pillars (Composite ${Math.round(d.composite_score)}/100)`}
           note="Each pillar 0–100; higher = stronger. Green ≥65, amber 50–64, red <50.">
       <div className="pillar-chart">
         {rows.map(([lab, v]) => (

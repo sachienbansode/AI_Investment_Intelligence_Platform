@@ -60,7 +60,7 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
   const strongest = daily.reduce((a, b) => (b.avg_score > a.avg_score ? b : a))
   const weakest = daily.reduce((a, b) => (b.avg_score < a.avg_score ? b : a))
   const cov = Math.round(daily.reduce((s, d) => s + d.count, 0) / n)
-  const dt = d => `${d.date.slice(8)}/${d.date.slice(5, 7)}`
+  const dt = d => `${d.date.slice(8)}/${d.date.slice(5, 7)}/${d.date.slice(2, 4)}`
 
   const h = hi != null ? daily[hi] : null
   const hDelta = hi != null && hi > 0 ? +(daily[hi].avg_score - daily[hi - 1].avg_score).toFixed(1) : null

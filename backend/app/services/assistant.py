@@ -1161,7 +1161,14 @@ def _extract_charts(text: str):
                            "title": (d.get("title") or "Illustrative")[:80],
                            "x": x[:n], "y": yv[:n]})
     clean = _CHART_RE.sub("", text)
-    clean = _CHARTDATA_RE.sub("", clean).strip()
+    clean = _CHARTDATA_RE.sub("", clean)
+    # Robustly remove any UNCLOSED / malformed directive the model left behind
+    # (e.g. "[[CHART]]\ntype: pillars\nsymbol: X" with no [[/CHART]]) up to the
+    # next blank line, plus any stray bare tokens, so they never show as text.
+    clean = re.sub(r"\[\[CHARTDATA\]\][\s\S]*?(?=\n\s*\n|\Z)", "", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\[\[CHART\]\][\s\S]*?(?=\n\s*\n|\Z)", "", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\[\[/?CHART(?:DATA)?\]\]", "", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\n{3,}", "\n\n", clean).strip()
     return clean, charts[:3]
 
 
