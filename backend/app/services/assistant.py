@@ -840,6 +840,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             log.warning("assistant SQL tool failed: %s", e)
 
     # ---- Live web search layer (fills the current-events gap) --------------------
+    web_text = ""            # raw text of web hits, for the stale-price backstop
     if wants_web:
         hits = []
         try:
@@ -851,6 +852,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             ans = hits[0].get("answer")
             lines = ["- %s (%s): %s [%s]" % (h["title"], h["source"],
                      (h.get("snippet") or "")[:280], h["url"]) for h in hits[:5]]
+            web_text = " ".join([ans or ""] + [(h.get("title") or "") + " " +
+                                (h.get("snippet") or "") for h in hits[:5]])
             context_parts.append(
                 "WEB_RESULTS (LIVE internet from Indian finance/regulator sources, fetched just "
                 "now; use for current facts/events the platform data doesn't cover. Attribute to "
@@ -942,6 +945,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             confidence = 0.3
             sources = []
     answer_text, clarify = _extract_ask(answer_text)
+    answer_text = _guard_stale_price(question, answer_text, web_text)
     latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
@@ -1016,6 +1020,52 @@ def _extract_ask(text: str):
         return clean, None
     clarify = {"q": q, "type": typ, "options": opts[:4]}
     return clean, clarify
+
+
+
+# Currency figure like "₹68,500", "Rs 1,63,750", "$1,700" (>=4 digits total).
+_PRICE_FIG_RE = re.compile(r"(?:\u20b9|rs\.?|\$|us\$)\s?(\d[\d,]{3,}(?:\.\d+)?)", re.IGNORECASE)
+
+
+def _is_price_query(q: str) -> bool:
+    """True for 'current price/rate' asks about commodities / FX / bullion, where a
+    stale figure would be actively misleading."""
+    ql = (q or "").lower()
+    macro = any(k in ql for k in ("gold", "silver", "bullion", "platinum", "crude",
+                                  "brent", " oil", "commodit", "dollar", " usd",
+                                  "rupee", " inr", "forex"))
+    figure = any(k in ql for k in ("price", "rate", "cost", "level", "how much",
+                                   "today", "now", "current", "quote", "value", "trading at"))
+    return macro and figure
+
+
+def _stale_price_reply() -> str:
+    return ("> I don't have a **verified live price** for that right now, so I won't quote "
+            "a figure that could be out of date.\n\n"
+            "- Commodity and currency prices move constantly with global rates and the "
+            "**USD/INR** exchange rate.\n"
+            "- For the exact current rate, please check a live source such as your broker "
+            "terminal or an exchange / bullion feed.\n"
+            "- I can explain how these moves affect **Indian markets and sectors** "
+            "(e.g. jewellery, gold-financing, rate-sensitive stocks) - just ask.")
+
+
+def _guard_stale_price(question: str, answer: str, web_text: str) -> str:
+    """Backstop: for a current-price query, refuse to ship any currency figure that is
+    NOT present verbatim in the live web results - prevents the model quoting a stale
+    price from its training memory."""
+    if not answer or not _is_price_query(question):
+        return answer
+    figs = _PRICE_FIG_RE.findall(answer)
+    if not figs:
+        return answer                       # no explicit price quoted - fine
+    wt = re.sub(r"[,\s]", "", web_text or "")
+    for f in figs:
+        d = re.sub(r"[^\d]", "", f.split(".")[0])
+        if d and d not in wt:               # a figure we could not verify against web
+            log.info("stale-price guard tripped: unverified figure %s", f)
+            return _stale_price_reply()
+    return answer
 
 
 def _pct_in_range(last, lo, hi):
