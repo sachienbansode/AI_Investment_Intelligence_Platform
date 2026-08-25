@@ -220,6 +220,30 @@ def create_session_share(session_id: str, user_id=None) -> dict:
             "platform_label": b["platform_label"], "expires_days": days}
 
 
+def purge_expired(grace_days: int = 1) -> int:
+    """Hard-delete shares whose expiry passed (plus a small grace). Returns the
+    number removed. Called by the daily scheduler so expired snapshots don't
+    accumulate in chat_shares."""
+    import logging
+    from sqlalchemy import delete as sa_delete
+    cutoff = datetime.utcnow() - timedelta(days=max(0, grace_days))
+    db = SessionLocal()
+    try:
+        res = db.execute(sa_delete(ChatShare).where(
+            ChatShare.expires_at.isnot(None), ChatShare.expires_at < cutoff))
+        db.commit()
+        n = res.rowcount or 0
+        if n:
+            logging.getLogger(__name__).info("purged %d expired chat_shares", n)
+        return n
+    except Exception as e:
+        db.rollback()
+        logging.getLogger(__name__).warning("purge_expired failed: %s", e)
+        return 0
+    finally:
+        db.close()
+
+
 def get_share(token: str) -> dict | None:
     db = SessionLocal()
     try:

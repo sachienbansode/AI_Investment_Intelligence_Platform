@@ -108,6 +108,14 @@ async def lifespan(app: FastAPI):
                       CronTrigger(hour=18, minute=30, timezone=IST),
                       id="daily_prices", replace_existing=True,
                       misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
+    # Daily cleanup: hard-delete expired public share links (~03:30 IST).
+    def _purge_shares():
+        from app.services.share import purge_expired
+        purge_expired()
+    scheduler.add_job(_purge_shares,
+                      CronTrigger(hour=3, minute=30, timezone=IST),
+                      id="purge_shares", replace_existing=True,
+                      misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
     scheduler.start()
     # Catch-up: if the box was down/restarted past the scheduled hour and today's
     # run hasn't happened yet, kick one off shortly after boot.
