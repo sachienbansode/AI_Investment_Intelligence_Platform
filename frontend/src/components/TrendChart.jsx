@@ -119,19 +119,26 @@ export default function TrendChart({ trend, range, setRange, scoreLabel = 'Score
           ))}
         </svg>
 
-        <svg viewBox={`0 0 ${W} 64`} className="trend2-comp" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${W} 92`} className="trend2-comp" preserveAspectRatio="none">
           {daily.map((d, i) => {
-            const tot = (d.strong || 0) + (d.neutral || 0) + (d.weak || 0) || 1
-            const bw = Math.min(18, iw / n * 0.55)
-            const bh = 26, bx = x(i) - bw / 2
-            const ws = d.weak / tot * bh, ns = d.neutral / tot * bh, ss = d.strong / tot * bh
+            const st = d.strong || 0, ne = d.neutral || 0, wk = d.weak || 0
+            const tot = st + ne + wk || 1
+            const bw = Math.min(26, iw / n * 0.72)
+            const bh = 56, bx = x(i) - bw / 2
+            // guarantee each non-zero band a visible minimum, fill the rest proportionally
+            const MIN = 4
+            const nz = (st > 0) + (ne > 0) + (wk > 0)
+            const avail = Math.max(0, bh - nz * MIN)
+            const seg = v => (v > 0 ? MIN + (v / tot) * avail : 0)
+            const ws = seg(wk), ns = seg(ne), ss = seg(st)
+            const op = hi === i ? 1 : 0.9
             return (
               <g key={d.date} onMouseEnter={() => setHi(i)}>
-                <rect x={bx} y={2} width={bw} height={ws} fill="var(--red)" opacity={hi === i ? 1 : 0.85} />
-                <rect x={bx} y={2 + ws} width={bw} height={ns} fill="var(--amber)" opacity={hi === i ? 1 : 0.85} />
-                <rect x={bx} y={2 + ws + ns} width={bw} height={ss} fill="var(--green)" opacity={hi === i ? 1 : 0.85} />
-                {(i % labelEvery === 0 || hi === i) && <text x={x(i)} y={44} textAnchor="middle" className="t2date">{dt(d)}</text>}
-                {(i % labelEvery === 0 || hi === i) && <text x={x(i)} y={57} textAnchor="middle" className="t2cnt">{d.count}</text>}
+                <rect x={bx} y={2} width={bw} height={ws} rx="1.5" fill="var(--red)" opacity={op} />
+                <rect x={bx} y={2 + ws} width={bw} height={ns} fill="var(--amber)" opacity={op} />
+                <rect x={bx} y={2 + ws + ns} width={bw} height={ss} rx="1.5" fill="var(--green)" opacity={op} />
+                {(i % labelEvery === 0 || hi === i) && <text x={x(i)} y={74} textAnchor="middle" className="t2date">{dt(d)}</text>}
+                {(i % labelEvery === 0 || hi === i) && <text x={x(i)} y={87} textAnchor="middle" className="t2cnt">{d.count}</text>}
               </g>
             )
           })}
