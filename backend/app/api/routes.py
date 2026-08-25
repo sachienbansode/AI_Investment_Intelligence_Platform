@@ -140,16 +140,16 @@ async def chat_suggestions(user: User = Depends(get_current_user)):
     finally:
         db.close()
 
-    sugg = []
+    sugg = ["Help me build a starter portfolio"]
     for sym in liked[:2]:
         sugg.append(f"What's driving {sym}'s {label}?")
     for sym in watch[:2]:
         q = f"Latest news on {sym}"
         if q not in sugg:
             sugg.append(q)
-    for d in [f"Top stocks by {label}", "What moved the market today?",
-              "Summarize today's market news",
-              f"Which stocks are below 50 on {label}?", "What is a P/E ratio?"]:
+    for d in [f"Suggest top strong stocks across sectors", f"Top stocks by {label}",
+              "What moved the market today?", "Summarize today's market news",
+              f"Which stocks are below 50 on {label}?"]:
         if len(sugg) >= 5:
             break
         if d not in sugg:

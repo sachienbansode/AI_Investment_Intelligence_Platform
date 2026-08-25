@@ -165,6 +165,14 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
 - Reply in the user's requested language.
 - SOURCE TAG: finish every answer with ONE short final line stating the basis, using the exact wording given in the CONTEXT TERMINOLOGY (platform brand for core data, "general knowledge" for your own knowledge, or both).
 - PLAIN LANGUAGE (most users are beginners): write in simple, everyday English, like explaining to a friend who is new to the share market. Use short sentences and avoid jargon. When a market term is unavoidable (e.g. valuation, volatility, market cap, P/E, momentum), add a 3-6 word plain meaning in brackets the FIRST time you use it (e.g. 'valuation (how cheap or expensive the stock looks)'). Don't just quote a number - say what it means in practice. Where it helps, include ONE short, concrete everyday example or simple analogy. Never sound like a textbook or a research analyst.
+- PORTFOLIO / WHAT-TO-BUY REQUESTS: if the user asks you to build or suggest a
+  portfolio, or which stocks to invest in, DO help - list stocks that screen strongly
+  on the NIYTRI Score across DIFFERENT sectors (highest scores, prefer 80+), as
+  factual SCREENING / information, never as a buy call and with no price targets. If
+  they give an amount, you may show an illustrative equal-weight allocation by current
+  price. For THESE answers only, end with one line noting they are stocks screening
+  strongly on internal scores, not investment advice, and to consult a SEBI-registered
+  investment adviser before investing.
 - FORMAT: open with the KEY TAKEAWAY as a markdown blockquote whose first line
   starts with '> ' (e.g. '> MAHABANK screens well on **value** and **price
   trend** but lacks **earnings momentum**.') — ONE sentence with the single most
@@ -955,10 +963,20 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     llm = get_llm_router()
     _t0 = time.time()
+    builder_answer = None
     try:
-        resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
-                                  max_tokens=int(get_setting("assistant_max_tokens")))
-        answer_text, provider = resp.text, resp.provider
+        builder_answer = _portfolio_builder(question, history, user_id)
+    except Exception as _be:
+        log.warning("portfolio builder failed: %s", _be)
+        builder_answer = None
+    try:
+        if builder_answer is not None:
+            answer_text, provider = builder_answer, "computed"
+            confidence = max(confidence, 0.9)
+        else:
+            resp = await llm.complete(system_prompt(), prompt, task="ask_ai",
+                                      max_tokens=int(get_setting("assistant_max_tokens")))
+            answer_text, provider = resp.text, resp.provider
     except Exception as e:
         # Every LLM provider failed (e.g. account usage-limit / quota errors). Stay
         # useful: if the question maps to an exact code-computed figure, return that;
@@ -1212,6 +1230,151 @@ def _auto_charts(question: str, mentioned, existing: list) -> list:
         elif any(k in ql for k in ("distribution", "how many strong", "spread", "bands", "below 50", "above 65", "below 45")):
             add({"src": "bound", "type": "distribution"})
     return out[:3]
+
+
+PORTFOLIO_DISCLAIMER = (
+    "_These stocks are shortlisted only because they screen strongly on the NIYTRI Score "
+    "(our internal analytics) — this is information, not a buy/sell recommendation or "
+    "personalised advice, and no price targets are implied. Please review with a "
+    "SEBI-registered investment adviser before investing. Markets carry risk._")
+
+_BUILD_CUES = (
+    "build my portfolio", "build a portfolio", "build portfolio", "start my portfolio",
+    "start a portfolio", "starter portfolio", "suggest a portfolio", "suggest portfolio",
+    "create a portfolio", "make a portfolio", "recommend a portfolio", "suggest stocks",
+    "recommend stocks", "which stocks to buy", "stocks to buy", "stocks to invest",
+    "where should i invest", "where to invest", "help me invest", "help me build",
+    "want to start my portfolio", "start investing", "strong stocks across",
+    "stocks across sectors", "top strong stocks", "strong stocks from all",
+    "diversified portfolio", "diversified basket", "invest my money")
+
+_STEP1_MARKER = "amount you want to invest"
+
+
+def _parse_amount(text):
+    """Parse an investment amount from free text (supports k / lakh / crore)."""
+    t = (text or "").lower().replace(",", "")
+    m = re.search(r"(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)\s*(crore|cr|lakhs?|lac|lakh|k|thousand|l)?\b", t)
+    if not m:
+        return None
+    val = float(m.group(1)); unit = (m.group(2) or "")
+    if unit in ("crore", "cr"): val *= 1e7
+    elif unit in ("lakh", "lakhs", "lac", "l"): val *= 1e5
+    elif unit in ("k", "thousand"): val *= 1e3
+    return val if val >= 1000 else None
+
+
+def _wants_build(ql):
+    return any(k in ql for k in _BUILD_CUES)
+
+
+def _select_strong_diversified(db, max_stocks=10):
+    """Top-scoring approved stock per sector, preferring the strong band (>=80,
+    then 70, then 65). Returns [(symbol, score, sector)]."""
+    rows = (db.query(StockScore.symbol, StockScore.composite_score)
+            .filter(StockScore.quality_status == "approved")
+            .order_by(StockScore.score_date.desc()).limit(6000).all())
+    latest = {}
+    for sym, sc in rows:
+        if sym not in latest and sc is not None:
+            latest[sym] = round(float(sc), 1)
+    secmap = {r.symbol: (r.sector or "Other") for r in db.query(Instrument).all()}
+    picks = []
+    for thr in (80, 70, 65):
+        by_sector = {}
+        for sym, sc in latest.items():
+            if sc < thr:
+                continue
+            sec = secmap.get(sym, "Other")
+            if sec not in by_sector or sc > by_sector[sec][1]:
+                by_sector[sec] = (sym, sc, sec)
+        picks = sorted(by_sector.values(), key=lambda x: -x[1])[:max_stocks]
+        if len(picks) >= 4:
+            break
+    return picks
+
+
+def _ltp_map(db, syms):
+    from app.db.database import StockPrice
+    out = {}
+    rows = (db.query(StockPrice.symbol, StockPrice.close, StockPrice.price_date)
+            .filter(StockPrice.symbol.in_(syms))
+            .order_by(StockPrice.price_date.desc()).all())
+    for sym, c, _d in rows:
+        if sym not in out and c is not None:
+            out[sym] = float(c)
+    return out
+
+
+def _portfolio_builder(question, history, user_id):
+    """Deterministic NIYTRI-score portfolio builder. Step 1: suggest strong stocks
+    across sectors + ask for the amount. Step 2 (amount given): allocate by LTP and
+    show the basket + analysis. Always carries the internal-scores disclaimer.
+    Returns markdown answer text, or None to fall through to the LLM."""
+    ql = (question or "").lower()
+    amount = _parse_amount(question)
+    is_build = _wants_build(ql)
+    step2 = amount is not None and _STEP1_MARKER in (history or "").lower()
+    if not (is_build or step2):
+        return None
+
+    rs = "₹"
+    score_label = get_setting("score_label") or "NIYTRI Score"
+    brand = get_setting("platform_label") or "NIYTRI Investment Intelligence"
+    db = SessionLocal()
+    try:
+        picks = _select_strong_diversified(db)
+        syms = [p[0] for p in picks]
+        ltp = _ltp_map(db, syms) if syms else {}
+    finally:
+        db.close()
+    picks = [(s, sc, sec) for (s, sc, sec) in picks if s in ltp][:10]
+    if len(picks) < 3:
+        return None
+
+    if amount is None:
+        avg = round(sum(sc for _s, sc, _sec in picks) / len(picks), 1)
+        head = (f"> Here are **{len(picks)} strong-scoring stocks** across sectors "
+                f"(average {score_label} **{avg}**) to seed a diversified portfolio.")
+        table = ("| # | Stock | Sector | " + score_label + " | LTP |\n|---|---|---|---|---|\n"
+                 + "\n".join(f"| {i+1} | **{s}** | {sec} | {sc} | {rs}{ltp[s]:,.0f} |"
+                            for i, (s, sc, sec) in enumerate(picks)))
+        return (head + "\n\n" + table + "\n\n"
+                + f"Reply with the **amount you want to invest** (e.g. 1,00,000) and I'll build "
+                + "the allocation by current price and show a full analysis.\n\n"
+                + PORTFOLIO_DISCLAIMER + "\n\n"
+                + "[[ASK]]\nq: How much would you like to invest?\ntype: input\n[[/ASK]]\n\n"
+                + f"Basis: {brand}")
+
+    # Step 2 — allocate the amount equal-weight by current price.
+    per = amount / len(picks)
+    alloc = []
+    for s, sc, sec in picks:
+        qty = int(per // ltp[s])
+        if qty >= 1:
+            alloc.append((s, sc, sec, ltp[s], qty, qty * ltp[s]))
+    if not alloc:
+        return (f"> {rs}{amount:,.0f} is below the price of one share of these names. "
+                "Try a larger amount.\n\n" + PORTFOLIO_DISCLAIMER + f"\n\nBasis: {brand}")
+    invested = sum(a[5] for a in alloc)
+    wscore = round(sum(a[5] * a[1] for a in alloc) / invested, 1) if invested else 0
+    nsec = len(set(a[2] for a in alloc))
+    table = ("| Stock | Sector | " + score_label + " | LTP | Qty | Amount | Weight |\n"
+             "|---|---|---|---|---|---|---|\n"
+             + "\n".join(f"| **{s}** | {sec} | {sc} | {rs}{p:,.0f} | {qty} | {rs}{amt:,.0f} | {round(amt/invested*100,1)}% |"
+                        for (s, sc, sec, p, qty, amt) in alloc))
+    pie = ("[[CHARTDATA]]\nkind: pie\ntitle: Suggested Allocation\nx: "
+           + ", ".join(a[0] for a in alloc) + "\ny: "
+           + ", ".join(str(int(round(a[5]))) for a in alloc) + "\n[[/CHARTDATA]]")
+    return (f"> A diversified starter basket for **{rs}{amount:,.0f}** — **{len(alloc)}** stocks across "
+            f"**{nsec}** sectors, value-weighted **{score_label} {wscore}**.\n\n"
+            + table + "\n\n"
+            + f"- Deploys **{rs}{invested:,.0f}** ({round(invested/amount*100)}% of {rs}{amount:,.0f}); the rest stays as cash for lot rounding.\n"
+            + f"- Every name is in the strong band on the {score_label}, spread across {nsec} sectors to reduce single-sector risk.\n\n"
+            + pie + "\n\n"
+            + "Load this in **Portfolio** to save it and get the full analysis (health, concentration, per-holding scores).\n\n"
+            + PORTFOLIO_DISCLAIMER + "\n\n"
+            + f"Basis: {brand}")
 
 
 def _pct_in_range(last, lo, hi):

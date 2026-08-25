@@ -9,10 +9,11 @@ const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', 
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 const SUGGESTIONS = [
+  'Help me build a starter portfolio',
+  'Suggest top strong stocks across sectors',
   'What are the top 2 stocks as per your internal AI scores?',
   'What moved IT stocks today?',
   'Explain RELIANCE’s AI score',
-  'What is a P/E ratio?',
   'Summarize today’s market news',
 ]
 
