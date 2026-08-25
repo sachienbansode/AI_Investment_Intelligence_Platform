@@ -56,7 +56,7 @@ export function StockSearch({ onPick }) {
   )
 }
 
-const RANGES = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y']
+const RANGES = ['1D', '1W', '1M', '3M', '6M', '1Y', '3Y']
 
 function fmt(v, opt = {}) {
   if (v == null || v === '' || Number.isNaN(v)) return '—'
@@ -119,7 +119,14 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
   useEffect(() => {
     if (!symbol) return
     setPhLoad(true)
-    api.priceHistory(symbol, range).then(setPh).catch(() => setPh(null)).finally(() => setPhLoad(false))
+    // Intraday ranges need live delayed bars; longer ranges use our stored
+    // daily EOD history (reliable, up to 3 years) instead of a live fetch.
+    const intraday = range === '1D' || range === '1W'
+    const call = intraday ? api.priceHistory(symbol, range) : api.publicPriceHistory(symbol, range)
+    call.then(res => {
+      if (intraday) setPh(res)
+      else setPh({ points: (res.points || []).map(p => ({ c: p.c })), delayed: true, source: 'EOD history' })
+    }).catch(() => setPh(null)).finally(() => setPhLoad(false))
   }, [symbol, range])
 
   if (!symbol) return <div className="panel"><p className="hint">Search for a stock above to see its details.</p></div>
@@ -127,9 +134,12 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
   if (!d) return <div className="panel"><p className="hint">Loading…</p></div>
 
   const last = ph?.last ?? d.last_price
-  const prev = ph?.prev_close
+  let prev = ph?.prev_close
+  // When the source has no prev close (our EOD series), derive it from the day %
+  // change so the absolute price change + prev-close guide still show.
+  if (prev == null && last != null && d.change_pct != null) prev = last / (1 + d.change_pct / 100)
   const chg = (last != null && prev != null) ? last - prev : null
-  const chgPct = chg != null && prev ? (chg / prev) * 100 : d.change_pct
+  const chgPct = (chg != null && prev) ? (chg / prev) * 100 : d.change_pct
   const up = chgPct == null ? true : chgPct >= 0
   const stats = [
     ['P/E', fmt(d.pe)], ['EPS', fmt(d.eps)], ['P/B', fmt(d.pb)],
