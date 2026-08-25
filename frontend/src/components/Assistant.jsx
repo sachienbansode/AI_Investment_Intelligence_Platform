@@ -117,6 +117,34 @@ function ShareMenu({ question, answer, charts }) {
   )
 }
 
+// Share the WHOLE chat session (public expiring link / WhatsApp / Email / PDF).
+function SessionShareMenu({ sessionId, hasMessages }) {
+  const [open, setOpen] = useState(false)
+  const [link, setLink] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const ensure = async () => { if (link) return link; const r = await api.shareSession(sessionId); setLink(r); return r }
+  const text = r => (r.intro || '') + '\n\n' + r.url
+  const wrap = async fn => { setBusy(true); try { await fn() } catch (e) { toast(e.message || 'Share failed', { type: 'error' }) } finally { setBusy(false); setOpen(false) } }
+  const onWhatsApp = () => wrap(async () => { const r = await ensure(); window.open('https://wa.me/?text=' + encodeURIComponent(text(r)), '_blank') })
+  const onEmail = () => wrap(async () => { const r = await ensure(); window.location.href = 'mailto:?subject=' + encodeURIComponent('My NIYTRI AI chat') + '&body=' + encodeURIComponent(text(r)) })
+  const onCopy = () => wrap(async () => { const r = await ensure(); try { await navigator.clipboard.writeText(r.url); toast('Chat link copied') } catch { toast(r.url) } })
+  const onPdf = () => wrap(async () => { await api.shareSessionPdf(sessionId) })
+  if (!hasMessages) return null
+  return (
+    <div className="share-wrap">
+      <button className="sm ghost" title="Share this whole chat" onClick={() => setOpen(o => !o)} disabled={busy}>{busy ? '\u2026' : 'Share chat'}</button>
+      {open && (
+        <div className="share-menu down">
+          <button onClick={onWhatsApp}>WhatsApp</button>
+          <button onClick={onEmail}>Email</button>
+          <button onClick={onCopy}>Copy link</button>
+          <button onClick={onPdf}>Download PDF</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Assistant({ seed, clearSeed, go }) {
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(newSession())
@@ -380,6 +408,7 @@ export default function Assistant({ seed, clearSeed, go }) {
 
       <div className="chat">
         <div className="chat-toolbar">
+          <SessionShareMenu sessionId={sessionId} hasMessages={messages.some(m => m.role === 'assistant')} />
           <label title="The assistant replies in this language">Language:&nbsp;
             <select value={lang} onChange={e => setLang(e.target.value)}>
               {Object.entries(LANGS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
