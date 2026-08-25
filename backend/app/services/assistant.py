@@ -992,7 +992,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         db.add(ChatMessage(user_id=user_id, session_id=session_id, role="assistant",
                            content=answer_text,
                            meta={"provider": provider, "confidence": confidence,
-                                 "latency_ms": latency_ms, "n_sources": len(sources)}))
+                                 "latency_ms": latency_ms, "n_sources": len(sources),
+                                 "charts": charts or []}))
         # Learn the user's interests (symbols they ask about) for personalised
         # suggestions — upsert count + recency per symbol.
         if user_id:
