@@ -11,8 +11,8 @@ from app.core.auth import get_current_user, require_admin
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
 from app.db.database import (ChatFeedback, ChatMessage, Instrument, Portfolio,
-                             SessionLocal, DeviceToken, StockScore, User,
-                             UserActivity, WatchlistItem)
+                             SessionLocal, DeviceToken, StockPrice, StockScore,
+                             User, UserActivity, WatchlistItem)
 from app.llm.router import get_llm_router
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse, WatchlistRequest)
@@ -323,18 +323,52 @@ async def all_scores(score_date: str = ""):
 
 @router.get("/scores/{symbol}/history")
 async def score_history(symbol: str, days: int = 30):
-    """Daily composite score for one script over the last N days (sparkline)."""
-    days = max(2, min(days, 120))
+    """Daily composite score for one script over the last N days, each row paired
+    with the matching end-of-day LTP and day-over-day % change where we have price
+    history stored."""
+    import bisect
+    days = max(2, min(days, 1825))
+    sym = symbol.upper()
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     db = SessionLocal()
     try:
         rows = (db.query(StockScore.score_date, StockScore.composite_score)
-                .filter(StockScore.symbol == symbol.upper(),
+                .filter(StockScore.symbol == sym,
                         StockScore.score_date >= cutoff,
                         StockScore.quality_status != "rejected")
                 .order_by(StockScore.score_date).all())
-        return {"symbol": symbol.upper(),
-                "history": [{"date": d, "score": sc} for d, sc in rows]}
+        # LTP series for the same window (a little earlier too, so the first score
+        # date can still get a previous close for its % change).
+        pcut = (date.today() - timedelta(days=days + 12)).isoformat()
+        praw = (db.query(StockPrice.price_date, StockPrice.close)
+                .filter(StockPrice.symbol == sym, StockPrice.price_date >= pcut)
+                .order_by(StockPrice.price_date).all())
+        pser = [(d.isoformat() if hasattr(d, "isoformat") else str(d), float(c))
+                for d, c in praw if c is not None]
+        pdates = [d for d, _ in pser]
+        pmap = dict(pser)
+
+        def ltp_for(dstr):
+            if dstr in pmap:
+                return pmap[dstr]
+            i = bisect.bisect_right(pdates, dstr) - 1   # latest close on/before
+            return pmap[pdates[i]] if i >= 0 else None
+
+        def prev_for(dstr):
+            i = bisect.bisect_left(pdates, dstr) - 1     # latest close strictly before
+            return pmap[pdates[i]] if i >= 0 else None
+
+        hist = []
+        for d, sc in rows:
+            dstr = d.isoformat() if hasattr(d, "isoformat") else str(d)
+            ltp = ltp_for(dstr)
+            prev = prev_for(dstr)
+            pct = (round((ltp - prev) / prev * 100, 2)
+                   if (ltp is not None and prev) else None)
+            hist.append({"date": dstr, "score": sc,
+                         "ltp": round(ltp, 2) if ltp is not None else None,
+                         "pct": pct})
+        return {"symbol": sym, "history": hist}
     finally:
         db.close()
 

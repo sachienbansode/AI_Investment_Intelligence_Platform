@@ -34,7 +34,10 @@ const ICONS = {
 }
 // Primary tabs shown in the mobile bottom bar; the rest live behind "More".
 const MOBILE_TABS = ['Dashboard', 'Stock Scores', 'AI Assistant', 'Compare']
-const SHORT_LABEL = { 'AI Assistant': 'Assistant', 'Stock Scores': 'Scores', 'Market News': 'News' }
+const SHORT_LABEL = { 'AI Assistant': 'NIYTRI AI', 'Stock Scores': 'Scores', 'Market News': 'News' }
+// Display label for the sidebar/page title (internal key stays 'AI Assistant').
+const NAV_LABEL = { 'AI Assistant': 'NIYTRI AI' }
+const label = name => NAV_LABEL[name] || name
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
 
 function Consent({ brand, onAccept, onSignOut }) {
@@ -219,9 +222,9 @@ export default function App() {
         <nav>
           {nav.map(n => (
             <button key={n.name} className={tab === n.name ? 'active' : ''}
-                    title={n.name} onClick={() => selectTab(n.name)}>
+                    title={label(n.name)} onClick={() => selectTab(n.name)}>
               <span className="nav-icon">{n.icon}</span>
-              <span className="nav-label">{n.name}</span>
+              <span className="nav-label">{label(n.name)}</span>
               {n.name === 'Alerts' && alertUnread > 0 && <span className="nav-badge">{alertUnread}</span>}
             </button>
           ))}
@@ -297,7 +300,7 @@ export default function App() {
         )}
 
         <main>
-          <h2 className="page-title">{tab === 'Stock' ? (stockSym || 'Stock') + ' Details' : tab}</h2>
+          <h2 className="page-title">{tab === 'Stock' ? (stockSym || 'Stock') + ' Details' : label(tab)}</h2>
           {tab === 'Dashboard' && can('Dashboard') && <Dashboard go={setTab} openScore={openScore} openSector={openSector} scoreLabel={brand.score_label} />}
           {tab === 'AI Assistant' && can('AI Assistant') && <Assistant seed={chatSeed} clearSeed={() => setChatSeed(null)} go={setTab} />}
           {tab === 'Stock Scores' && can('Stock Scores') && <Scores isAdmin={user.is_admin} askAI={askAI} seed={scoreSeed} clearSeed={() => setScoreSeed(null)} sectorSeed={sectorSeed} clearSectorSeed={() => setSectorSeed(null)} scoreLabel={brand.score_label} platformLabel={brand.platform_label} />}

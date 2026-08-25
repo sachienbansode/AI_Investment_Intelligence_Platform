@@ -45,17 +45,17 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
   const PAGE_SIZE = 20
 
   const [hist, setHist] = useState({})
+  const [histRange, setHistRange] = useState(90)   // days shown in the score-history chart
   const load = (d) => api.scores(d !== undefined ? d : selDate).then(setData).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
   useEffect(() => { api.indexConstituents().then(setConsts).catch(() => {}) }, [])
   useEffect(() => { load(selDate) }, [selDate]) // eslint-disable-line
   useEffect(() => {
-    if (open && hist[open] === undefined) {
-      api.scoreHistory(open, 30)
-        .then(d => setHist(h => ({ ...h, [open]: d.history || [] })))
-        .catch(() => setHist(h => ({ ...h, [open]: [] })))
-    }
-  }, [open]) // eslint-disable-line
+    if (!open) return
+    api.scoreHistory(open, histRange)
+      .then(d => setHist(h => ({ ...h, [open]: d.history || [] })))
+      .catch(() => setHist(h => ({ ...h, [open]: [] })))
+  }, [open, histRange]) // eslint-disable-line
   useEffect(() => {
     if (seed) { setQ(seed); setOpen(seed); clearSeed && clearSeed() }
   }, [seed]) // eslint-disable-line
@@ -235,15 +235,31 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
                         <strong>P/E:</strong> {s.pe != null ? Number(s.pe).toFixed(1) : '—'}{'  ·  '}<strong>Market cap:</strong> {s.market_cap != null ? '₹' + Math.round(s.market_cap / 1e7).toLocaleString('en-IN') + ' Cr' : '—'}
                       </p>
                       {hist[s.symbol] && hist[s.symbol].length >= 2 && (() => {
-                        const vals = hist[s.symbol].map(h => h.score)
-                        const lo = Math.min(...vals), hv = Math.max(...vals), now = vals[vals.length - 1]
+                        const HH = hist[s.symbol]
+                        const vals = HH.map(h => h.score)
+                        const lo = Math.min(...vals), hv = Math.max(...vals)
+                        const last = HH[HH.length - 1]
+                        const RS = String.fromCharCode(0x20B9)
                         return (
                           <div className="score-hist">
                             <div className="score-hist-head">
-                              <span>Score history · {hist[s.symbol].length} runs</span>
-                              <span>min <b>{lo}</b> · max <b>{hv}</b> · now <b>{now}</b></span>
+                              <span>{scoreLabel} history · {HH.length} runs</span>
+                              <span className="sh-range">
+                                {[[30, '1M'], [90, '3M'], [180, '6M'], [365, '1Y']].map(([d, l]) => (
+                                  <button key={d} className={`sm ${histRange === d ? '' : 'ghost'}`}
+                                          onClick={() => setHistRange(d)}>{l}</button>
+                                ))}
+                              </span>
                             </div>
-                            <MiniTrend data={hist[s.symbol]} color="var(--accent)" />
+                            <div className="score-hist-head sh-stats">
+                              <span>{scoreLabel}: min <b>{lo}</b> · max <b>{hv}</b> · now <b>{last.score}</b></span>
+                              <span>
+                                {last.ltp != null && <>LTP <b>{RS}{last.ltp}</b></>}
+                                {last.pct != null && <b className={last.pct >= 0 ? 'up' : 'down'} style={{ marginLeft: 8 }}>
+                                  {last.pct >= 0 ? '▲' : '▼'} {Math.abs(last.pct)}%</b>}
+                              </span>
+                            </div>
+                            <MiniTrend data={HH} color="var(--accent)" scoreLabel={scoreLabel} />
                           </div>
                         )
                       })()}
