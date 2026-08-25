@@ -539,14 +539,14 @@ function PriceData() {
           <div className="bar slim"><div style={{ width: pct + '%', background: 'var(--accent)' }} /></div>
           <div className="hint" style={{ marginTop: 6 }}>
             {st.mode === 'daily' ? 'Daily refresh' : 'Backfill'} — <b>{pct}%</b>{' '}
-            ({num(st.done)}/{num(st.total)}) · ok {num(st.ok)} · fail {num(st.fail)} ·{' '}
+            ({num(st.done)}/{num(st.total)}) · updated {num(st.ok)} · couldn't fetch {num(st.fail)} ·{' '}
             {num(st.rows)} rows{eta ? ' · ~' + eta + ' left' : ''}{st.last ? ' · ' + st.last : ''}
           </div>
         </div>
       )}
       {!st.running && st.finished && (
-        <p className="hint" style={{ marginTop: 8 }}>Last run: {st.mode || 'load'} — ok {num(st.ok)},
-          fail {num(st.fail)}, {num(st.rows)} rows.</p>
+        <p className="hint" style={{ marginTop: 8 }}>Last run: {st.mode || 'load'} — updated {num(st.ok)},{' '}
+          couldn’t fetch {num(st.fail)}{st.fail ? ' (delisted / renamed / thinly-traded — see list below; coverage is otherwise complete)' : ''}, {num(st.rows)} rows added.</p>
       )}
       {st.failed_symbols && st.failed_symbols.length > 0 && (
         <details style={{ marginTop: 8 }}>

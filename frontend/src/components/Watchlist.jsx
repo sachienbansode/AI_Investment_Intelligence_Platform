@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
 import Pager from './Pager.jsx'
+import ScoreHistoryPanel from './ScoreHistoryPanel.jsx'
 
 const scoreColor = v =>
   v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)'
@@ -22,6 +23,7 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
   const [sortKey, setSortKey] = useState('ai_score')
   const [sortDir, setSortDir] = useState('desc')
   const [open, setOpen] = useState(false)
+  const [expanded, setExpanded] = useState(null)   // symbol whose score-history is open
   const [hi, setHi] = useState(0)
   const boxRef = useRef(null)
 
@@ -181,9 +183,13 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
               const d = r.score_delta
               const dpct = (d != null && r.prev_score) ? (d / r.prev_score * 100) : null
               return (
-                <tr key={r.symbol}>
+                <Fragment key={r.symbol}>
+                <tr>
                   <td>
-                    <strong title={r.name || r.symbol}>{r.symbol}</strong>
+                    <strong title="Click for NIYTRI Score history" style={{ cursor: 'pointer' }}
+                            onClick={() => setExpanded(x => (x === r.symbol ? null : r.symbol))}>
+                      {r.symbol} <span className="hint" style={{ fontWeight: 400 }}>{expanded === r.symbol ? '▲' : '▾'}</span>
+                    </strong>
                     {(r.name || r.sector) && <div className="script-name">{[r.name, r.sector].filter(Boolean).join(' \u00b7 ')}</div>}
                   </td>
                   <td style={{ fontWeight: 600 }}>
@@ -208,6 +214,19 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
                   <td>{fmtDate(r.score_date)}</td>
                   <td><button className="ghost sm" onClick={() => remove(r.symbol)}>Remove</button></td>
                 </tr>
+                {expanded === r.symbol && (
+                  <tr>
+                    <td colSpan={8}>
+                      <div className="card-body">
+                        <p className="explain" style={{ marginTop: 0 }}>
+                          <strong>P/E:</strong> {r.pe != null ? Number(r.pe).toFixed(1) : '—'}{'  \u00b7  '}<strong>Market cap:</strong> {fmtCr(r.market_cap)}
+                        </p>
+                        <ScoreHistoryPanel symbol={r.symbol} scoreLabel={scoreLabel} />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </tbody>
