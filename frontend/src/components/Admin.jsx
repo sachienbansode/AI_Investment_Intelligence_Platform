@@ -563,6 +563,43 @@ function PriceData() {
   )
 }
 
+function SettingsHistory() {
+  const [rows, setRows] = useState(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (open && rows === null) api.settingsHistory(50).then(d => setRows(d.history || [])).catch(() => setRows([]))
+  }, [open]) // eslint-disable-line
+  const fmt = v => { try { return typeof v === 'object' ? JSON.stringify(v) : String(v) } catch { return String(v) } }
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h4 title="Every settings change is recorded — who changed it, when, and the old → new value.">
+          Settings change history <span className="info-i">i</span></h4>
+        <button className="ghost sm" onClick={() => setOpen(o => !o)}>{open ? 'Hide' : 'Show'}</button>
+      </div>
+      {open && (rows === null
+        ? <p className="hint">Loading…</p>
+        : rows.length === 0
+          ? <p className="hint">No changes recorded yet.</p>
+          : (
+            <div className="md-table-wrap"><table className="md-table">
+              <thead><tr><th>When</th><th>Setting</th><th>By</th><th>Old → New</th></tr></thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td>{(r.at || '').replace('T', ' ').slice(0, 16)}</td>
+                    <td>{r.key}</td><td>{r.by}</td>
+                    <td style={{ maxWidth: 360, wordBreak: 'break-word' }}>
+                      <span className="hint">{fmt(r.old)}</span> → <b>{fmt(r.new)}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          ))}
+    </div>
+  )
+}
+
 function Settings() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
@@ -570,6 +607,9 @@ function Settings() {
   const [weights, setWeights] = useState(null)
   const [llm, setLlm] = useState(null)
   const [scope, setScope] = useState([])
+  const [editWeights, setEditWeights] = useState(false)
+  const [share, setShare] = useState(null)
+  const [editShare, setEditShare] = useState(false)
   const load = () => api.settings().then(d => {
     setData(d); setWeights({ ...d.settings.scoring_weights })
     setLlm({ order: [...(d.settings.llm_provider_order || [])],
@@ -577,11 +617,18 @@ function Settings() {
              models: { ...(d.settings.llm_models || {}) },
              enabled: { ...(d.settings.llm_enabled || {}) } })
     setScope([...(d.settings.scoring_indices || ['NIFTY500'])])
+    setShare({ app_public_url: d.settings.app_public_url || '',
+               share_intro: d.settings.share_intro || '',
+               share_link_days: d.settings.share_link_days ?? 30 })
+    setEditWeights(false); setEditShare(false)
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
 
-  async function save(key, value) {
+  async function save(key, value, { confirm = true, label = '' } = {}) {
     setErr(''); setMsg('')
+    if (confirm && !(await confirmDialog(
+        `Save changes to ${label || key}? This updates the live setting for everyone and is recorded in the change history.`,
+        { title: 'Confirm save', confirmText: 'Save changes' }))) return
     try {
       const r = await api.updateSetting(key, value)
       setMsg(`Saved ${key}. ${r.note || ''}`)
@@ -665,18 +712,63 @@ function Settings() {
       </div>
 
       <div className="panel">
-        <h4>Scoring weights <span className="hint">(must sum to 1.0 — current: {wSum.toFixed(2)})</span></h4>
+        <div className="panel-head">
+          <h4>Scoring weights <span className="hint">(must sum to 1.0 — current: {wSum.toFixed(2)})</span></h4>
+          {!editWeights && <button className="ghost sm" onClick={() => setEditWeights(true)}>Edit</button>}
+        </div>
         <div className="weights-grid">
           {weights && Object.entries(weights).map(([k, v]) => (
             <label key={k}>{k.replace('_', ' ')}
-              <input type="number" step="0.01" min="0" max="1" value={v}
+              <input type="number" step="0.01" min="0" max="1" value={v} disabled={!editWeights}
                      onChange={e => setWeights({ ...weights, [k]: Number(e.target.value) })} />
             </label>
           ))}
         </div>
-        <button disabled={Math.abs(wSum - 1) > 0.001}
-                onClick={() => save('scoring_weights', weights)}>Save weights</button>
+        {editWeights && (
+          <div className="toolbar">
+            <button disabled={Math.abs(wSum - 1) > 0.001}
+                    onClick={() => save('scoring_weights', weights, { label: 'scoring weights' })}>Save weights</button>
+            <button className="ghost" onClick={() => { setWeights({ ...s.scoring_weights }); setEditWeights(false) }}>Cancel</button>
+          </div>
+        )}
       </div>
+
+      <div className="panel">
+        <div className="panel-head">
+          <h4 title="Controls the public share links created from chat answers and the portfolio.">
+            Public sharing <span className="info-i">i</span></h4>
+          {!editShare && <button className="ghost sm" onClick={() => setEditShare(true)}>Edit</button>}
+        </div>
+        {share && (
+          <>
+            <div className="weights-grid">
+              <label>App URL (used in shares)
+                <input value={share.app_public_url} disabled={!editShare}
+                       onChange={e => setShare({ ...share, app_public_url: e.target.value })} /></label>
+              <label>Link lifetime (days)
+                <input type="number" min="1" max="365" value={share.share_link_days} disabled={!editShare}
+                       onChange={e => setShare({ ...share, share_link_days: Number(e.target.value) })} /></label>
+            </div>
+            <label style={{ display: 'block', marginTop: 8 }}>Share intro line
+              <textarea rows={2} style={{ width: '100%' }} value={share.share_intro} disabled={!editShare}
+                        onChange={e => setShare({ ...share, share_intro: e.target.value })} /></label>
+            {editShare && (
+              <div className="toolbar">
+                <button onClick={async () => {
+                  if (!(await confirmDialog('Save public sharing settings for everyone?', { title: 'Confirm save', confirmText: 'Save changes' }))) return
+                  await save('app_public_url', (share.app_public_url || '').trim(), { confirm: false })
+                  await save('share_intro', (share.share_intro || '').trim(), { confirm: false })
+                  await save('share_link_days', Number(share.share_link_days), { confirm: false })
+                }}>Save sharing</button>
+                <button className="ghost" onClick={() => { setShare({ app_public_url: s.app_public_url || '', share_intro: s.share_intro || '', share_link_days: s.share_link_days ?? 30 }); setEditShare(false) }}>Cancel</button>
+              </div>
+            )}
+            <p className="hint">Expired links stop working immediately and are auto-deleted daily. Current lifetime: <b>{s.share_link_days ?? 30}</b> days.</p>
+          </>
+        )}
+      </div>
+
+      <SettingsHistory />
 
       <div className="panel">
         <h4 title="The chatbot's persona and behaviour. SEBI compliance guardrails (no buy/sell advice, grounding rules) are enforced in code and cannot be removed here.">

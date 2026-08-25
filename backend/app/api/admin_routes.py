@@ -14,8 +14,8 @@ from pydantic import BaseModel, EmailStr, Field
 from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
 from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, InviteCode, PartnerKey,
-                             PipelineRun, Role, SessionLocal, StockScore, User, Waitlist,
-                             Invitation, EmailLog, TosAcceptance, TermsVersion)
+                             PipelineRun, Role, SessionLocal, SettingChange, StockScore,
+                             User, Waitlist, Invitation, EmailLog, TosAcceptance, TermsVersion)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -999,10 +999,23 @@ def get_app_settings():
 
 @router.put("/settings")
 def update_setting(req: SettingUpdate, admin: User = Depends(require_admin)):
+    old = get_setting(req.key)          # capture previous value for the change log
     try:
         set_setting(req.key, req.value)
     except (KeyError, ValueError) as e:
         raise HTTPException(400, str(e))
+    # Record the change (skip secrets; never store raw keys in history).
+    if req.key not in ("llm_api_keys", "web_search_api_key", "graph_client_secret"):
+        try:
+            dbh = SessionLocal()
+            try:
+                dbh.add(SettingChange(key=req.key, old_value=old, new_value=req.value,
+                                      changed_by=admin.email or ""))
+                dbh.commit()
+            finally:
+                dbh.close()
+        except Exception:
+            pass
     note = "Saved."
     try:
         if req.key == "daily_scoring_hour":
@@ -1019,6 +1032,21 @@ def update_setting(req: SettingUpdate, admin: User = Depends(require_admin)):
         note = "Saved - restart the backend to apply the new schedule."
     audit_log("setting_updated", key=req.key, value=req.value, by=admin.email)
     return {"key": req.key, "value": req.value, "note": note}
+
+
+@router.get("/settings-history")
+def settings_history(limit: int = 50, admin: User = Depends(require_admin)):
+    """Recent admin settings edits (who changed what, old -> new)."""
+    db = SessionLocal()
+    try:
+        rows = (db.query(SettingChange).order_by(SettingChange.changed_at.desc())
+                .limit(min(max(int(limit), 1), 200)).all())
+        return {"history": [{
+            "key": r.key, "old": r.old_value, "new": r.new_value,
+            "by": r.changed_by, "at": r.changed_at.isoformat() if r.changed_at else "",
+        } for r in rows]}
+    finally:
+        db.close()
 
 
 @router.get("/chat-feedback")

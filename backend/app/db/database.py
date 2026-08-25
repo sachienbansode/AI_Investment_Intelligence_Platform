@@ -344,6 +344,17 @@ class ChatShare(Base):
     expires_at = Column(DateTime, index=True, nullable=True)
 
 
+class SettingChange(Base):
+    """Audit history of admin settings edits (who changed what, old -> new)."""
+    __tablename__ = "setting_changes"
+    id = Column(Integer, primary_key=True)
+    key = Column(String, index=True)
+    old_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=True)
+    changed_by = Column(String, default="")
+    changed_at = Column(DateTime, default=utcnow, index=True)
+
+
 class EmailLog(Base):
     __tablename__ = "email_logs"
     id = Column(Integer, primary_key=True)

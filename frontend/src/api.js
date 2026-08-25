@@ -312,6 +312,7 @@ export const api = {
   },
   updateSetting: (key, value) =>
     http('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
+  settingsHistory: (limit = 50) => http('/admin/settings-history?limit=' + limit),
   research: () => http('/admin/research'),
   researchText: (title, text, source) =>
     http('/admin/research/text', { method: 'POST', body: JSON.stringify({ title, text, source }) }),
