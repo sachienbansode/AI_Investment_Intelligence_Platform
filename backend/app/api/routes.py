@@ -764,6 +764,47 @@ async def portfolio_report_pdf(req: PortfolioRequest, user: User = Depends(get_c
         headers={"Content-Disposition": 'attachment; filename="portfolio_analysis.pdf"'})
 
 
+class _ShareReq(BaseModel):
+    question: str = ""
+    answer: str
+    charts: list[dict] = []
+
+
+@router.post("/chat/share")
+async def chat_share(req: _ShareReq, user: User = Depends(get_current_user)):
+    """Create a public, expiring share link for one assistant answer."""
+    from app.services import share as sh
+    if not (req.answer or "").strip():
+        raise HTTPException(400, "answer is required")
+    out = sh.create_share(req.question, req.answer, charts=req.charts, user_id=user.id)
+    audit_log("chat_share_created", user_id=user.id, token=out["token"])
+    return out
+
+
+@router.post("/chat/share.pdf")
+async def chat_share_pdf(req: _ShareReq, user: User = Depends(get_current_user)):
+    """Branded PDF of one assistant answer (app intro + URL + disclaimer)."""
+    from app.services import share as sh
+    import io
+    if not (req.answer or "").strip():
+        raise HTTPException(400, "answer is required")
+    pdf = sh.build_share_pdf(req.question, req.answer)
+    audit_log("chat_share_pdf", user_id=user.id)
+    return StreamingResponse(
+        io.BytesIO(pdf), media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="niytri-ai-answer.pdf"'})
+
+
+@router.get("/public/share/{token}")
+async def public_share(token: str):
+    """Public (no-login) read-only view of a shared answer. 404 when expired."""
+    from app.services import share as sh
+    data = sh.get_share(token)
+    if not data:
+        raise HTTPException(404, "This shared link has expired or is not available.")
+    return data
+
+
 @router.get("/compare")
 async def compare(a: str, b: str, language: str = "en",
                   user: User = Depends(get_current_user)):

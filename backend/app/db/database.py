@@ -330,6 +330,20 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class ChatShare(Base):
+    """A public, expiring snapshot of one assistant answer, created when a user
+    shares a reply. Read-only; carries no PII beyond the Q&A text."""
+    __tablename__ = "chat_shares"
+    id = Column(Integer, primary_key=True)
+    token = Column(String, unique=True, index=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    question = Column(Text)
+    answer = Column(Text)
+    charts = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    expires_at = Column(DateTime, index=True, nullable=True)
+
+
 class EmailLog(Base):
     __tablename__ = "email_logs"
     id = Column(Integer, primary_key=True)

@@ -157,6 +157,22 @@ export const api = {
     http('/portfolio/save', { method: 'POST', body: JSON.stringify({ holdings }) }),
   compare: (a, b, language = 'en') =>
     http('/compare?' + new URLSearchParams({ a, b, language })),
+  shareCreate: (question, answer, charts = []) =>
+    http('/chat/share', { method: 'POST', body: JSON.stringify({ question, answer, charts }) }),
+  shareGet: (token) => http('/public/share/' + encodeURIComponent(token)),
+  sharePdf: async (question, answer) => {
+    const headers = { 'Content-Type': 'application/json' }
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(BASE + '/chat/share.pdf', {
+      method: 'POST', headers, body: JSON.stringify({ question, answer }),
+    })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `PDF failed (${res.status})`) }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'niytri-ai-answer.pdf'
+    document.body.appendChild(a); a.click()
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove() }, 1500)
+  },
   compareRandom: () => http('/compare/random'),
   downloadPortfolioPdf: async (holdings) => {
     const headers = { 'Content-Type': 'application/json' }

@@ -719,6 +719,47 @@ textarea:focus { border-color: var(--accent); }
   color: var(--faint); font-weight: 700; margin-left: 2px; }
 .followups .chip-row { justify-content: flex-start; margin-top: 6px; }
 
+/* ── Assistant in-chat charts ── */
+.chart-block { margin: 10px 0 4px; padding: 10px 12px; background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 10px; }
+.chart-title { font-weight: 600; font-size: .85rem; margin-bottom: 6px; color: var(--text); }
+.chart-note { font-size: .72rem; color: var(--faint); margin-top: 4px; }
+.pie-wrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.pie-svg { width: 150px; height: 150px; flex: none; }
+.pie-legend { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+.pie-legend div { display: flex; align-items: center; gap: 7px; }
+.pie-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+/* ── Share menu on an answer ── */
+.share-wrap { position: relative; display: inline-block; margin-left: auto; }
+.share-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30;
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.22); overflow: hidden; min-width: 150px; }
+.share-menu button { display: block; width: 100%; text-align: left; background: none;
+  border: none; color: var(--text); padding: 9px 14px; font-size: .85rem; cursor: pointer; }
+.share-menu button:hover { background: var(--panel2); }
+
+/* ── Public shared-answer page (/s/:token) ── */
+.ps-page { min-height: 100vh; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.ps-top { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg2); }
+.ps-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-size: 1rem; }
+.ps-mark { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+.ps-cta { display: inline-block; background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; text-decoration: none; padding: 9px 16px; border-radius: 999px; font-weight: 600; font-size: .9rem; }
+.ps-main { flex: 1; display: flex; justify-content: center; padding: 26px 16px; }
+.ps-card { width: 100%; max-width: 720px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow); }
+.ps-intro { color: var(--muted); font-size: .9rem; margin: 0 0 14px; }
+.ps-q { background: var(--panel2); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+.ps-q span { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
+.ps-q p { margin: 4px 0 0; font-weight: 600; }
+.ps-actions { margin: 20px 0 8px; }
+.ps-disc { font-size: .72rem; color: var(--faint); border-top: 1px solid var(--border); padding-top: 12px; margin-top: 16px; }
+.ps-foot { text-align: center; padding: 16px; font-size: .78rem; color: var(--faint); }
+.ps-foot a { color: var(--accent); }
+
 /* ── Assistant "ask for input" prompt (chips / text / mixed) ── */
 .clarify { margin: 10px 0 2px; padding: 10px 12px; background: var(--panel2);
   border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; }

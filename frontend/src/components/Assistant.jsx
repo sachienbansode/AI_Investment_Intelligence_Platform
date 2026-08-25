@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 import AiIcon from './AiIcon.jsx'
+import ChartBlock from './ChartBlock.jsx'
 import { confirmDialog, toast } from '../dialog.jsx'
 
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
@@ -65,6 +66,42 @@ function ClarifyBox({ clarify, onSend, disabled }) {
                  onChange={e => setVal(e.target.value)}
                  onKeyDown={e => e.key === 'Enter' && go(val)} />
           <button className="sm" disabled={disabled || !val.trim()} onClick={() => go(val)}>Send</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function _summary(a) {
+  return String(a || '').replace(/[*>#`_]/g, '').replace(/\s+/g, ' ').trim().slice(0, 180)
+}
+
+// Per-answer share menu: WhatsApp / Email / copy public link / download PDF.
+// Every channel carries the app intro + public URL (created lazily on first use).
+function ShareMenu({ question, answer, charts }) {
+  const [open, setOpen] = useState(false)
+  const [link, setLink] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const ensure = async () => {
+    if (link) return link
+    const r = await api.shareCreate(question || '', answer || '', charts || [])
+    setLink(r); return r
+  }
+  const text = r => (r.intro || '') + '\n\n' + _summary(answer) + '\n\n' + r.url
+  const wrap = async fn => { setBusy(true); try { await fn() } catch (e) { toast(e.message || 'Share failed', { type: 'error' }) } finally { setBusy(false); setOpen(false) } }
+  const onWhatsApp = () => wrap(async () => { const r = await ensure(); window.open('https://wa.me/?text=' + encodeURIComponent(text(r)), '_blank') })
+  const onEmail = () => wrap(async () => { const r = await ensure(); window.location.href = 'mailto:?subject=' + encodeURIComponent('From NIYTRI AI') + '&body=' + encodeURIComponent(text(r)) })
+  const onCopy = () => wrap(async () => { const r = await ensure(); try { await navigator.clipboard.writeText(r.url); toast('Public link copied') } catch { toast(r.url) } })
+  const onPdf = () => wrap(async () => { await api.sharePdf(question || '', answer || '') })
+  return (
+    <div className="share-wrap">
+      <button className="fb-btn" onClick={() => setOpen(o => !o)} disabled={busy}>{busy ? '…' : 'Share'}</button>
+      {open && (
+        <div className="share-menu">
+          <button onClick={onWhatsApp}>WhatsApp</button>
+          <button onClick={onEmail}>Email</button>
+          <button onClick={onCopy}>Copy link</button>
+          <button onClick={onPdf}>Download PDF</button>
         </div>
       )}
     </div>
@@ -281,6 +318,7 @@ export default function Assistant({ seed, clearSeed, go }) {
       setMessages(m => [...m, {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider, clarify: r.clarify,
+        charts: r.charts,
       }])
       setFollowups(buildFollowups(q, r.answer, r.sources))
       loadSessions()
@@ -359,6 +397,8 @@ export default function Assistant({ seed, clearSeed, go }) {
                 {m.role === 'assistant'
                   ? <div className="md" onClick={onContentClick} dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
                   : <p>{m.text}</p>}
+                {m.role === 'assistant' && m.charts?.length > 0 &&
+                  m.charts.map((c, ci) => <ChartBlock key={ci} spec={c} />)}
                 {m.role === 'assistant' && m.sources?.length > 0 && (
                   <div className="meta">
                     <details>
@@ -386,6 +426,7 @@ export default function Assistant({ seed, clearSeed, go }) {
                           <button className="fb-btn" onClick={() => rate(i, 1)}>Yes</button>
                           <button className="fb-btn" onClick={() => rate(i, -1)}>No</button>
                         </>}
+                    <ShareMenu question={i > 0 ? messages[i - 1].text : ''} answer={m.text} charts={m.charts} />
                   </div>
                 )}
               </div>

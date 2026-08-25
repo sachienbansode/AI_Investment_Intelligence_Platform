@@ -75,6 +75,10 @@ DEFAULTS: dict = {
     "platform_label": "NIYTRI Investment Intelligence",    # brand shown in the assistant's answer "Basis:" tag
     "ticker_position": "top",         # NSE/BSE index ticker placement: top | bottom | right
     "show_active_model": True,        # show the currently active AI model in the top bar
+    # Public sharing of a chat answer (WhatsApp / email / PDF / link).
+    "app_public_url": "https://dev-invest.niytri.com",   # base URL used in shares
+    "share_intro": "Shared from NIYTRI Investment Intelligence — AI-powered insights on Indian stocks.",
+    "share_link_days": 30,            # public share link lifetime (days)
     # Self-service registration (public landing). Modes: invite_only | open | closed.
     "registration_mode": "invite_only",
     "invites_per_user": 5,            # invite codes each member can share
@@ -293,6 +297,15 @@ def _validate(key: str, value) -> None:
     elif key == "ticker_position":
         if value not in ("top", "bottom", "right"):
             raise ValueError("ticker_position must be top, bottom or right")
+    elif key == "app_public_url":
+        if not (isinstance(value, str) and value.strip().startswith("http") and len(value) <= 200):
+            raise ValueError("app_public_url must be an http(s) URL")
+    elif key == "share_intro":
+        if not (isinstance(value, str) and 1 <= len(value.strip()) <= 300):
+            raise ValueError("share_intro must be 1-300 characters")
+    elif key == "share_link_days":
+        if not (isinstance(value, int) and 1 <= value <= 365):
+            raise ValueError("share_link_days must be an integer 1-365")
     elif key == "llm_models":
         if not isinstance(value, dict):
             raise ValueError("llm_models must be a dict of provider -> model")

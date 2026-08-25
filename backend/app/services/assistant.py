@@ -88,6 +88,29 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   Use "select" when the sensible answers are a small finite set (2-4 options), "input"
   for a free value (a number or name, omit options), "mixed" when common options AND a
   free value both make sense.
+- TABLES: when comparing items or listing several rows of data (e.g. multiple stocks
+  with score / price / P/E), you MAY format them as a GitHub-style markdown table
+  (| col | col |, with a |---|---| separator row) - it renders as a real table.
+- CHARTS: when a chart makes the answer clearer, you MAY request one by appending a
+  block at the VERY END (removed before display, rendered from LIVE platform data):
+  [[CHART]]
+  type: score_history | price_history | compare | sector | distribution
+  symbol: <ONE symbol>            (for score_history / price_history)
+  symbols: <SYM_A>, <SYM_B>       (for compare, exactly two)
+  [[/CHART]]
+  Use score_history / price_history for one stock, compare for two, sector for
+  sector-strength, distribution for the market score spread. These pull real data,
+  so ONLY use a symbol that exists. You may add up to TWO [[CHART]] blocks.
+  For an ILLUSTRATIVE chart of numbers you are explaining (NOT live prices/levels),
+  use instead:
+  [[CHARTDATA]]
+  kind: bar | line | pie
+  title: <short title>
+  x: <label1>, <label2>, <label3>
+  y: <num1>, <num2>, <num3>
+  [[/CHARTDATA]]
+  Illustrative charts are clearly labelled as such; NEVER use CHARTDATA for a live
+  price, index level or exchange rate (those must come from real data / WEB_RESULTS).
 - LIVE FIGURES (critical - prevents stale prices): for ANY time-sensitive PRICE or
   LEVEL that is not the platform's own data - gold and commodity prices, crude/Brent,
   index levels, USD/INR and other FX, or a non-platform quote - take the number ONLY
@@ -945,6 +968,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             confidence = 0.3
             sources = []
     answer_text, clarify = _extract_ask(answer_text)
+    answer_text, charts = _extract_charts(answer_text)
     answer_text = _guard_stale_price(question, answer_text, web_text)
     latency_ms = int((time.time() - _t0) * 1000)
 
@@ -987,7 +1011,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
               n_sources=len(sources), confidence=confidence)
 
     return AskAIResponse(answer=answer_text, sources=sources, confidence=round(confidence, 2),
-                         provider=provider, disclaimer=AI_DISCLAIMER, clarify=clarify)
+                         provider=provider, disclaimer=AI_DISCLAIMER, clarify=clarify,
+                         charts=charts)
 
 
 
@@ -1066,6 +1091,65 @@ def _guard_stale_price(question: str, answer: str, web_text: str) -> str:
             log.info("stale-price guard tripped: unverified figure %s", f)
             return _stale_price_reply()
     return answer
+
+
+
+_CHART_RE = re.compile(r"\[\[CHART\]\](.*?)\[\[/CHART\]\]", re.DOTALL | re.IGNORECASE)
+_CHARTDATA_RE = re.compile(r"\[\[CHARTDATA\]\](.*?)\[\[/CHARTDATA\]\]", re.DOTALL | re.IGNORECASE)
+_BOUND_TYPES = {"score_history", "price_history", "compare", "sector", "distribution"}
+
+
+def _kv(body: str) -> dict:
+    d = {}
+    for line in body.splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            d[k.strip().lower()] = v.strip()
+    return d
+
+
+def _extract_charts(text: str):
+    """Pull optional [[CHART]] / [[CHARTDATA]] blocks out of the reply. Returns
+    (clean_text, [chart_specs]). Max 3 charts. Malformed blocks are dropped."""
+    if not text:
+        return text, []
+    charts = []
+    for m in _CHART_RE.finditer(text):
+        d = _kv(m.group(1))
+        t = (d.get("type") or "").lower()
+        if t not in _BOUND_TYPES:
+            continue
+        spec = {"src": "bound", "type": t}
+        if t in ("score_history", "price_history"):
+            sym = (d.get("symbol") or "").upper().strip()
+            if not sym:
+                continue
+            spec["symbol"] = sym
+        elif t == "compare":
+            syms = [x.strip().upper() for x in (d.get("symbols") or "").split(",") if x.strip()]
+            if len(syms) < 2:
+                continue
+            spec["symbols"] = syms[:2]
+        charts.append(spec)
+    for m in _CHARTDATA_RE.finditer(text):
+        d = _kv(m.group(1))
+        x = [v.strip() for v in (d.get("x") or "").split(",") if v.strip()]
+        yv = []
+        for v in (d.get("y") or "").split(","):
+            v = v.strip().replace(",", "")
+            try:
+                yv.append(float(v))
+            except Exception:
+                pass
+        if len(x) >= 2 and len(yv) >= 2:
+            n = min(len(x), len(yv))
+            kind = (d.get("kind") or "bar").lower()
+            charts.append({"src": "data", "kind": kind if kind in ("bar", "line", "pie") else "bar",
+                           "title": (d.get("title") or "Illustrative")[:80],
+                           "x": x[:n], "y": yv[:n]})
+    clean = _CHART_RE.sub("", text)
+    clean = _CHARTDATA_RE.sub("", clean).strip()
+    return clean, charts[:3]
 
 
 def _pct_in_range(last, lo, hi):
