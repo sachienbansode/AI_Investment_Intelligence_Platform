@@ -54,20 +54,27 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   ANY range (7/15/30/90 days, since a date, etc.), use that history / the read-only
   SQL tool (DB_QUERY_RESULTS). NEVER claim only a few days are available, and never
   refuse a longer-period trend on the grounds of a limited data window.
-- SCOPE (HARD LIMIT - this overrides the "answer from general knowledge" allowance
-  above): you ONLY answer questions about Indian equity markets - NSE/BSE stocks,
-  indices, sectors, market news, the NIYTRI Score, and the user's own watchlist /
-  portfolio - PLUS general investing and market CONCEPTS (e.g. "what is P/E",
-  "what does market cap mean", "how does an IPO work"). For ANYTHING outside that -
-  general knowledge, politics or government, public officials or people (e.g. "who is
-  the President of India"), history, geography, sport, entertainment, health, law,
-  coding, maths/trivia, crypto, commodities, or foreign indices like the Dow Jones -
-  do NOT answer, EVEN IF you know the answer and even if the user insists. In ONE
-  short, polite sentence say it is outside what this platform covers (Indian equity
-  markets) and offer relevant market help instead. NEVER answer an off-topic question
-  "from general knowledge". Do NOT mention internal data, your context, tools or model
-  limitations, and never say things like "not available in my context". If you
-  genuinely lack a specific MARKET figure, say you don't have it right now - never
+- SCOPE: answer any question about Indian equity markets AND any macro / global /
+  cross-asset factor that DIRECTLY OR INDIRECTLY affects them. IN SCOPE: NSE/BSE
+  stocks, indices, sectors, market news, the NIYTRI Score, the user's watchlist /
+  portfolio; general investing/market CONCEPTS (P/E, market cap, IPOs, 52-week
+  range); AND macro drivers that move Indian equities - e.g. gold and other
+  commodities, crude oil, USD/INR and currencies, US & global indices (Dow, Nasdaq,
+  Nikkei, Hang Seng), US Fed / RBI policy, interest rates and bond yields, FII/DII
+  flows, inflation, and global or geopolitical events (wars, tariffs). For these
+  macro topics ALWAYS frame the answer around what it means FOR INDIAN equity
+  markets / sectors / stocks - e.g. for "gold trend": give the recent trend AND its
+  read-through for Indian markets (safe-haven flows, gold-financing / jewellery
+  names, inflation and rate implications). Use current internet / WEB_RESULTS data
+  whenever the figure or trend is time-sensitive.
+- OUT OF SCOPE (politely decline in ONE short sentence, then offer market help):
+  questions with NO bearing on markets - general knowledge, politics or government,
+  public officials or people (e.g. "who is the President of India"), history,
+  geography, sport, entertainment, health, law, coding, or maths/trivia. Do NOT
+  answer these even if you know the answer or the user insists. NEVER answer an
+  off-topic question "from general knowledge". Never mention internal data, your
+  context, tools or model limitations, and never say "not available in my context".
+  If you lack a specific MARKET figure, say you don't have it right now - never
   invent data and never reference your context.
 - BROKER_RESEARCH passages are cited reference material from the firm's research
   desk. You may summarise and quote them and MUST attribute them (mention the
@@ -325,9 +332,18 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     # WEB intent: current events / macro / regulatory / company news the DB & RSS
     # can't cover. Fires only on an explicit "fresh/external" signal (not on pure
     # score/top-N questions, which the DB answers, nor on plain definitions).
-    _is_def = bool(_re.match(r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql))
+    # Macro / cross-asset drivers that move Indian equities - these need live web
+    # data even when phrased as "what is <X> trend" (so they are NOT plain defs).
+    _macro = any(k in _ql for k in (
+        "gold", "silver", "commodit", "crude", "brent", " oil", "opec",
+        "dollar", " usd", "rupee", " inr", " fed", "federal reserve", "fomc",
+        "treasury", "bond yield", "yields", "dow", "nasdaq", "s&p", "nikkei",
+        "hang seng", "ftse", "global market", "us market", "tariff", "geopolit",
+        " war", "sanction"))
+    _is_def = bool(_re.match(r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql)) and not _macro
     wants_web = bool(get_setting("web_search_enabled")) and not _is_def and (
-        bool(_re.search(r"\b(latest|today|current|currently|now|recent|yesterday|this week|breaking|update|updates|happening|news)\b", _ql))
+        _macro
+        or bool(_re.search(r"\b(latest|today|current|currently|now|recent|yesterday|this week|breaking|update|updates|happening|news|trend)\b", _ql))
         or bool(_re.search(r"\bwhy\s+(did|is|are|has|have|was|were)\b", _ql))
         or any(k in _ql for k in (
             " rbi", " sebi", "budget", "repo rate", "interest rate", "inflation", "cpi ",
