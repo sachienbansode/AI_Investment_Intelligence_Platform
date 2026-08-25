@@ -367,11 +367,13 @@ function ValueAdd() {
   if (!d || !d.available) return null
   const b = d.bands || {}
   const f = v => (v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%')
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const dmy = s => (s && s.length >= 10 ? `${s.slice(8, 10)}-${MON[(+s.slice(5, 7) || 1) - 1]}-${s.slice(0, 4)}` : s)
   const cards = [['Strong 65+', b.strong, 'g'], ['Neutral 50–64', b.neutral, 'a'], ['Weak <50', b.weak, 'r']]
   return (
     <section className="lp-sec">
       <h2>Does the <span className="lp-grad">NIYTRI Score</span> add value?</h2>
-      <div className="lp-subh">Average {d.horizon_days}-trading-day move after each score, by band — from our live scores ({d.from} → {d.to}).</div>
+      <div className="lp-subh">Average {d.horizon_days}-trading-day move after each score, by band · {dmy(d.from)} to {dmy(d.to)}</div>
       <div className="lp-va">
         {cards.map(([lab, x, c]) => (
           <div className={'lp-va-c ' + c} key={lab}>
@@ -876,7 +878,7 @@ const CSS = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@40
 @media(max-width:640px){.lp-va{grid-template-columns:1fr 1fr}}
 .lp-exlast{font-weight:800;font-size:18px;white-space:nowrap;text-align:right}.lp-exlast span{color:var(--mut);font-weight:600;font-size:12px}
 .lp-sec h2{font-size:clamp(24px,3vw,34px);font-weight:800;text-align:center;letter-spacing:-.4px}
-.lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:620px;font-size:15px}
+.lp-subh{color:var(--mut);text-align:center;margin:12px auto 30px;max-width:760px;font-size:15px}
 .lp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .lp-card{border-radius:18px;padding:24px;border:1px solid var(--line);background:#fff;transition:.18s;box-shadow:0 10px 30px rgba(24,29,39,.04)}
 .lp-card:hover{transform:translateY(-6px);border-color:var(--or1);box-shadow:0 18px 44px rgba(255,106,0,.12)}
