@@ -358,6 +358,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     deterministic = None   # exact code-computed answer, used as offline fallback
     pf_intent = False      # user asked about their own portfolio
     pf_holdings = []
+    build_pending = False  # a portfolio-build step-1 (suggest + ask amount) was just offered
     context_parts: list[str] = []
     score_label = get_setting("score_label") or "NIYTRI Score"
     platform_label = get_setting("platform_label") or "NIYTRI AI"
@@ -745,6 +746,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                      .filter_by(user_id=user_id, session_id=session_id)
                      .order_by(ChatMessage.created_at.desc()).limit(n_hist).all())
         history = "\n".join(f"{r.role}: {r.content[:400]}" for r in reversed(hist_rows))
+        # A portfolio-build step-1 was just offered? (marker can sit past the 400-char
+        # history cutoff, so scan the FULL recent assistant messages.)
+        build_pending = any(r.role == "assistant" and _STEP1_MARKER in (r.content or "").lower()
+                            for r in hist_rows)
     finally:
         db.close()
 
@@ -965,7 +970,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     _t0 = time.time()
     builder_answer = None
     try:
-        builder_answer = _portfolio_builder(question, history, user_id)
+        builder_answer = _portfolio_builder(question, history, user_id, build_pending)
     except Exception as _be:
         log.warning("portfolio builder failed: %s", _be)
         builder_answer = None
@@ -1317,7 +1322,7 @@ def _ltp_map(db, syms):
     return out
 
 
-def _portfolio_builder(question, history, user_id):
+def _portfolio_builder(question, history, user_id, build_pending=False):
     """Deterministic NIYTRI-score portfolio builder. Step 1: suggest strong stocks
     across sectors + ask for the amount. Step 2 (amount given): allocate by LTP and
     show the basket + analysis. Always carries the internal-scores disclaimer.
@@ -1325,7 +1330,7 @@ def _portfolio_builder(question, history, user_id):
     ql = (question or "").lower()
     amount = _parse_amount(question)
     is_build = _wants_build(ql)
-    step2 = amount is not None and _STEP1_MARKER in (history or "").lower()
+    step2 = amount is not None and (build_pending or _STEP1_MARKER in (history or "").lower())
     if not (is_build or step2):
         return None
 
