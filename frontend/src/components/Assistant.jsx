@@ -89,15 +89,18 @@ function ShareMenu({ question, answer, charts }) {
     setLink(r); return r
   }
   const text = r => (r.intro || '') + '\n\n' + _summary(answer) + '\n\n' + r.url
-  const wrap = async fn => { setBusy(true); try { await fn() } catch (e) { toast(e.message || 'Share failed', { type: 'error' }) } finally { setBusy(false); setOpen(false) } }
-  const onWhatsApp = () => wrap(async () => { const r = await ensure(); window.open('https://wa.me/?text=' + encodeURIComponent(text(r)), '_blank') })
-  const onEmail = () => wrap(async () => { const r = await ensure(); window.location.href = 'mailto:?subject=' + encodeURIComponent('From NIYTRI AI') + '&body=' + encodeURIComponent(text(r)) })
-  const onCopy = () => wrap(async () => { const r = await ensure(); try { await navigator.clipboard.writeText(r.url); toast('Public link copied') } catch { toast(r.url) } })
-  const onPdf = () => wrap(async () => { await api.sharePdf(question || '', answer || '') })
+  // Create the link as soon as the menu opens, so the channel click opens the mail /
+  // WhatsApp window synchronously within the user gesture (avoids pop-up/gesture block).
+  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(() => {}).finally(() => setBusy(false)) } }
+  const nav = (href, blank) => { const a = document.createElement('a'); a.href = href; if (blank) { a.target = '_blank'; a.rel = 'noopener' } document.body.appendChild(a); a.click(); a.remove() }
+  const go = make => { if (!link) { toast('Preparing the link — tap again in a second.'); return } make(link); setOpen(false) }
+  const onWhatsApp = () => go(r => nav('https://wa.me/?text=' + encodeURIComponent(text(r)), true))
+  const onEmail = () => go(r => nav('mailto:?subject=' + encodeURIComponent('From NIYTRI AI') + '&body=' + encodeURIComponent(text(r)), false))
+  const onCopy = () => go(async r => { try { await navigator.clipboard.writeText(r.url); toast('Public link copied') } catch { toast(r.url) } })
   return (
     <div className="share-wrap">
       <button className="fb-btn share-btn" title="Share" aria-label="Share"
-              onClick={() => setOpen(o => !o)} disabled={busy}>
+              onClick={openMenu} disabled={busy}>
         {busy ? '…' : (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -124,16 +127,17 @@ function SessionShareMenu({ sessionId, hasMessages }) {
   const [busy, setBusy] = useState(false)
   const ensure = async () => { if (link) return link; const r = await api.shareSession(sessionId); setLink(r); return r }
   const text = r => (r.intro || '') + '\n\n' + r.url
-  const wrap = async fn => { setBusy(true); try { await fn() } catch (e) { toast(e.message || 'Share failed', { type: 'error' }) } finally { setBusy(false); setOpen(false) } }
-  const onWhatsApp = () => wrap(async () => { const r = await ensure(); window.open('https://wa.me/?text=' + encodeURIComponent(text(r)), '_blank') })
-  const onEmail = () => wrap(async () => { const r = await ensure(); window.location.href = 'mailto:?subject=' + encodeURIComponent('My NIYTRI AI chat') + '&body=' + encodeURIComponent(text(r)) })
-  const onCopy = () => wrap(async () => { const r = await ensure(); try { await navigator.clipboard.writeText(r.url); toast('Chat link copied') } catch { toast(r.url) } })
-  const onPdf = () => wrap(async () => { await api.shareSessionPdf(sessionId) })
+  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(() => {}).finally(() => setBusy(false)) } }
+  const nav = (href, blank) => { const a = document.createElement('a'); a.href = href; if (blank) { a.target = '_blank'; a.rel = 'noopener' } document.body.appendChild(a); a.click(); a.remove() }
+  const go = make => { if (!link) { toast('Preparing the link — tap again in a second.'); return } make(link); setOpen(false) }
+  const onWhatsApp = () => go(r => nav('https://wa.me/?text=' + encodeURIComponent(text(r)), true))
+  const onEmail = () => go(r => nav('mailto:?subject=' + encodeURIComponent('My NIYTRI AI chat') + '&body=' + encodeURIComponent(text(r)), false))
+  const onCopy = () => go(async r => { try { await navigator.clipboard.writeText(r.url); toast('Chat link copied') } catch { toast(r.url) } })
   if (!hasMessages) return null
   return (
     <div className="share-wrap">
       <button className="sm ghost share-btn" title="Share this chat" aria-label="Share chat"
-              onClick={() => setOpen(o => !o)} disabled={busy}>
+              onClick={openMenu} disabled={busy}>
         {busy ? '\u2026' : (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

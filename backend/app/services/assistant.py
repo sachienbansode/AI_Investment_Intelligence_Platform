@@ -1081,10 +1081,15 @@ def _extract_form(text: str):
         elif low.startswith("field:"):
             parts = [p.strip() for p in line[6:].split("|")]
             if len(parts) >= 3:
-                f = {"key": parts[0], "type": parts[1].lower(), "label": parts[2],
-                     "options": [o.strip() for o in parts[3].split(",")] if len(parts) > 3 and parts[3] else [],
-                     "default": parts[4] if len(parts) > 4 else ""}
-                fields.append(f)
+                typ = parts[1].lower()
+                if typ == "select":
+                    opts = [o.strip() for o in parts[3].split(",")] if len(parts) > 3 and parts[3] else []
+                    default = parts[4] if len(parts) > 4 else (opts[0] if opts else "")
+                else:                       # number / text: 4th part is the default
+                    opts = []
+                    default = parts[3] if len(parts) > 3 else ""
+                fields.append({"key": parts[0], "type": typ, "label": parts[2],
+                               "options": opts, "default": default})
     clean = _FORM_RE.sub("", text).strip()
     if not fields:
         return clean, None
@@ -1323,12 +1328,13 @@ def _wants_build(ql):
 
 def _parse_universe(text):
     t = (text or "").lower()
-    if any(k in t for k in ("nifty 50", "nifty50", "nifty-50", "nse50", "nse 50", "top 50")):
-        return "nifty50"
-    if any(k in t for k in ("all nse", "all stock", "entire", "whole market", "all listed", "everything")):
-        return "all"
+    # Check 500 BEFORE 50 — "nifty 50" is a substring of "nifty 500".
     if any(k in t for k in ("nifty 500", "nifty500", "nifty-500", "nse500", "nse 500")):
         return "nifty500"
+    if any(k in t for k in ("all nse", "all stock", "entire", "whole market", "all listed", "everything")):
+        return "all"
+    if any(k in t for k in ("nifty 50", "nifty50", "nifty-50", "nse50", "nse 50", "top 50")):
+        return "nifty50"
     return None
 
 
