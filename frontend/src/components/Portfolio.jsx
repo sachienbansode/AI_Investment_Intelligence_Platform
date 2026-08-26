@@ -132,12 +132,21 @@ export default function Portfolio() {
     const r = await api.shareCreate('My portfolio analysis', shareText(), shareCharts())
     shareLink.current = r; return r
   }
-  const openShare = () => { const n = !shareOpen; setShareOpen(n); if (n && !shareLink.current) { setShareBusy(true); ensureShare().catch(() => {}).finally(() => setShareBusy(false)) } }
+  const [shareReady, setShareReady] = useState(false)
+  const openShare = () => {
+    const n = !shareOpen; setShareOpen(n)
+    if (n && !shareLink.current) {
+      setShareBusy(true)
+      ensureShare().then(() => setShareReady(true))
+        .catch(e => toast(e.message || 'Could not create link', { type: 'error' }))
+        .finally(() => setShareBusy(false))
+    } else if (n) { setShareReady(true) }
+  }
   const shareNav = (href, blank) => { const a = document.createElement('a'); a.href = href; if (blank) { a.target = '_blank'; a.rel = 'noopener' } document.body.appendChild(a); a.click(); a.remove() }
   const shareText2 = r => (r.intro || '') + '\n\n' + r.url
-  const shareGo = make => { const r = shareLink.current; if (!r) { toast('Preparing the link — tap again in a second.'); return } make(r); setShareOpen(false) }
+  const shareGo = make => { const r = shareLink.current; if (!r) return; make(r); setShareOpen(false) }
   const shareWhatsApp = () => shareGo(r => shareNav('https://wa.me/?text=' + encodeURIComponent(shareText2(r)), true))
-  const shareEmail = () => shareGo(r => shareNav('mailto:?subject=' + encodeURIComponent('My portfolio analysis') + '&body=' + encodeURIComponent(shareText2(r)), false))
+  const shareEmail = () => shareGo(r => shareNav('https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent('My portfolio analysis') + '&body=' + encodeURIComponent(shareText2(r)), true))
   const shareCopy = () => shareGo(async r => { try { await navigator.clipboard.writeText(r.url); toast('Public link copied') } catch { toast(r.url) } })
 
   async function analyze() {
@@ -275,9 +284,10 @@ export default function Portfolio() {
             </button>
             {shareOpen && (
               <div className="share-menu down">
-                <button onClick={shareWhatsApp}>WhatsApp</button>
-                <button onClick={shareEmail}>Email</button>
-                <button onClick={shareCopy}>Copy link</button>
+                {!shareReady && <div className="share-prep">Preparing link…</div>}
+                <button onClick={shareWhatsApp} disabled={!shareReady}>WhatsApp</button>
+                <button onClick={shareEmail} disabled={!shareReady}>Email (Gmail)</button>
+                <button onClick={shareCopy} disabled={!shareReady}>Copy link</button>
                 <button onClick={() => { setShareOpen(false); downloadPdf() }}>Download PDF</button>
               </div>
             )}

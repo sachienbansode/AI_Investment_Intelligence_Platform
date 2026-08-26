@@ -91,11 +91,11 @@ function ShareMenu({ question, answer, charts }) {
   const text = r => (r.intro || '') + '\n\n' + _summary(answer) + '\n\n' + r.url
   // Create the link as soon as the menu opens, so the channel click opens the mail /
   // WhatsApp window synchronously within the user gesture (avoids pop-up/gesture block).
-  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(() => {}).finally(() => setBusy(false)) } }
+  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(e => toast(e.message || 'Could not create link', { type: 'error' })).finally(() => setBusy(false)) } }
   const nav = (href, blank) => { const a = document.createElement('a'); a.href = href; if (blank) { a.target = '_blank'; a.rel = 'noopener' } document.body.appendChild(a); a.click(); a.remove() }
-  const go = make => { if (!link) { toast('Preparing the link — tap again in a second.'); return } make(link); setOpen(false) }
+  const go = make => { if (!link) return; make(link); setOpen(false) }
   const onWhatsApp = () => go(r => nav('https://wa.me/?text=' + encodeURIComponent(text(r)), true))
-  const onEmail = () => go(r => nav('mailto:?subject=' + encodeURIComponent('From NIYTRI AI') + '&body=' + encodeURIComponent(text(r)), false))
+  const onEmail = () => go(r => nav('https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent('From NIYTRI AI') + '&body=' + encodeURIComponent(text(r)), true))
   const onCopy = () => go(async r => { try { await navigator.clipboard.writeText(r.url); toast('Public link copied') } catch { toast(r.url) } })
   return (
     <div className="share-wrap">
@@ -111,9 +111,10 @@ function ShareMenu({ question, answer, charts }) {
       </button>
       {open && (
         <div className="share-menu">
-          <button onClick={onWhatsApp}>WhatsApp</button>
-          <button onClick={onEmail}>Email</button>
-          <button onClick={onCopy}>Copy link</button>
+          {!link && <div className="share-prep">Preparing link…</div>}
+          <button onClick={onWhatsApp} disabled={!link}>WhatsApp</button>
+          <button onClick={onEmail} disabled={!link}>Email (Gmail)</button>
+          <button onClick={onCopy} disabled={!link}>Copy link</button>
         </div>
       )}
     </div>
@@ -127,11 +128,11 @@ function SessionShareMenu({ sessionId, hasMessages }) {
   const [busy, setBusy] = useState(false)
   const ensure = async () => { if (link) return link; const r = await api.shareSession(sessionId); setLink(r); return r }
   const text = r => (r.intro || '') + '\n\n' + r.url
-  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(() => {}).finally(() => setBusy(false)) } }
+  const openMenu = () => { const n = !open; setOpen(n); if (n && !link) { setBusy(true); ensure().catch(e => toast(e.message || 'Could not create link', { type: 'error' })).finally(() => setBusy(false)) } }
   const nav = (href, blank) => { const a = document.createElement('a'); a.href = href; if (blank) { a.target = '_blank'; a.rel = 'noopener' } document.body.appendChild(a); a.click(); a.remove() }
-  const go = make => { if (!link) { toast('Preparing the link — tap again in a second.'); return } make(link); setOpen(false) }
+  const go = make => { if (!link) return; make(link); setOpen(false) }
   const onWhatsApp = () => go(r => nav('https://wa.me/?text=' + encodeURIComponent(text(r)), true))
-  const onEmail = () => go(r => nav('mailto:?subject=' + encodeURIComponent('My NIYTRI AI chat') + '&body=' + encodeURIComponent(text(r)), false))
+  const onEmail = () => go(r => nav('https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent('My NIYTRI AI chat') + '&body=' + encodeURIComponent(text(r)), true))
   const onCopy = () => go(async r => { try { await navigator.clipboard.writeText(r.url); toast('Chat link copied') } catch { toast(r.url) } })
   if (!hasMessages) return null
   return (
@@ -148,9 +149,10 @@ function SessionShareMenu({ sessionId, hasMessages }) {
       </button>
       {open && (
         <div className="share-menu down">
-          <button onClick={onWhatsApp}>WhatsApp</button>
-          <button onClick={onEmail}>Email</button>
-          <button onClick={onCopy}>Copy link</button>
+          {!link && <div className="share-prep">Preparing link…</div>}
+          <button onClick={onWhatsApp} disabled={!link}>WhatsApp</button>
+          <button onClick={onEmail} disabled={!link}>Email (Gmail)</button>
+          <button onClick={onCopy} disabled={!link}>Copy link</button>
         </div>
       )}
     </div>
