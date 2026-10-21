@@ -38,6 +38,19 @@ const SHORT_LABEL = { 'AI Assistant': 'NIYTRI AI', 'Stock Scores': 'Scores', 'Ma
 // Display label for the sidebar/page title (internal key stays 'AI Assistant').
 const NAV_LABEL = { 'AI Assistant': 'NIYTRI AI' }
 const label = name => NAV_LABEL[name] || name
+// Sidebar grouping (professional grouped menu) + small badge per item.
+const NAV_GROUPS = [
+  ['Main', ['Dashboard', 'AI Assistant', 'Stock Scores', 'Compare', 'Market News']],
+  ['My Desk', ['Watchlist', 'Portfolio', 'Alerts']],
+  ['Pipeline', ['Agents', 'Audit']],
+  ['Admin', ['Users', 'Admin', 'About']],
+]
+const NAV_BADGE = {
+  'Dashboard': ['HOME', 'o'], 'AI Assistant': ['CHAT', 'b'], 'Stock Scores': ['SCORES', ''],
+  'Compare': ['VS', ''], 'Market News': ['NEWS', ''], 'Watchlist': ['WATCH', ''],
+  'Portfolio': ['P&L', 'g'], 'Agents': ['LIVE', 'g'], 'Audit': ['LOG', ''],
+  'Users': ['RBAC', 'b'], 'Admin': ['CFG', 'o'], 'About': ['i', ''],
+}
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
 
 function Consent({ brand, onAccept, onSignOut }) {
@@ -220,14 +233,31 @@ export default function App() {
           </button>
         </div>
         <nav>
-          {nav.map(n => (
-            <button key={n.name} className={tab === n.name ? 'active' : ''}
-                    title={label(n.name)} onClick={() => selectTab(n.name)}>
-              <span className="nav-icon">{n.icon}</span>
-              <span className="nav-label">{label(n.name)}</span>
-              {n.name === 'Alerts' && alertUnread > 0 && <span className="nav-badge">{alertUnread}</span>}
-            </button>
-          ))}
+          {(() => {
+            const grouped = new Set(NAV_GROUPS.flatMap(g => g[1]))
+            const sections = NAV_GROUPS.map(([title, names]) => [title, names.filter(can)])
+            const extra = pages.filter(p => !grouped.has(p))
+            if (extra.length) sections.push(['More', extra])
+            const itemBtn = name => {
+              const [bt, bc] = NAV_BADGE[name] || ['', '']
+              return (
+                <button key={name} className={tab === name ? 'active' : ''}
+                        title={label(name)} onClick={() => selectTab(name)}>
+                  <span className="nav-icon">{ICONS[name] || String.fromCharCode(0x2022)}</span>
+                  <span className="nav-label">{label(name)}</span>
+                  {name === 'Alerts' && alertUnread > 0
+                    ? <span className="nav-badge">{alertUnread}</span>
+                    : bt && <span className={'nav-tag ' + bc}>{bt}</span>}
+                </button>
+              )
+            }
+            return sections.filter(([, items]) => items.length).map(([title, items]) => (
+              <div className="nav-grp" key={title}>
+                <div className="nav-grp-h">{title}</div>
+                {items.map(itemBtn)}
+              </div>
+            ))
+          })()}
         </nav>
         <div className="sidenav-foot">
           <div className="user-pill row-click" title="View profile" onClick={() => selectTab('Profile')}>

@@ -9,7 +9,8 @@
   --shadow: 0 1px 8px rgba(0,0,0,.22);
   --radius: 12px;
   --login-glow: rgba(79,142,247,.18);
-  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  --blue: #4f8ef7; --blue2: #7c5cfc; --blue-soft: rgba(79,142,247,.16); --orange-soft: rgba(255,138,61,.16); --navy: #eaedf4;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 :root[data-theme="light"] {
   --bg: #eef1f7; --bg2: #ffffff; --panel: #ffffff; --panel2: #f2f5fb;
@@ -20,16 +21,18 @@
   --topbar-bg: rgba(255,255,255,.88); --track: #e1e7f1; --tag-bg: #e7ecf5;
   --shadow: 0 1px 10px rgba(22,32,60,.07);
   --login-glow: rgba(79,142,247,.16);
+  --blue: #1E63D6; --blue2: #3F7EF0; --blue-soft: #EAF1FC; --orange-soft: #FFF1E9; --navy: #0B2545;
 }
 :root[data-theme="orange"] {
-  --bg: #fbf7f3; --bg2: #ffffff; --panel: #ffffff; --panel2: #fff3ea;
-  --border: #f0e6dc; --border2: #ecdfd2;
-  --text: #12161d; --muted: #525c6e; --faint: #808a99;
-  --accent: #f94c00; --accent2: #ff8a3d;
-  --green: #12a06b; --amber: #c07d0a; --red: #e0503f;
-  --topbar-bg: rgba(255,255,255,.9); --track: #f0e6dc; --tag-bg: #fff0e3;
-  --shadow: 0 1px 10px rgba(24,29,39,.06);
-  --login-glow: rgba(255,106,0,.16);
+  --bg: #F4F6F9; --bg2: #ffffff; --panel: #ffffff; --panel2: #F7F9FC;
+  --border: #E7EBF1; --border2: #DCE3EC;
+  --text: #0E1726; --muted: #5C6675; --faint: #94A0B0;
+  --accent: #F6611F; --accent2: #FF8A3D;
+  --blue: #1E63D6; --blue2: #3F7EF0; --blue-soft: #EAF1FC; --orange-soft: #FFF1E9; --navy: #0B2545;
+  --green: #12A06B; --amber: #C07D0A; --red: #E0503F;
+  --topbar-bg: rgba(255,255,255,.95); --track: #EEF2F7; --tag-bg: #EAF1FC;
+  --shadow: 0 1px 10px rgba(11,37,69,.06);
+  --login-glow: rgba(246,97,31,.16);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -53,15 +56,28 @@ a { color: var(--accent); }
 .brand-name { font-size: .82rem; font-weight: 700; line-height: 1.25;
   letter-spacing: .02em; }
 
-.sidenav nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.sidenav nav button { display: flex; align-items: center; gap: 10px;
+.sidenav nav { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow-y: auto; }
+.nav-grp { margin-top: 12px; }
+.nav-grp:first-child { margin-top: 2px; }
+.nav-grp-h { font-size: .62rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--faint); padding: 4px 12px 6px; }
+.sidenav nav button { display: flex; align-items: center; gap: 11px; width: 100%; position: relative;
   background: none; border: none; color: var(--muted); text-align: left;
-  padding: 9px 12px; border-radius: 9px; font-size: .9rem; cursor: pointer;
-  font-weight: 500; transition: background .12s, color .12s; }
-.sidenav nav button:hover { background: var(--panel); color: var(--text); }
-.sidenav nav button.active { background: linear-gradient(90deg, rgba(79,142,247,.16), rgba(124,92,252,.10));
-  color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
-.nav-icon { width: 18px; text-align: center; opacity: 1; }
+  padding: 9px 12px; border-radius: 9px; font-size: .88rem; cursor: pointer;
+  font-weight: 600; transition: background .12s, color .12s; }
+.sidenav nav button:hover { background: var(--bg); color: var(--text); }
+.sidenav nav button.active { background: var(--orange-soft); color: var(--navy); }
+.sidenav nav button.active::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+.sidenav nav button.active .nav-icon { color: var(--accent); opacity: 1; }
+.nav-icon { width: 18px; text-align: center; opacity: .9; flex: none; }
+.nav-label { flex: 1; }
+.nav-tag { font-size: .58rem; font-weight: 700; letter-spacing: .03em; padding: 2px 7px;
+  border-radius: 999px; background: var(--bg); color: var(--muted); }
+.nav-tag.b { background: var(--blue-soft); color: var(--blue); }
+.nav-tag.o { background: var(--orange-soft); color: var(--accent); }
+.nav-tag.g { background: rgba(18,160,107,.12); color: var(--green); }
+.shell.collapsed .nav-grp-h, .shell.collapsed .nav-tag { display: none; }
 
 .sidenav-foot { border-top: 1px solid var(--border); padding-top: 12px;
   display: flex; flex-direction: column; gap: 10px; }

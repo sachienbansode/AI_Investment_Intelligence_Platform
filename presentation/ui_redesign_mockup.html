@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NIYTRI — UI redesign preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --orange:#F6611F; --orange2:#FF8A3D; --orange-soft:#FFF1E9;
+    --blue:#1E63D6; --navy:#0B2545; --blue-soft:#EAF1FC;
+    --bg:#F4F6F9; --panel:#FFFFFF; --line:#E7EBF1;
+    --ink:#0E1726; --mut:#6B7686; --faint:#9AA6B6; --green:#12A06B; --red:#E0503F; --amber:#C07D0A;
+    --sidew:248px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif}
+  body{background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .app{display:grid;grid-template-columns:var(--sidew) 1fr;min-height:100vh}
+
+  /* ---------------- Sidebar ---------------- */
+  .side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .brand .mk{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--orange),var(--orange2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;box-shadow:0 4px 10px rgba(246,97,31,.28)}
+  .brand b{font-size:14px;font-weight:800;letter-spacing:.2px;color:var(--navy);line-height:1.15}
+  .brand b span{color:var(--orange)}
+  .brand .sub{font-size:10.5px;color:var(--faint);font-weight:600;letter-spacing:.4px}
+
+  .nav{padding:10px 10px 20px;flex:1}
+  .grp{margin-top:14px}
+  .grp-h{font-size:10.5px;font-weight:700;letter-spacing:.9px;color:var(--faint);padding:4px 12px 6px;text-transform:uppercase}
+  .item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:var(--mut);cursor:pointer;font-weight:600;font-size:13.5px;position:relative;text-decoration:none}
+  .item:hover{background:var(--bg);color:var(--ink)}
+  .item .ic{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--faint)}
+  .item svg{width:18px;height:18px;stroke-width:2}
+  .item .lb{flex:1}
+  .item .tag{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:999px;background:var(--bg);color:var(--mut)}
+  .item .tag.b{background:var(--blue-soft);color:var(--blue)}
+  .item .tag.o{background:var(--orange-soft);color:var(--orange)}
+  .item .tag.g{background:#E7F7F0;color:var(--green)}
+  .item .cnt{font-size:10px;font-weight:800;background:var(--orange);color:#fff;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .item.active{background:var(--orange-soft);color:var(--navy)}
+  .item.active .ic{color:var(--orange)}
+  .item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--orange)}
+
+  .side-foot{border-top:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .side-foot .nm{font-weight:700;font-size:13px}
+  .side-foot .rl{font-size:11px;color:var(--faint)}
+
+  /* ---------------- Main ---------------- */
+  .main{display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:14px;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .ticker{display:flex;gap:16px;flex:1;overflow:hidden}
+  .tk{display:flex;align-items:center;gap:7px;font-size:12.5px;white-space:nowrap}
+  .tk .ex{font-size:9px;font-weight:800;color:#fff;background:var(--navy);border-radius:4px;padding:2px 5px}
+  .tk b{font-weight:700}
+  .tk .up{color:var(--green);font-weight:700}
+  .tk .dn{color:var(--red);font-weight:700}
+  .top .pill{font-size:12px;font-weight:700;color:var(--blue);background:var(--blue-soft);border-radius:999px;padding:6px 12px}
+  .top .ic-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--mut);cursor:pointer}
+
+  .content{padding:24px;max-width:1240px;width:100%;margin:0 auto}
+  .h1{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:4px}
+  .crumb{font-size:12px;color:var(--faint);margin-bottom:18px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;position:relative;overflow:hidden}
+  .kpi .k{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--faint);text-transform:uppercase}
+  .kpi .v{font-size:24px;font-weight:800;color:var(--navy);margin-top:6px}
+  .kpi .d{font-size:12px;font-weight:700;margin-top:3px}
+  .kpi .edge{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .kpi.o .edge{background:var(--orange)} .kpi.b .edge{background:var(--blue)} .kpi.g .edge{background:var(--green)} .kpi.n .edge{background:var(--navy)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .panel h3{font-size:14px;font-weight:800;color:var(--navy);margin-bottom:2px}
+  .panel .sh{font-size:12px;color:var(--mut);margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--faint);text-transform:uppercase;padding:0 10px 10px;border-bottom:1px solid var(--line)}
+  td{padding:11px 10px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .sym{font-weight:700;color:var(--navy)}
+  .sub{font-size:11px;color:var(--faint)}
+  .score{display:inline-flex;align-items:center;justify-content:center;min-width:46px;padding:4px 8px;border-radius:8px;font-weight:800;color:#fff}
+  .sg{background:var(--green)} .sa{background:var(--amber)} .sr{background:var(--red)}
+  .up{color:var(--green);font-weight:700} .dn{color:var(--red);font-weight:700}
+  .tagpill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;background:#E7F7F0;color:var(--green)}
+  .cols{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+  .btn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:9px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer}
+  .btn.b{background:linear-gradient(135deg,var(--blue),#3f7ef0)}
+  .btn.ghost{background:var(--panel);color:var(--blue);border:1px solid var(--line)}
+  .note{font-size:11px;color:var(--faint);text-align:center;padding:10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand">
+      <div class="mk">N</div>
+      <div><b>NIYTRI <span>AI</span></b><div class="sub">INVESTMENT INTELLIGENCE</div></div>
+    </div>
+    <nav class="nav">
+      <div class="grp">
+        <div class="grp-h">Main</div>
+        <a class="item active"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lb">Dashboard</span><span class="tag o">HOME</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="lb">NIYTRI AI</span><span class="tag b">CHAT</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><span class="lb">Stock Scores</span><span class="tag">SCORES</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16V4M7 4L3 8M7 4l4 4"/><path d="M17 8v12M17 20l4-4M17 20l-4-4"/></svg></span><span class="lb">Compare</span><span class="tag">VS</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 1-1h11l4 4v15"/><path d="M8 7h5M8 11h8M8 15h8"/></svg></span><span class="lb">Market News</span><span class="tag">NEWS</span></a>
+      </div>
+      <div class="grp">
+        <div class="grp-h">My Desk</div>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span><span class="lb">Watchlist</span><span class="tag">WATCH</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span><span class="lb">Portfolio</span><span class="tag g">P&amp;L</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></span><span class="lb">Alerts</span><span class="cnt">33</span></a>
+      </div>
+      <div class="grp">
+        <div class="grp-h">Pipeline</div>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.3 1a7 7 0 0 0-1.7-1l-.3-2.5H9.4l-.3 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 1.7 1l.3 2.5h4.2l.3-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.5-2-1.5c.1-.3.1-.6.1-1z"/></svg></span><span class="lb">Agents</span><span class="tag g">LIVE</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="lb">Audit</span><span class="tag">LOG</span></a>
+      </div>
+      <div class="grp">
+        <div class="grp-h">Admin</div>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.3"/><path d="M15 20a5 5 0 0 1 6-3"/></svg></span><span class="lb">Users</span><span class="tag b">RBAC</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg></span><span class="lb">Admin</span><span class="tag o">CFG</span></a>
+        <a class="item"><span class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span class="lb">About</span><span class="tag">i</span></a>
+      </div>
+    </nav>
+    <div class="side-foot">
+      <div class="avatar">A</div>
+      <div><div class="nm">Ashish</div><div class="rl">Administrator</div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="top">
+      <div class="ticker">
+        <span class="tk"><span class="ex">NSE</span><b>NIFTY 50</b> 24,712 <span class="up">▲ 0.48%</span></span>
+        <span class="tk"><span class="ex">NSE</span><b>BANK</b> 57,514 <span class="dn">▼ 0.02%</span></span>
+        <span class="tk"><span class="ex">BSE</span><b>SENSEX</b> 80,920 <span class="up">▲ 0.41%</span></span>
+        <span class="tk"><span class="ex">NSE</span><b>INDIA VIX</b> 11.13 <span class="dn">▼ 3.4%</span></span>
+      </div>
+      <span class="pill">⚡ Groq · active</span>
+      <div class="ic-btn">◑</div>
+    </div>
+
+    <div class="content">
+      <div class="h1">Dashboard</div>
+      <div class="crumb">Home · Market overview — 21 Oct 2026</div>
+
+      <div class="kpis">
+        <div class="kpi o"><span class="edge"></span><div class="k">Scripts scored</div><div class="v">2,539</div><div class="d up">▲ updated today</div></div>
+        <div class="kpi b"><span class="edge"></span><div class="k">Avg NIYTRI Score</div><div class="v">55.1</div><div class="d">Neutral band</div></div>
+        <div class="kpi g"><span class="edge"></span><div class="k">Strong (65+)</div><div class="v">236</div><div class="d up">9.3% of universe</div></div>
+        <div class="kpi n"><span class="edge"></span><div class="k">Approved</div><div class="v">2,531</div><div class="d">maker-checker</div></div>
+      </div>
+
+      <div class="cols">
+        <div class="panel">
+          <h3>Top stocks by NIYTRI Score</h3>
+          <div class="sh">Highest composite scores across NIFTY 500 · delayed EOD</div>
+          <table>
+            <thead><tr><th>Script</th><th>Sector</th><th>LTP</th><th>NIYTRI</th><th>Day %</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><div class="sym">IDEA</div><div class="sub">Vodafone Idea</div></td><td>Telecom</td><td>₹15.19</td><td><span class="score sg">74.3</span></td><td class="up">+8.5%</td><td><span class="tagpill">approved</span></td></tr>
+              <tr><td><div class="sym">VCL</div><div class="sub">Vardhman</div></td><td>Consumer</td><td>₹2.34</td><td><span class="score sg">74.2</span></td><td class="up">+2.1%</td><td><span class="tagpill">approved</span></td></tr>
+              <tr><td><div class="sym">TATASTEEL</div><div class="sub">Tata Steel</div></td><td>Metals</td><td>₹184.85</td><td><span class="score sa">60.6</span></td><td class="dn">-3.0%</td><td><span class="tagpill">approved</span></td></tr>
+              <tr><td><div class="sym">RELIANCE</div><div class="sub">Reliance Ind.</div></td><td>Energy</td><td>₹1,302</td><td><span class="score sa">58.1</span></td><td class="dn">-0.6%</td><td><span class="tagpill">approved</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h3>Score bands</h3>
+          <div class="sh">Share of scored universe</div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:6px">
+            <div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600"><span>Strong 65+</span><span class="up">9.3%</span></div><div style="height:9px;background:var(--bg);border-radius:6px;margin-top:5px"><div style="width:9.3%;height:100%;background:var(--green);border-radius:6px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600"><span>Neutral 50–64</span><span style="color:var(--amber)">54.5%</span></div><div style="height:9px;background:var(--bg);border-radius:6px;margin-top:5px"><div style="width:54.5%;height:100%;background:var(--amber);border-radius:6px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600"><span>Weak &lt;50</span><span class="dn">36.2%</span></div><div style="height:9px;background:var(--bg);border-radius:6px;margin-top:5px"><div style="width:36.2%;height:100%;background:var(--red);border-radius:6px"></div></div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:18px"><button class="btn">Run scoring</button><button class="btn ghost">Export</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Market NIYTRI Score — 30-day trend</h3>
+        <div class="sh">Daily average across the scored universe · delayed EOD</div>
+        <svg viewBox="0 0 760 190" style="width:100%;height:190px" preserveAspectRatio="none">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#F6611F" stop-opacity="0.22"/>
+            <stop offset="1" stop-color="#F6611F" stop-opacity="0"/></linearGradient></defs>
+          <line x1="44" y1="30" x2="740" y2="30" stroke="#E7EBF1"/><line x1="44" y1="90" x2="740" y2="90" stroke="#E7EBF1"/><line x1="44" y1="150" x2="740" y2="150" stroke="#E7EBF1"/>
+          <text x="38" y="34" text-anchor="end" font-size="10" fill="#9AA6B6">60</text>
+          <text x="38" y="94" text-anchor="end" font-size="10" fill="#9AA6B6">55</text>
+          <text x="38" y="154" text-anchor="end" font-size="10" fill="#9AA6B6">50</text>
+          <path d="M44,120 L120,112 L196,118 L272,96 L348,104 L424,80 L500,88 L576,70 L652,78 L740,60 L740,160 L44,160 Z" fill="url(#g)"/>
+          <polyline points="44,120 120,112 196,118 272,96 348,104 424,80 500,88 576,70 652,78 740,60" fill="none" stroke="#F6611F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="740" cy="60" r="4" fill="#F6611F"/>
+          <text x="44" y="178" font-size="10" fill="#9AA6B6">21-Sep-2026</text>
+          <text x="740" y="178" text-anchor="end" font-size="10" fill="#9AA6B6">21-Oct-2026</text>
+        </svg>
+      </div>
+
+      <div class="note">UI redesign preview · Orange–Blue–White · grouped navigation with badges · Inter font · Internal analysis, not investment advice.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
