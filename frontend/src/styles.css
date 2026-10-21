@@ -10,17 +10,18 @@
   --radius: 12px;
   --login-glow: rgba(79,142,247,.18);
   --blue: #4f8ef7; --blue2: #7c5cfc; --blue-soft: rgba(79,142,247,.16); --orange-soft: rgba(255,138,61,.16); --navy: #eaedf4;
+  --c-blue: #4f8ef7; --c-purple: #ff8a3d; --c-teal: #22a06b; --c-green: #22a06b; --c-amber: #d4920f; --c-pink: #7c5cfc;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 :root[data-theme="light"] {
-  --bg: #eef1f7; --bg2: #ffffff; --panel: #ffffff; --panel2: #f2f5fb;
-  --border: #e4e9f2; --border2: #cfd8e6;
-  --text: #161e2c; --muted: #505a6d; --faint: #8894a8;
-  --accent: #2f6fe0; --accent2: #6d4ff0;
-  --green: #15825a; --amber: #b07608; --red: #d23b3b;
-  --topbar-bg: rgba(255,255,255,.88); --track: #e1e7f1; --tag-bg: #e7ecf5;
-  --shadow: 0 1px 10px rgba(22,32,60,.07);
-  --login-glow: rgba(79,142,247,.16);
+  --bg: #F4F6F9; --bg2: #ffffff; --panel: #ffffff; --panel2: #F7F9FC;
+  --border: #E7EBF1; --border2: #DCE3EC;
+  --text: #0E1726; --muted: #5C6675; --faint: #94A0B0;
+  --accent: #F6611F; --accent2: #FF8A3D;
+  --green: #12A06B; --amber: #C07D0A; --red: #E0503F;
+  --topbar-bg: rgba(255,255,255,.95); --track: #EEF2F7; --tag-bg: #EAF1FC;
+  --shadow: 0 1px 10px rgba(11,37,69,.06);
+  --login-glow: rgba(246,97,31,.16);
   --blue: #1E63D6; --blue2: #3F7EF0; --blue-soft: #EAF1FC; --orange-soft: #FFF1E9; --navy: #0B2545;
 }
 :root[data-theme="orange"] {
@@ -866,8 +867,8 @@ textarea:focus { border-color: var(--accent); }
   --c-green: #22a06b; --c-amber: #e0a13a; --c-pink: #e0609a;
 }
 :root[data-theme="light"] {
-  --c-blue: #2f6fe0; --c-purple: #6d4ff0; --c-teal: #0e9e8e;
-  --c-green: #15825a; --c-amber: #c07f12; --c-pink: #cf4d86;
+  --c-blue: #1E63D6; --c-purple: #F6611F; --c-teal: #12A06B;
+  --c-green: #12A06B; --c-amber: #C07D0A; --c-pink: #0B2545;
 }
 
 /* solid (non-ghost) buttons get a subtle gradient; class selectors like .ghost,
@@ -875,21 +876,14 @@ textarea:focus { border-color: var(--accent); }
 button { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
 
 /* gradient headings */
-.page-title {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  width: fit-content;
-}
+.page-title { color: var(--navy); font-weight: 800; }
 
 /* colorful KPI cards: cycling top accent + gradient value */
 .kpi { border-top: 3px solid var(--c-blue); }
 .kpi:nth-child(4n+2) { border-top-color: var(--c-purple); }
 .kpi:nth-child(4n+3) { border-top-color: var(--c-teal); }
 .kpi:nth-child(4n+4) { border-top-color: var(--c-amber); }
-.kpi-value {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+.kpi-value { color: var(--navy); }
 
 /* multi-hue feature icons (cycle per card, restarts each category) */
 .feature-grid .feature-card:nth-child(6n+1) .feature-icon {
@@ -914,7 +908,7 @@ button { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
 
 /* nav active gets a richer gradient wash */
 .sidenav nav button.active {
-  background: linear-gradient(90deg, rgba(79,142,247,.20), rgba(124,92,252,.12));
+  background: var(--orange-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
