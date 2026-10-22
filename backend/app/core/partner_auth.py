@@ -18,7 +18,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.db.database import PartnerKey, SessionLocal, utcnow
 
 KEY_PREFIX = "niy_live_"          # visible scheme tag for issued keys
-ALL_SCOPES = ["scores", "news", "ask", "portfolio"]
+ALL_SCOPES = ["scores", "news", "ask", "portfolio", "screen"]
 
 _bearer = HTTPBearer(auto_error=False)
 

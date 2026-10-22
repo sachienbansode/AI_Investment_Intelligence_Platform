@@ -1691,13 +1691,13 @@ function PartnerKeys() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [name, setName] = useState('')
-  const [scopes, setScopes] = useState(['scores', 'news', 'ask', 'portfolio'])
+  const [scopes, setScopes] = useState(['scores', 'news', 'ask', 'portfolio', 'screen'])
   const [rate, setRate] = useState(60)
   const [created, setCreated] = useState(null)
   const [busy, setBusy] = useState(false)
   const load = () => api.partnerKeys().then(setData).catch(e => setErr(String(e.message || e)))
   useEffect(() => { load() }, [])
-  const avail = data?.available_scopes || ['scores', 'news', 'ask', 'portfolio']
+  const avail = data?.available_scopes || ['scores', 'news', 'ask', 'portfolio', 'screen']
   const toggle = s => setScopes(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
   async function create() {
     if (name.trim().length < 2) { toast('Enter a partner name'); return }

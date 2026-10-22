@@ -1,6 +1,31 @@
 // Minimal, safe markdown → HTML (escapes input first; no external deps).
 // Supports: **bold**, *italic*, `code`, "- " bullets, "1. " numbered lists,
 // ### headings, > callouts, [text](url) links, GFM pipe tables, line breaks.
+// Tooltips for common table column headers (hover help in rendered tables).
+const COL_TIPS = {
+  'sector': 'Sector / index name', 'industry': 'Industry group',
+  'change': 'Change in the last session (%)', 'change (%)': 'Change in %',
+  "today's change": "Today's change (%)", "today's change (%)": "Today's change (%)",
+  'level': 'Current index level / value', 'symbol': 'NSE trading symbol',
+  'stock': 'Stock / scrip', 'scrip': 'Scrip (stock)',
+  'score': 'NIYTRI Score (0–100) — our internal quality score',
+  'niytri score': 'NIYTRI Score (0–100) — our internal quality score',
+  'p/e': 'Price-to-earnings ratio', 'pe': 'Price-to-earnings ratio',
+  'p/b': 'Price-to-book ratio', 'pb': 'Price-to-book ratio',
+  'eps': 'Earnings per share', 'peg': 'P/E-to-growth ratio',
+  'net margin': 'Net profit margin (%)', 'op margin': 'Operating margin (%)',
+  'roe': 'Return on equity (%)', 'div yield': 'Dividend yield (%)',
+  'weight': 'Share of portfolio value (%)', 'value': 'Current market value',
+  'p&l': 'Profit / loss vs your cost', 'mkt cap': 'Market capitalisation',
+  'market cap': 'Market capitalisation', 'ltp': 'Last traded price', 'price': 'Price',
+  'qty': 'Quantity held', 'avg price': 'Average buy price',
+}
+const colTip = h => {
+  const k = String(h).replace(/[*`]/g, '').trim().toLowerCase()
+  const v = COL_TIPS[k]
+  return v ? ` title="${v.replace(/"/g, '&quot;')}" class="has-tip"` : ''
+}
+
 export function mdToHtml(text) {
   if (!text) return ''
   const esc = text
@@ -37,7 +62,7 @@ export function mdToHtml(text) {
       const headers = cells(line)
       const al = k => aligns[k] ? ` style="text-align:${aligns[k]}"` : ''
       let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>'
-      headers.forEach((h, k) => { t += `<th${al(k)}>${inline(h)}</th>` })
+      headers.forEach((h, k) => { t += `<th${al(k)}${colTip(h)}>${inline(h)}</th>` })
       t += '</tr></thead><tbody>'
       let j = i + 2
       while (j < lines.length && lines[j].trim() !== '' && lines[j].includes('|')) {

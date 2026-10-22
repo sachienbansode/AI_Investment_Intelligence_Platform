@@ -7,6 +7,8 @@ Exposes a curated, advice-free subset for partner/mobile integrations:
   GET  /api/partner/v1/news                 scope: news
   POST /api/partner/v1/ask                  scope: ask
   POST /api/partner/v1/portfolio/analyze    scope: portfolio
+  GET  /api/partner/v1/screener/themes      scope: screen
+  POST /api/partner/v1/screen               scope: screen
   GET  /api/partner/v1/me                   any valid key
   GET  /api/partner/v1/health               no auth
 
@@ -20,13 +22,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.core.partner_auth import PartnerKey, require_any, require_scope
 from app.db.database import Instrument, SessionLocal, StockScore
+from pydantic import BaseModel, Field
+
 from app.models.schemas import (AskAIRequest, AskAIResponse, PortfolioRequest,
                                 PortfolioResponse, StockScoreResponse)
-from app.services import news_intel
+from app.services import news_intel, screener
 from app.services.assistant import ask
 from app.services.portfolio import analyze_portfolio
 
 router = APIRouter(prefix="/api/partner/v1", tags=["partner"])
+
+
+class PartnerScreenRequest(BaseModel):
+    prompt: str = Field(..., min_length=2, max_length=500)
+    source_id: int | None = None
+    max_rows: int = 50
 
 
 @router.get("/health", summary="Service health (no auth)")
@@ -129,3 +139,25 @@ async def partner_portfolio(req: PortfolioRequest,
     res = await analyze_portfolio(req.holdings)
     audit_log("partner_portfolio", key=key.key_prefix, holdings=len(req.holdings))
     return res
+
+
+@router.get("/screener/themes", summary="Screener themes + trending prompts")
+async def partner_screener_themes(key: PartnerKey = Depends(require_scope("screen"))):
+    """Thematic keywords and suggested prompts for the Ask Ashika screener."""
+    return screener.suggestions()
+
+
+@router.post("/screen", summary="NL screening -> stocks + takeaway (advice-free)")
+async def partner_screen(req: PartnerScreenRequest,
+                         key: PartnerKey = Depends(require_scope("screen"))):
+    """Natural-language screening prompt -> read-only query over connected data
+    (e.g. CMOTS) -> matching rows + an AI takeaway. Information, not advice."""
+    if not (req.prompt or "").strip():
+        raise HTTPException(400, "prompt is required")
+    out = await screener.run_screen(req.prompt, source_id=req.source_id,
+                                    max_rows=min(max(int(req.max_rows or 50), 1), 200))
+    audit_log("partner_screen", key=key.key_prefix, source=out.get("source"))
+    out.pop("sql", None)            # don't expose raw SQL / schema to external clients
+    out.setdefault("prompt", req.prompt)
+    out.setdefault("disclaimer", AI_DISCLAIMER)
+    return out

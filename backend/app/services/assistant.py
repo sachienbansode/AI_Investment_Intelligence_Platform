@@ -13,7 +13,7 @@ from sqlalchemy import func
 from app.core.compliance import AI_DISCLAIMER, audit_log
 from app.data.aggregator import get_market_data
 from app.db.database import (ChatMessage, Instrument, Portfolio, SessionLocal,
-                            StockScore, UserActivity, utcnow)
+                            StockScore, UserActivity, WatchlistItem, utcnow)
 from app.llm.router import get_llm_router
 from app.models.schemas import AskAIResponse
 from app.services.app_settings import get_setting
@@ -805,6 +805,32 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             pf = db.query(Portfolio).filter_by(user_id=user_id).first()
             pf_holdings = (pf.holdings if pf and isinstance(pf.holdings, list) else []) or []
 
+        # The CURRENT user's OWN watchlist — so "news/scores on my watchlist" works.
+        if user_id is not None and any(w in (question or "").lower() for w in (
+                "watchlist", "watch list", "my watch")):
+            wl = [w.symbol.upper() for w in (db.query(WatchlistItem)
+                  .filter_by(user_id=user_id).order_by(WatchlistItem.created_at).all())]
+            if wl:
+                smap = {}
+                for sym in wl:
+                    r = (db.query(StockScore).filter_by(symbol=sym)
+                         .order_by(StockScore.score_date.desc()).first())
+                    if r and r.composite_score is not None:
+                        smap[sym] = round(float(r.composite_score), 1)
+                items = [f"{s} (NIYTRI Score {smap[s]})" if s in smap else s for s in wl]
+                context_parts.append(
+                    "USER_WATCHLIST (the current user's OWN saved watchlist — you DO have this, "
+                    "NEVER say you lack access to it): " + ", ".join(items) + ". "
+                    "For 'news on my watchlist', scan the NEWS items and report those mentioning "
+                    "these symbols / their companies (say so plainly if none today). For "
+                    "'my watchlist scores', use the scores shown here.")
+                sources.append({"type": "watchlist", "count": len(wl)})
+            else:
+                context_parts.append(
+                    "USER_WATCHLIST: this user's watchlist is EMPTY. Tell them it has no symbols "
+                    "yet and to add some on the [Watchlist page](#page:Watchlist) — do NOT claim "
+                    "you lack access.")
+
         # conversation memory for follow-ups
         n_hist = int(get_setting("assistant_history_messages"))
         hist_rows = (db.query(ChatMessage)
@@ -1082,7 +1108,9 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     answer_text, form = _extract_form(answer_text)
     answer_text, charts = _extract_charts(answer_text)
     charts = _auto_charts(question, mentioned, charts)
+    charts = _relevant_charts(charts, mentioned)
     answer_text = _guard_stale_price(question, answer_text, web_text)
+    answer_text = _tidy_answer(answer_text)
     latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
@@ -1201,6 +1229,48 @@ def _extract_ask(text: str):
 
 # Currency figure like "₹68,500", "Rs 1,63,750", "$1,700" (>=4 digits total).
 _PRICE_FIG_RE = re.compile(r"(?:\u20b9|rs\.?|\$|us\$)\s?(\d[\d,]{3,}(?:\.\d+)?)", re.IGNORECASE)
+
+
+_SYM_CHART_TYPES = {"score_history", "price_history", "pillars"}
+
+
+def _relevant_charts(charts: list, mentioned) -> list:
+    """Drop charts that need a specific stock the question never named (e.g. a stray
+    score-history chart on a sector/market question)."""
+    ms = {str(x).upper() for x in (mentioned or [])}
+    out = []
+    for c in charts or []:
+        t = c.get("type")
+        if t in _SYM_CHART_TYPES and str(c.get("symbol", "")).upper() not in ms:
+            continue
+        if t == "compare":
+            syms = [str(s).upper() for s in (c.get("symbols") or [])]
+            if not syms or not all(s in ms for s in syms):
+                continue
+        out.append(c)
+    return out
+
+
+def _tidy_answer(text: str) -> str:
+    """Post-clean the model text: remove empty bold markers / stray '**' lines and
+    collapse fully-duplicated blocks (small models sometimes repeat the whole answer)."""
+    if not text:
+        return text
+    # strip standalone '**' / empty bold artefacts
+    text = re.sub(r"(?m)^\s*\*\*\s*$", "", text)
+    text = re.sub(r"\*\*\s*\*\*", "", text)
+    # de-duplicate repeated blocks (keep first occurrence of any substantial block)
+    blocks = re.split(r"\n\s*\n", text)
+    seen, out = set(), []
+    for b in blocks:
+        key = re.sub(r"\s+", " ", b).strip().lower()
+        if len(key) >= 40 and key in seen:
+            continue
+        if len(key) >= 40:
+            seen.add(key)
+        out.append(b)
+    text = "\n\n".join(out)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def _is_price_query(q: str) -> bool:

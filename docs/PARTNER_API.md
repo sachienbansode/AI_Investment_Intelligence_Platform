@@ -69,6 +69,7 @@ A key is granted a subset of scopes; calling an endpoint outside your scopes ret
 | `news` | `GET /news` |
 | `ask` | `POST /ask` |
 | `portfolio` | `POST /portfolio/analyze` |
+| `screen` | `GET /screener/themes`, `POST /screen` |
 
 ## 4. Rate limits
 
@@ -230,7 +231,37 @@ curl -X POST -H "Authorization: Bearer $NIYTRI_KEY" -H "Content-Type: applicatio
 }
 ```
 
-### 5.7 `GET /health` · no auth
+### 5.7 `GET /screener/themes` · scope `screen`
+
+Thematic keywords and suggested/trending prompts for the Ask Ashika screener.
+
+```bash
+curl -H "Authorization: Bearer $NIYTRI_KEY" \
+  https://dev-invest.niytri.com/api/partner/v1/screener/themes
+```
+
+### 5.8 `POST /screen` · scope `screen`
+
+Natural-language screening. Send a prompt; we interpret it into a read-only query
+over the connected market data (e.g. CMOTS), run it, and return matching rows plus an
+AI takeaway. **Information, not advice.**
+
+Request:
+
+```json
+{ "prompt": "IT companies with net margin above 20% and low debt", "max_rows": 50 }
+```
+
+```bash
+curl -X POST -H "Authorization: Bearer $NIYTRI_KEY" -H "Content-Type: application/json" \
+  -d '{"prompt":"energy stocks benefiting from rising oil prices","max_rows":25}' \
+  https://dev-invest.niytri.com/api/partner/v1/screen
+```
+
+Response: `{ "prompt", "source", "columns", "rows", "summary", "assumptions", "disclaimer" }`
+(shape mirrors the in-app screener). Omit `source_id` to auto-pick a connected source.
+
+### 5.9 `GET /health` · no auth
 
 Liveness probe: `{ "status": "ok", "service": "niytri-partner-api", "version": "1.0" }`.
 
