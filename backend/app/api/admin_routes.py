@@ -15,7 +15,8 @@ from app.core.auth import hash_password, require_admin
 from app.core.compliance import audit_log
 from app.db.database import (ALL_PAGES, ChatFeedback, Instrument, InviteCode, PartnerKey,
                              PipelineRun, Role, SessionLocal, SettingChange, StockScore,
-                             User, Waitlist, Invitation, EmailLog, TosAcceptance, TermsVersion)
+                             User, Waitlist, Invitation, EmailLog, TosAcceptance, TermsVersion,
+                             DataSource)
 from app.services.app_settings import DEFAULTS, all_settings, get_setting, set_setting
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -1635,3 +1636,137 @@ def universe_refresh():
     res = universe.refresh_universe()
     audit_log("universe_refresh", result=res)
     return res
+
+
+# ──────────────────────────── Data Sources (screener) ────────────────────────
+class DataSourceBody(BaseModel):
+    name: str
+    kind: str = "db"                 # "db" | "api"
+    config: dict = {}                # db: {url}; api: {base_url, auth_type, auth_value, auth_header, headers, sample_path}
+    enabled: bool = True
+    note: str = ""
+
+
+class SqlBody(BaseModel):
+    sql: str
+    max_rows: int = 100
+
+
+def _ds_public(d: DataSource) -> dict:
+    cfg = dict(d.config or {})
+    # never return secrets to the browser
+    if "url" in cfg:
+        cfg["url"] = _mask_url(cfg["url"])
+    if cfg.get("auth_value"):
+        cfg["auth_value"] = "••••••"
+    sc = d.schema_json or {}
+    return {"id": d.id, "name": d.name, "kind": d.kind, "config": cfg,
+            "enabled": d.enabled, "note": d.note or "",
+            "tables": len((sc.get("tables") or [])) if d.kind == "db" else len(sc.get("fields") or []),
+            "schema": sc}
+
+
+def _mask_url(u: str) -> str:
+    import re as _re
+    return _re.sub(r"://([^:/@]+):([^@]+)@", r"://\1:••••@", u or "")
+
+
+@router.get("/data-sources")
+def list_data_sources(admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        return {"sources": [_ds_public(d) for d in db.query(DataSource).order_by(DataSource.id).all()]}
+    finally:
+        db.close()
+
+
+@router.post("/data-sources")
+def create_data_source(body: DataSourceBody, admin: User = Depends(require_admin)):
+    if body.kind not in ("db", "api"):
+        raise HTTPException(400, "kind must be 'db' or 'api'")
+    db = SessionLocal()
+    try:
+        if db.query(DataSource).filter_by(name=body.name).first():
+            raise HTTPException(409, "A data source with that name already exists.")
+        d = DataSource(name=body.name.strip(), kind=body.kind, config=body.config or {},
+                       enabled=body.enabled, note=body.note or "")
+        db.add(d); db.commit(); db.refresh(d)
+        audit_log("data_source_create", by=admin.email, name=d.name, kind=d.kind)
+        return _ds_public(d)
+    finally:
+        db.close()
+
+
+@router.put("/data-sources/{sid}")
+def update_data_source(sid: int, body: DataSourceBody, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        d = db.get(DataSource, sid)
+        if not d:
+            raise HTTPException(404, "Not found")
+        d.name = body.name.strip(); d.kind = body.kind; d.enabled = body.enabled; d.note = body.note or ""
+        # merge config; keep existing secret if the client sent the masked placeholder
+        cfg = dict(d.config or {}); incoming = dict(body.config or {})
+        if incoming.get("url", "").find("••••") == -1 and incoming.get("url"):
+            cfg["url"] = incoming["url"]
+        if incoming.get("auth_value") and "••" not in incoming["auth_value"]:
+            cfg["auth_value"] = incoming["auth_value"]
+        for k, v in incoming.items():
+            if k not in ("url", "auth_value"):
+                cfg[k] = v
+        d.config = cfg
+        db.commit()
+        audit_log("data_source_update", by=admin.email, name=d.name)
+        return _ds_public(d)
+    finally:
+        db.close()
+
+
+@router.delete("/data-sources/{sid}")
+def delete_data_source(sid: int, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        d = db.get(DataSource, sid)
+        if d:
+            db.delete(d); db.commit()
+            audit_log("data_source_delete", by=admin.email, sid=sid)
+        return {"deleted": True}
+    finally:
+        db.close()
+
+
+@router.post("/data-sources/{sid}/test")
+def test_data_source(sid: int, admin: User = Depends(require_admin)):
+    from app.services import data_sources as dsvc
+    d = dsvc.get_source(sid)
+    if not d:
+        raise HTTPException(404, "Not found")
+    return dsvc.test_connection(d)
+
+
+@router.post("/data-sources/{sid}/introspect")
+def introspect_data_source(sid: int, admin: User = Depends(require_admin)):
+    from app.services import data_sources as dsvc
+    d = dsvc.get_source(sid)
+    if not d:
+        raise HTTPException(404, "Not found")
+    try:
+        schema = dsvc.introspect(d)
+        audit_log("data_source_introspect", by=admin.email, name=d.name,
+                  tables=len(schema.get("tables") or []))
+        return {"ok": True, "schema": schema}
+    except Exception as e:
+        raise HTTPException(400, f"Introspection failed: {str(e)[:300]}")
+
+
+@router.post("/data-sources/{sid}/query")
+def query_data_source(sid: int, body: SqlBody, admin: User = Depends(require_admin)):
+    """Admin console: run a read-only SELECT to sanity-check a source."""
+    from app.services import data_sources as dsvc
+    d = dsvc.get_source(sid)
+    if not d:
+        raise HTTPException(404, "Not found")
+    try:
+        return dsvc.run_sql(d, body.sql, max_rows=min(max(body.max_rows, 1), 500))
+    except Exception as e:
+        raise HTTPException(400, str(e)[:300])

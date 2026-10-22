@@ -40,6 +40,13 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   buy/sell/hold call, and do NOT give a specific numeric price target.
 - When asked for "top/best stocks" or rankings, report the platform's scores
   factually (symbol + score out of 100) from AI_SCORES_SUMMARY in context.
+- PERFORMANCE vs SCORE (show BOTH, concisely): for "best/worst performing", "top/worst
+  sectors/stocks today", "gainers/losers", present TWO clearly-labelled views: (a) REAL
+  MARKET - today's price move (from day-change / the sector-performance chart), and (b)
+  NIYTRI SCORE - the internal quality ranking. Keep the text SHORT: a one-line takeaway
+  per view (the charts carry the detail) - do NOT write long paragraphs. Never present
+  average NIYTRI Scores as "today's performance"; label each view. If the user says
+  "not as per score" / "actual performance", give the real-market view only.
 - DISCLAIMERS: do NOT append investment-disclaimer, "not investment advice",
   "informational only", "AI-generated", or "consult an adviser" caveats to your
   chat replies - those already appear in the app header and the accepted Terms.
@@ -106,7 +113,7 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   by appending a block at the VERY END (removed before display, rendered from LIVE
   platform data):
   [[CHART]]
-  type: score_history | price_history | pillars | compare | sector | distribution
+  type: score_history | price_history | pillars | compare | sector | sector_perf | distribution
   symbol: <ONE symbol>            (for score_history / price_history / pillars)
   symbols: <SYM_A>, <SYM_B>       (for compare, exactly two)
   [[/CHART]]
@@ -822,13 +829,15 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         sources += [{"type": "news", "title": n["title"], "link": n["link"],
                      "source": n["source"]} for n in news[:5]]
 
-    # RAG: retrieve relevant broker-research passages to ground the answer
-    try:
-        from app.services import research
-        passages = await research.search(question, k=4)
-    except Exception as e:
-        passages = []
-        log.warning("Research retrieval failed: %s", e)
+    # RAG: retrieve relevant broker-research passages to ground the answer. Skipped
+    # when a deterministic answer is already computed (saves an embedding round-trip).
+    passages = []
+    if not deterministic:
+        try:
+            from app.services import research
+            passages = await _safe(research.search(question, k=4), default=[], timeout=4.0)
+        except Exception as e:
+            log.warning("Research retrieval failed: %s", e)
     if passages:
         context_parts.append("BROKER_RESEARCH (cited reference material):\n" + "\n".join(
             f"- [{p['title']}{(' — ' + p['source']) if p['source'] else ''}] {p['text']}"
@@ -845,9 +854,16 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     # Let the model query the database for anything the pre-built context above
     # doesn't already cover. STRICTLY read-only and bounded to non-sensitive
     # tables + the current user's OWN watchlist/portfolio (see db_query.py).
-    data_intent = (wants_scores or wants_multiday or wants_news or wants_sector
-                   or bool(mentioned) or pf_intent)
-    if get_setting("assistant_sql_tool_enabled") and (question or "").strip() and data_intent:
+    # The pre-built context (scores summary, quotes, deterministic handlers) already
+    # answers most questions. Only pay for the extra SQL-planner LLM round-trip when the
+    # question genuinely needs a custom DB lookup and we don't already have a
+    # deterministic (code-computed) answer - this keeps replies fast.
+    _needs_sql = (not deterministic) and (
+        wants_multiday
+        or bool(_re.search(r"\b(how many|count|number of|list|which stocks?|show me|more than|"
+                           r"less than|at least|at most|above|below|between|top\s*\d|bottom\s*\d|"
+                           r"per sector|each sector|highest|lowest|average|avg|rank)\b", _ql)))
+    if get_setting("assistant_sql_tool_enabled") and (question or "").strip() and _needs_sql:
         try:
             from app.services import db_query
             max_q = int(get_setting("assistant_sql_max_queries"))
@@ -893,7 +909,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         hits = []
         try:
             from app.services import web_search
-            hits = await _safe(web_search.search(question), default=[], timeout=9.0)
+            hits = await _safe(web_search.search(question), default=[], timeout=6.0)
         except Exception as e:
             log.warning("web search failed: %s", e)
         if hits:
@@ -1174,7 +1190,7 @@ def _guard_stale_price(question: str, answer: str, web_text: str) -> str:
 _CHART_RE = re.compile(r"\[\[CHART\]\](.*?)\[\[/CHART\]\]", re.DOTALL | re.IGNORECASE)
 _CHARTDATA_RE = re.compile(r"\[\[CHARTDATA\]\](.*?)\[\[/CHARTDATA\]\]", re.DOTALL | re.IGNORECASE)
 _PORTFOLIO_RE = re.compile(r"\[\[PORTFOLIO\]\](.*?)\[\[/PORTFOLIO\]\]", re.DOTALL | re.IGNORECASE)
-_BOUND_TYPES = {"score_history", "price_history", "pillars", "compare", "sector", "distribution"}
+_BOUND_TYPES = {"score_history", "price_history", "pillars", "compare", "sector", "sector_perf", "distribution"}
 
 
 def _kv(body: str) -> dict:
@@ -1280,7 +1296,13 @@ def _auto_charts(question: str, mentioned, existing: list) -> list:
             add({"src": "bound", "type": "score_history", "symbol": s0})
     else:
         if "sector" in ql:
-            add({"src": "bound", "type": "sector"})
+            if any(k in ql for k in ("perform", "today", "gainer", "loser", "moved", "move", "best", "worst", "up ", "down", "return", "rally", "fell", "rose")):
+                add({"src": "bound", "type": "sector_perf"})   # real market (price move)
+                add({"src": "bound", "type": "sector"})        # internal NIYTRI Score
+            else:
+                add({"src": "bound", "type": "sector"})
+        elif any(k in ql for k in ("gainer", "loser", "top movers", "biggest move")):
+            add({"src": "bound", "type": "sector_perf"})
         elif any(k in ql for k in ("distribution", "how many strong", "spread", "bands", "below 50", "above 65", "below 45")):
             add({"src": "bound", "type": "distribution"})
     return out[:3]

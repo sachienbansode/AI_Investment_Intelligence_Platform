@@ -1141,3 +1141,68 @@ class MuteReq(BaseModel):
 @router.post("/alerts/mute")
 async def mute_alert_symbol(req: MuteReq, user: User = Depends(get_current_user)):
     return alerts.mute_symbol(user.id, req.symbol, req.mute)
+
+
+# ──────────────────────────── Ask Ashika — Screeners ─────────────────────────
+class _ScreenReq(BaseModel):
+    prompt: str
+    source_id: int | None = None
+    max_rows: int = 50
+
+
+@router.get("/screener/suggestions")
+async def screener_suggestions(user: User = Depends(get_current_user)):
+    """Thematic keywords + trending prompts for the screener UI."""
+    from app.services import screener
+    return screener.suggestions()
+
+
+@router.post("/screener")
+async def run_screener(req: _ScreenReq, user: User = Depends(get_current_user)):
+    """NL screening prompt -> read-only query over connected data -> rows + takeaway."""
+    from app.services import screener
+    if not (req.prompt or "").strip():
+        raise HTTPException(400, "prompt is required")
+    out = await screener.run_screen(req.prompt, source_id=req.source_id,
+                                    max_rows=min(max(req.max_rows, 1), 200))
+    audit_log("screener_run", user_id=user.id, source=out.get("source"),
+              rows=len(out.get("rows") or []))
+    return out
+
+
+@router.get("/public/sector-performance")
+def sector_performance():
+    """REAL-MARKET view: average last-session price % move per sector (from stored
+    EOD prices), plus top gainers/losers. Complements the NIYTRI-Score sector view."""
+    from sqlalchemy import func as _f
+    db = SessionLocal()
+    try:
+        maxd = db.query(_f.max(StockPrice.price_date)).scalar()
+        if not maxd:
+            return {"as_of": None, "sectors": [], "gainers": [], "losers": []}
+        prevd = (db.query(_f.max(StockPrice.price_date))
+                 .filter(StockPrice.price_date < maxd).scalar())
+        cur = {s: c for s, c in db.query(StockPrice.symbol, StockPrice.close)
+               .filter(StockPrice.price_date == maxd).all()}
+        prev = {s: c for s, c in db.query(StockPrice.symbol, StockPrice.close)
+                .filter(StockPrice.price_date == prevd).all()} if prevd else {}
+        secmap = {r.symbol: (r.sector or "Other")
+                  for r in db.query(Instrument.symbol, Instrument.sector).all()}
+        moves = []
+        for sym, c in cur.items():
+            p = prev.get(sym)
+            if c and p and p > 0:
+                moves.append((sym, round((float(c) - float(p)) / float(p) * 100, 2),
+                              secmap.get(sym, "Other")))
+        bysec = {}
+        for sym, ch, sec in moves:
+            bysec.setdefault(sec, []).append(ch)
+        sectors = [{"sector": k, "avg_change": round(sum(v) / len(v), 2), "count": len(v)}
+                   for k, v in bysec.items() if len(v) >= 2]
+        sectors.sort(key=lambda x: -x["avg_change"])
+        movers = sorted(moves, key=lambda m: -m[1])
+        gainers = [{"symbol": s, "change": c} for s, c, _ in movers[:10]]
+        losers = [{"symbol": s, "change": c} for s, c, _ in movers[::-1][:10]]
+        return {"as_of": str(maxd), "sectors": sectors, "gainers": gainers, "losers": losers}
+    finally:
+        db.close()

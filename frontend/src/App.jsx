@@ -13,6 +13,8 @@ import Portfolio from './components/Portfolio.jsx'
 import Alerts from './components/Alerts.jsx'
 import Agents from './components/Agents.jsx'
 import Admin from './components/Admin.jsx'
+import Screener from './components/Screener.jsx'
+import DataSources from './components/DataSources.jsx'
 import RunAudit from './components/RunAudit.jsx'
 import Users from './components/Users.jsx'
 import About from './components/About.jsx'
@@ -28,7 +30,8 @@ const DOT = String.fromCharCode(0x00B7)
 
 // Icon for every page in the catalog; nav is built from the user's allowed pages.
 const ICONS = {
-  'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Stock Scores': '▤', 'Compare': '⇄', 'Market News': '◈',
+  'Dashboard': '◆', 'AI Assistant': <AiIcon />, 'Screeners': '⌕', 'Stock Scores': '▤', 'Compare': '⇄', 'Market News': '◈',
+  'Data Sources': '⛁',
   'Watchlist': '☆', 'Portfolio': '◐', 'Alerts': '⚑', 'Agents': '⚙', 'Audit': '≣', 'Users': '♟',
   'Admin': '⛨', 'About': 'ⓘ',
 }
@@ -40,15 +43,16 @@ const NAV_LABEL = { 'AI Assistant': 'NIYTRI AI' }
 const label = name => NAV_LABEL[name] || name
 // Sidebar grouping (professional grouped menu) + small badge per item.
 const NAV_GROUPS = [
-  ['Main', ['Dashboard', 'AI Assistant', 'Stock Scores', 'Compare', 'Market News']],
+  ['Main', ['Dashboard', 'AI Assistant', 'Screeners', 'Stock Scores', 'Compare', 'Market News']],
   ['My Desk', ['Watchlist', 'Portfolio', 'Alerts']],
   ['Pipeline', ['Agents', 'Audit']],
-  ['Admin', ['Users', 'Admin', 'About']],
+  ['Admin', ['Data Sources', 'Users', 'Admin', 'About']],
 ]
 const NAV_BADGE = {
   'Dashboard': ['HOME', 'o'], 'AI Assistant': ['CHAT', 'b'], 'Stock Scores': ['SCORES', ''],
   'Compare': ['VS', ''], 'Market News': ['NEWS', ''], 'Watchlist': ['WATCH', ''],
   'Portfolio': ['P&L', 'g'], 'Agents': ['LIVE', 'g'], 'Audit': ['LOG', ''],
+  'Screeners': ['SCREEN', 'b'], 'Data Sources': ['DB', 'o'],
   'Users': ['RBAC', 'b'], 'Admin': ['CFG', 'o'], 'About': ['i', ''],
 }
 const isPrimary = name => name === 'NIFTY 50' || name.startsWith('SENSEX')
@@ -345,6 +349,8 @@ export default function App() {
           {tab === 'Agents' && can('Agents') && <Agents />}
           {tab === 'Audit' && can('Audit') && <RunAudit />}
           {tab === 'Users' && can('Users') && <Users />}
+          {tab === 'Screeners' && can('Screeners') && <Screener />}
+          {tab === 'Data Sources' && can('Data Sources') && <DataSources />}
           {tab === 'Admin' && can('Admin') && <Admin />}
         </main>
 

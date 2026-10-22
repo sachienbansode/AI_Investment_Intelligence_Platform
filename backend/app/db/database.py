@@ -66,9 +66,9 @@ class Role(Base):
 
 
 # Canonical page catalog (matches the frontend nav tab names)
-ALL_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
-             "Watchlist", "Portfolio", "Alerts", "About", "Agents", "Audit", "Users", "Admin"]
-USER_PAGES = ["Dashboard", "AI Assistant", "Stock Scores", "Compare", "Market News",
+ALL_PAGES = ["Dashboard", "AI Assistant", "Screeners", "Stock Scores", "Compare", "Market News",
+             "Watchlist", "Portfolio", "Alerts", "About", "Agents", "Audit", "Data Sources", "Users", "Admin"]
+USER_PAGES = ["Dashboard", "AI Assistant", "Screeners", "Stock Scores", "Compare", "Market News",
               "Watchlist", "Portfolio", "Alerts", "About"]
 
 
@@ -353,6 +353,22 @@ class SettingChange(Base):
     new_value = Column(JSON, nullable=True)
     changed_by = Column(String, default="")
     changed_at = Column(DateTime, default=utcnow, index=True)
+
+
+class DataSource(Base):
+    """Admin-registered external data source (a SQL database or a REST API) the
+    screener/assistant can read. Secrets live in `config`; `schema_json` holds the
+    introspected tables/columns (DB) or fields (API) used to 'train' the LLM."""
+    __tablename__ = "data_sources"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, index=True)
+    kind = Column(String, default="db")            # "db" | "api"
+    config = Column(JSON, default=dict)            # db: {url}; api: {base_url, auth_type, auth_value, headers}
+    schema_json = Column(JSON, nullable=True)      # introspected schema
+    enabled = Column(Boolean, default=True)        # available to the screener
+    note = Column(Text, default="")
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class EmailLog(Base):

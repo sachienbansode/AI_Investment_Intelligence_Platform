@@ -109,6 +109,7 @@ export const api = {
   publicPriceHistory: (symbol, range) => http('/public/price-history?symbol=' + encodeURIComponent(symbol) + '&range=' + (range || '1Y')),
   publicSymbolSearch: (q) => http('/public/symbol-search?q=' + encodeURIComponent(q || '')),
   scoreValueAdd: () => http('/public/score-value-add'),
+  sectorPerformance: () => http('/public/sector-performance'),
   scorePerf: (sym) => http('/score-perf/' + encodeURIComponent(sym)),
   userActivity: (from, to) => http('/admin/user-activity?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')),
   referralTree: () => http('/admin/referral-tree'),
@@ -313,6 +314,16 @@ export const api = {
   updateSetting: (key, value) =>
     http('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
   settingsHistory: (limit = 50) => http('/admin/settings-history?limit=' + limit),
+  // Data sources (admin) + screener
+  dataSources: () => http('/admin/data-sources'),
+  dataSourceCreate: (body) => http('/admin/data-sources', { method: 'POST', body: JSON.stringify(body) }),
+  dataSourceUpdate: (id, body) => http('/admin/data-sources/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+  dataSourceDelete: (id) => http('/admin/data-sources/' + id, { method: 'DELETE' }),
+  dataSourceTest: (id) => http('/admin/data-sources/' + id + '/test', { method: 'POST' }),
+  dataSourceIntrospect: (id) => http('/admin/data-sources/' + id + '/introspect', { method: 'POST' }),
+  dataSourceQuery: (id, sql, max_rows = 100) => http('/admin/data-sources/' + id + '/query', { method: 'POST', body: JSON.stringify({ sql, max_rows }) }),
+  screenerSuggestions: () => http('/screener/suggestions'),
+  runScreener: (prompt, source_id = null, max_rows = 50) => http('/screener', { method: 'POST', body: JSON.stringify({ prompt, source_id, max_rows }) }),
   research: () => http('/admin/research'),
   researchText: (title, text, source) =>
     http('/admin/research/text', { method: 'POST', body: JSON.stringify({ title, text, source }) }),
