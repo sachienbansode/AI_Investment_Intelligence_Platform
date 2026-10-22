@@ -111,12 +111,14 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
   const [ph, setPh] = useState(null)
   const [phLoad, setPhLoad] = useState(false)
   const [perf, setPerf] = useState(null)
+  const [cm, setCm] = useState(null)
 
   useEffect(() => {
     if (!symbol) return
-    setD(null); setErr(''); setPerf(null)
+    setD(null); setErr(''); setPerf(null); setCm(null)
     api.stockDetail(symbol).then(setD).catch(e => setErr(e.message))
     api.scorePerf(symbol).then(setPerf).catch(() => setPerf(null))
+    api.cmotsStock(symbol).then(r => setCm(r && r.available ? r : null)).catch(() => setCm(null))
   }, [symbol])
   useEffect(() => {
     if (!symbol) return
@@ -243,6 +245,32 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
           </div>
         </div>
       </div>
+
+      {cm && (cm.fundamentals || cm.risk) && (() => {
+        const f = cm.fundamentals || {}, rk = cm.risk || {}
+        const fx = v => (v == null || v === '' ? null : (isNaN(+v) ? v : (+v).toFixed(2)))
+        const rows = [
+          ['P/E (TTM)', fx(f.pe_ttm)], ['P/B (TTM)', fx(f.pb_ttm)], ['EPS (TTM)', fx(f.eps_ttm)],
+          ['ROE', fx(f.roe)], ['ROA', fx(f.roa)], ['Debt/Equity', fx(f.totaldebt_equity)],
+          ['Op. margin', fx(f.operatingprofitmargin)], ['Net margin', fx(f.netprofitmargin)],
+          ['Div yield', fx(f.dividendyield)], ['PEG', fx(f.pegratio)], ['Sector P/E', fx(f.sectorpe)],
+          ['Volatility (p.a.)', rk.volatility_pct != null ? rk.volatility_pct + '%' : null],
+          ['Beta (vs ' + (rk.benchmark || 'NIFTY') + ')', rk.beta != null ? rk.beta : null],
+        ].filter(([, v]) => v != null)
+        if (!rows.length) return null
+        return (
+          <div className="panel sd-stats" style={{ marginTop: 14 }}>
+            <div className="hint" style={{ marginBottom: 10 }}>
+              Fundamentals &amp; Risk <span style={{ opacity: .7 }}>· CMOTS{rk.days ? ' · ' + rk.days + 'd history' : ''}</span>
+            </div>
+            <div className="sd-stat-grid">
+              {rows.map(([k, v]) => (
+                <div className="sd-stat" key={k}><span>{k}</span><b>{v}</b></div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {d.news && d.news.length > 0 && (
         <div className="panel sd-news">

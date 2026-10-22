@@ -390,3 +390,29 @@ class YahooProvider(MarketDataProvider):
         except Exception as e:
             log.warning("Yahoo index failed for %s: %s", ysymbol, e)
             return None
+
+    async def get_index_history(self, ysymbol, rng="2y"):
+        """Daily close history via Yahoo v8 chart. Returns [(date_str, close), ...]
+        oldest->newest, or [] on failure. Used as the Beta benchmark (e.g. ^NSEI)."""
+        import datetime as _d
+        try:
+            async with httpx.AsyncClient(timeout=15, headers=_HEADERS) as client:
+                r = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ysymbol}",
+                    params={"range": rng, "interval": "1d"})
+                r.raise_for_status()
+            result = r.json().get("chart", {}).get("result")
+            if not result:
+                return []
+            res = result[0]
+            ts = res.get("timestamp") or []
+            closes = (res.get("indicators", {}).get("quote", [{}])[0].get("close")) or []
+            out = []
+            for t, c in zip(ts, closes):
+                if c is None:
+                    continue
+                out.append((_d.datetime.utcfromtimestamp(t).strftime("%Y-%m-%d"), float(c)))
+            return out
+        except Exception as e:
+            log.warning("Yahoo index history failed for %s: %s", ysymbol, e)
+            return []

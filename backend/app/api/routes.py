@@ -1238,3 +1238,34 @@ def sector_performance():
                 "gainers": gainers, "losers": losers}
     finally:
         db.close()
+
+
+# ---- CMOTS-backed analytics (fundamentals + risk) --------------------------
+
+@router.get("/cmots/status")
+async def cmots_status(user: User = Depends(get_current_user)):
+    """Is CMOTS connected, and how much did it introspect / map?"""
+    from app.services import cmots
+    src = cmots._src()
+    if not src:
+        return {"available": False}
+    sc = src.schema_json or {}
+    try:
+        mapped = len(cmots.cocode_map())
+    except Exception:
+        mapped = 0
+    return {"available": True, "name": src.name,
+            "schema": (sc.get("schema")), "table_count": sc.get("table_count", 0),
+            "symbols_mapped": mapped}
+
+
+@router.get("/cmots/stock/{symbol}")
+async def cmots_stock(symbol: str, user: User = Depends(get_current_user)):
+    """Fundamentals snapshot + risk metrics (volatility, Beta) for a symbol, from CMOTS."""
+    from app.services import cmots
+    if not cmots.available():
+        return {"available": False}
+    fund = cmots.fundamentals(symbol)
+    risk = await cmots.risk_metrics(symbol)
+    return {"available": True, "symbol": symbol.upper(),
+            "co_code": fund.get("co_code"), "fundamentals": fund, "risk": risk}
