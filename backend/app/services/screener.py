@@ -56,6 +56,55 @@ def _pick_sources(source_id):
     return db_sources
 
 
+async def _thematic_fallback(prompt: str, theme_hint: str = "") -> str:
+    """Qualitative shortlist when the structured DB can't answer: grounded in the
+    NIYTRI-scored universe (real NSE symbols) + today's news. Information, not advice."""
+    from app.db.database import Instrument, SessionLocal, StockScore
+    db = SessionLocal()
+    try:
+        latest = (db.query(StockScore.score_date)
+                  .order_by(StockScore.score_date.desc()).first())
+        secmap = {r.symbol: (r.sector or "") for r in db.query(Instrument).all()}
+        scored = []
+        if latest:
+            rows = (db.query(StockScore).filter_by(score_date=latest[0])
+                    .order_by(StockScore.composite_score.desc()).all())
+            for r in rows[:140]:
+                scored.append({"symbol": r.symbol, "sector": secmap.get(r.symbol, ""),
+                               "score": r.composite_score})
+    finally:
+        db.close()
+    impacted = []
+    try:
+        from app.services import news_intel
+        for n in news_intel.latest_news(limit=20):
+            impacted += [str(s).upper() for s in (n.get("impacted_stocks") or [])]
+    except Exception:
+        impacted = []
+    sys = (
+        "You are a thematic stock-DISCOVERY assistant for Indian equities. From the NIYTRI "
+        "universe below (real NSE symbols, each with our internal NIYTRI Score 0-100), shortlist "
+        "the names most relevant to the user's theme/request. Use ONLY symbols from the list. "
+        "Output: ONE bold takeaway line, then a markdown table with columns "
+        "| Symbol | Sector | NIYTRI Score | Why relevant | (3-8 rows). Keep 'Why relevant' a short "
+        "phrase tied to the theme. This is INFORMATION / discovery only — NOT investment advice, "
+        "no price targets, no buy/sell calls." + theme_hint)
+    usr = ("Request: " + prompt
+           + "\nNIYTRI universe (JSON): " + json.dumps(scored[:140], default=str)[:6000]
+           + (("\nIn today's news: " + ", ".join(sorted(set(impacted))[:20])) if impacted else ""))
+    try:
+        r = await get_llm_router().complete(sys, usr, task="screener_fallback",
+                                            max_tokens=600, temperature=0.4)
+        txt = (r.text or "").strip()
+        if txt:
+            return ("> **Note:** the connected market data couldn't screen this precisely, so "
+                    "here's a qualitative shortlist from the **NIYTRI Score** universe and "
+                    "today's news.\n\n" + txt)
+    except Exception as e:
+        log.warning("screener fallback failed: %s", e)
+    return ""
+
+
 async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     db_sources = _pick_sources(source_id)
     if not db_sources:
@@ -89,14 +138,31 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     sql = (spec.get("sql") or "").strip()
     sid = spec.get("source_id")
     src = next((s for s in db_sources if s.id == sid), db_sources[0])
+
+    def _fb_payload(summary):
+        return {"summary": summary, "rows": [], "columns": [], "sql": "",
+                "source": "NIYTRI analysis", "fallback": True,
+                "assumptions": spec.get("assumptions", ""), "disclaimer": AI_DISCLAIMER}
+
     if not sql:
+        fb = await _thematic_fallback(prompt, theme_hint)
+        if fb:
+            return _fb_payload(fb)
         return {"summary": spec.get("assumptions") or "I couldn't build a screen for that from the "
                 "connected data.", "rows": [], "columns": [], "sql": "", "source": src.name}
     try:
         res = ds.run_sql(src, sql, max_rows=max_rows)
     except Exception as e:
+        fb = await _thematic_fallback(prompt, theme_hint)
+        if fb:
+            return _fb_payload(fb)
         return {"error": "The screen query failed: " + str(e)[:200], "sql": sql,
                 "rows": [], "columns": [], "source": src.name}
+
+    if not res.get("rows"):
+        fb = await _thematic_fallback(prompt, theme_hint)
+        if fb:
+            return _fb_payload(fb)
 
     summary = ""
     try:

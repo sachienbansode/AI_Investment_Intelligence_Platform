@@ -15,6 +15,22 @@ const SRC_LABELS = {
   web: 'Web', quote: 'Live quote', ai_score_summary: 'NIYTRI Score summary',
 }
 const srcLabel = t => SRC_LABELS[t] || String(t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+// Rotating "thinking" captions shown while an answer is being generated.
+const THINK_CAPS = [
+  'Reading live market data',
+  'Checking NIYTRI Scores',
+  "Scanning today's news",
+  'Composing your answer',
+]
+function Thinking() {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setI(x => (x + 1) % THINK_CAPS.length), 1600)
+    return () => clearInterval(t)
+  }, [])
+  return <div className="typing-cap">{THINK_CAPS[i]}…</div>
+}
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 const SUGGESTIONS = [
@@ -565,7 +581,10 @@ export default function Assistant({ seed, clearSeed, go }) {
           {busy && (
             <div className="msg assistant">
               <span className="msg-avatar"><AiIcon /></span>
-              <div className="bubble typing"><span /><span /><span /></div>
+              <div>
+                <div className="bubble typing"><span /><span /><span /></div>
+                <Thinking />
+              </div>
             </div>
           )}
           <div ref={bottom} />

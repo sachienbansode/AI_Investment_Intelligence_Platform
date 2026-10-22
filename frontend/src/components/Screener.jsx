@@ -1,8 +1,54 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 
 // NIYTRI Screeners: natural-language screening over the connected market data.
+
+// Round numeric cells to max 2 decimals; leave text as-is.
+const NUMRE = /^-?\d*\.?\d+(?:[eE][-+]?\d+)?$/
+function fmtCell(v) {
+  if (v === null || v === undefined || v === '') return '—'
+  const s = String(v).trim()
+  if (NUMRE.test(s)) {
+    const n = Number(s)
+    if (!isFinite(n)) return s
+    return Number.isInteger(n)
+      ? n.toLocaleString('en-IN')
+      : n.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+  }
+  return s
+}
+const isNum = v => v != null && v !== '' && NUMRE.test(String(v).trim())
+const prettyHead = c => String(c || '').replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase())
+
+const SCREEN_STEPS = [
+  'Understanding your request',
+  'Planning a read-only query over the connected data',
+  'Running the screen',
+  'Summarising the matches',
+]
+function Screening() {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setI(x => Math.min(x + 1, SCREEN_STEPS.length - 1)), 1500)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div className="panel load-card">
+      <div className="load-bar"><span /></div>
+      <div className="load-steps">
+        {SCREEN_STEPS.map((s, k) => (
+          <div key={k} className={'load-step' + (k < i ? ' done' : k === i ? ' active' : '')}>
+            <span className="load-ic">{k < i ? '✓' : ''}</span>{s}…
+          </div>
+        ))}
+      </div>
+      <p className="hint" style={{ margin: '4px 0 0' }}>Screens run live over the connected market data —
+        complex prompts can take a few seconds.</p>
+    </div>
+  )
+}
+
 export default function Screener() {
   const [sug, setSug] = useState({ themes: [], prompts: [] })
   const [q, setQ] = useState('')
@@ -55,24 +101,30 @@ export default function Screener() {
         </>
       )}
 
-      {err && <p className="note">{err}</p>}
+      {busy && <Screening />}
+      {err && !busy && <p className="note">{err}</p>}
 
-      {res && !res.error && (
+      {res && !res.error && !busy && (
         <div className="panel">
           {res.summary && <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(res.summary) }} />}
           {res.source && <p className="hint" style={{ marginTop: 4 }}>Source: <b>{res.source}</b>{res.assumptions ? ' · ' + res.assumptions : ''}</p>}
           {res.rows?.length > 0 ? (
-            <div className="md-table-wrap">
-              <table className="md-table">
-                <thead><tr>{res.columns.map(c => <th key={c}>{c}</th>)}</tr></thead>
-                <tbody>
-                  {res.rows.map((r, i) => (
-                    <tr key={i}>{res.columns.map(c => <td key={c}>{r[c] === null || r[c] === undefined ? '—' : String(r[c])}</td>)}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <p className="hint">No matching rows.</p>}
+            <>
+              <div className="hint" style={{ margin: '4px 0 6px' }}>{res.rows.length} result{res.rows.length === 1 ? '' : 's'}</div>
+              <div className="md-table-wrap" style={{ maxHeight: 460, overflowY: 'auto' }}>
+                <table className="md-table">
+                  <thead><tr>{res.columns.map(c => <th key={c}>{prettyHead(c)}</th>)}</tr></thead>
+                  <tbody>
+                    {res.rows.map((r, i) => (
+                      <tr key={i}>{res.columns.map(c => (
+                        <td key={c} style={isNum(r[c]) ? { textAlign: 'right' } : undefined}>{fmtCell(r[c])}</td>
+                      ))}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (!res.fallback && <p className="hint">No matching rows.</p>)}
           {res.disclaimer && <p className="disclaimer">{res.disclaimer}</p>}
         </div>
       )}
