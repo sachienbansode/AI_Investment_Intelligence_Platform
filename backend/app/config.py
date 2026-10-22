@@ -38,6 +38,18 @@ class Settings(BaseSettings):
 
     # App
     database_url: str = "sqlite:///./broking_ai.db"
+    # CMOTS market/fundamentals DB (read-only). Set to a SQLAlchemy URL to auto-register
+    # it as the "CMOTS" data source on boot (screener + portfolio analytics read from it).
+    # CMOTS connection — either a full SQLAlchemy URL, OR the split parts below
+    # (the parts are assembled into a URL at boot if cmots_database_url is empty).
+    cmots_database_url: str = ""
+    cmots_db_type: str = "postgresql+psycopg2"   # connection type / driver
+    cmots_db_host: str = ""
+    cmots_db_port: str = "5432"
+    cmots_db_user: str = ""
+    cmots_db_password: str = ""
+    cmots_db_name: str = ""
+    cmots_db_schema: str = "cmots"   # CMOTS tables live in this schema (Postgres)
     jwt_secret: str = "dev-secret-change-in-production"
     environment: str = "development"
     scoring_universe: str = "RELIANCE,TCS,HDFCBANK,INFY,ICICIBANK"

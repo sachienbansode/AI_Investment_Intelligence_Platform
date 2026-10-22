@@ -92,6 +92,13 @@ def reschedule_news(minutes) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Auto-register the CMOTS data source from CMOTS_DATABASE_URL (if set) and try to
+    # introspect it — non-fatal if the DB isn't reachable yet.
+    try:
+        from app.services.data_sources import ensure_cmots_source
+        ensure_cmots_source()
+    except Exception as _e:  # never block boot on an external DB
+        log.warning("CMOTS auto-register skipped: %s", _e)
     from app.services.app_settings import get_setting
     hour = int(get_setting("daily_scoring_hour"))
     every = int(get_setting("news_refresh_minutes"))
