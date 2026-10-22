@@ -32,7 +32,7 @@ export default function Admin() {
       {view === 'users' && <Users />}
       {view === 'roles' && <Roles />}
       {view === 'instruments' && <Instruments />}
-      {view === 'integrations' && <Integrations />}
+      {view === 'integrations' && <Integrations goSettings={() => setView('settings')} />}
       {view === 'email' && <EmailConfig />}
       {view === 'emaillog' && <EmailLogs />}
       {view === 'terms' && <TermsAdmin />}
@@ -167,7 +167,7 @@ function LlmBilling() {
   )
 }
 
-function Integrations() {
+function Integrations({ goSettings }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [test, setTest] = useState(null)
@@ -218,12 +218,11 @@ function Integrations() {
             {testing ? 'Testing…' : 'Test AI connectivity'}</button>
         </div>
         <p className="hint" style={{ marginTop: 4 }}>
-          Fallback order ({data.settings?.llm_strategy === 'round_robin' ? 'round robin' : 'failover'}):
-          {' '}<strong>{(data.settings?.llm_provider_order || []).join(' → ') || '—'}</strong>.
-          {' '}Change the priority/fallback order in <strong>LLM routing</strong> (below).
+          Set the provider <strong>failover / fallback order</strong> and strategy in
+          {' '}<strong>Settings → LLM routing</strong>.
           <button className="ghost sm" style={{ marginLeft: 8 }}
-                  onClick={() => document.getElementById('llm-routing')?.scrollIntoView({ behavior: 'smooth' })}>
-            Go to routing</button>
+                  onClick={() => { try { history.replaceState(null, '', '#llm-routing') } catch (e) {} ; goSettings && goSettings() }}>
+            Open LLM routing</button>
         </p>
         {test && (
           <div className="deductions" style={{ marginTop: 0 }}>
@@ -631,6 +630,16 @@ function Settings() {
     setEditWeights(false); setEditShare(false)
   }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
+  // When navigated here from Integrations' "Open LLM routing", scroll to it once loaded.
+  useEffect(() => {
+    if (llm && typeof location !== 'undefined' && location.hash === '#llm-routing') {
+      const t = setTimeout(() => {
+        document.getElementById('llm-routing')?.scrollIntoView({ behavior: 'smooth' })
+        try { history.replaceState(null, '', location.pathname + location.search) } catch (e) {}
+      }, 120)
+      return () => clearTimeout(t)
+    }
+  }, [llm])
 
   async function save(key, value, { confirm = true, label = '' } = {}) {
     setErr(''); setMsg('')
