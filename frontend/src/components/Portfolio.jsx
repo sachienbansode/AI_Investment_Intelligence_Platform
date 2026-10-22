@@ -7,6 +7,10 @@ const RS = String.fromCharCode(0x20B9)
 const bandColor = v => v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)'
 const PIE = ['#f94c00', '#ff8a3d', '#12a06b', '#c07d0a', '#4f8ef7', '#7c5cfc', '#e0503f', '#2f6fe0']
 const inr = v => RS + Math.round(v).toLocaleString('en-IN')
+// market cap given in Rs crore -> compact "₹X.XX L Cr" (lakh crore) or "₹X,XXX Cr"
+const crore = v => v == null ? '—' : (v >= 100000
+  ? RS + (v / 100000).toFixed(2) + ' L Cr'
+  : RS + Math.round(v).toLocaleString('en-IN') + ' Cr')
 
 // Compact donut + legend for sector allocation.
 function PieMini({ data }) {
@@ -343,6 +347,33 @@ export default function Portfolio() {
             </div>
           )}
 
+          {result.fundamentals?.available && (
+            <div className="pf-funds">
+              <div className="pf-funds-h">Fundamentals <span className="hint">· value-weighted · CMOTS</span></div>
+              <div className="pf-kpis">
+                {result.fundamentals.weighted_pe != null && (
+                  <div className="pf-kpi"><span>Weighted P/E</span><b>{result.fundamentals.weighted_pe}</b>
+                    <i className="hint">{result.fundamentals.pe_coverage_pct}% covered</i></div>)}
+                {result.fundamentals.weighted_net_margin != null && (
+                  <div className="pf-kpi"><span>Net margin</span><b>{result.fundamentals.weighted_net_margin}%</b>
+                    <i className="hint">{result.fundamentals.margin_coverage_pct}% covered</i></div>)}
+                {result.fundamentals.weighted_peg != null && (
+                  <div className="pf-kpi"><span>PEG</span><b>{result.fundamentals.weighted_peg}</b></div>)}
+                {result.fundamentals.cap_mix_pct && (
+                  <div className="pf-kpi pf-kpi-wide"><span>Market-cap mix</span>
+                    <div className="pf-capbar" title="Large / Mid / Small-cap share of value">
+                      {['large', 'mid', 'small'].map(k => {
+                        const w = result.fundamentals.cap_mix_pct[k] || 0
+                        const c = k === 'large' ? 'var(--blue)' : k === 'mid' ? 'var(--amber)' : 'var(--red)'
+                        return w > 0 ? <span key={k} style={{ width: w + '%', background: c }} title={`${k}: ${w}%`} /> : null
+                      })}
+                    </div>
+                    <i className="hint">L {result.fundamentals.cap_mix_pct.large || 0}% · M {result.fundamentals.cap_mix_pct.mid || 0}% · S {result.fundamentals.cap_mix_pct.small || 0}%</i>
+                  </div>)}
+              </div>
+            </div>
+          )}
+
           {result.verdict && (result.verdict.strengths?.length > 0 || result.verdict.watchouts?.length > 0) && (
             <div className="pf-verdict">
               <div className="pf-vcol">
@@ -415,7 +446,11 @@ export default function Portfolio() {
                 <table className="md-table">
                   <thead><tr><th>Symbol</th><th style={{ textAlign: 'right' }}>Weight</th>
                     <th style={{ textAlign: 'right' }}>Value</th><th style={{ textAlign: 'right' }}>P&L</th>
-                    <th>Sector</th><th style={{ textAlign: 'right' }}>NIYTRI Score</th></tr></thead>
+                    <th>Sector</th>
+                    <th style={{ textAlign: 'right' }}>P/E</th>
+                    <th style={{ textAlign: 'right' }}>Net margin</th>
+                    <th style={{ textAlign: 'right' }}>Mkt cap</th>
+                    <th style={{ textAlign: 'right' }}>NIYTRI Score</th></tr></thead>
                   <tbody>
                     {result.holdings.map(h => (
                       <tr key={h.symbol}>
@@ -425,6 +460,9 @@ export default function Portfolio() {
                         <td style={{ textAlign: 'right' }} className={h.pnl_pct >= 0 ? 'up' : 'down'}>
                           {h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct}%</td>
                         <td>{h.sector}</td>
+                        <td style={{ textAlign: 'right' }}>{h.pe != null ? h.pe.toFixed(1) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{h.net_margin != null ? h.net_margin.toFixed(1) + '%' : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{h.mcap_cr != null ? crore(h.mcap_cr) : '—'}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: bandColor(h.score) }}>
                           {h.score != null ? h.score : '—'}</td>
                       </tr>

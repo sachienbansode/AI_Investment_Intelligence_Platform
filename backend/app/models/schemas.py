@@ -87,6 +87,7 @@ class PortfolioResponse(BaseModel):
     holdings: list[dict] = []       # per-holding: symbol, weight_pct, value, pnl_pct, sector, score, band
     portfolio_score: dict = {}      # weighted_score, coverage_pct, band_weight_pct, band_count, strongest, weakest, band
     verdict: dict = {}              # label, strengths[], watchouts[]
+    fundamentals: dict = {}         # CMOTS: weighted_pe, weighted_net_margin, weighted_peg, cap_mix_pct, coverage
 
 
 class WatchlistRequest(BaseModel):

@@ -33,11 +33,15 @@ export default function DataSources() {
     setBusy('')
   }
   async function toggle(d) {
-    try { await api.dataSourceUpdate(d.id, { name: d.name, kind: d.kind, config: {}, enabled: !d.enabled, note: d.note }); load() }
-    catch (e) { toast(e.message, { type: 'error' }) }
-  }
-  async function del(id) {
-    try { await api.dataSourceDelete(id); load() } catch (e) { toast(e.message, { type: 'error' }) }
+    const enabling = !d.enabled
+    const ok = window.confirm(
+      `${enabling ? 'Enable' : 'Disable'} data source “${d.name}”?\n\n` +
+      `The screener and assistant will ${enabling ? 'START' : 'STOP'} using it.`)
+    if (!ok) return
+    try {
+      await api.dataSourceUpdate(d.id, { name: d.name, kind: d.kind, config: {}, enabled: enabling, note: d.note })
+      toast(enabling ? 'Source enabled' : 'Source disabled', { type: 'success' }); load()
+    } catch (e) { toast(e.message, { type: 'error' }) }
   }
   async function runSql(id) {
     setBusy(id + 'sql')
@@ -78,7 +82,6 @@ export default function DataSources() {
           <div className="toolbar">
             <button className="ghost sm" onClick={() => test(d.id)} disabled={busy === d.id + 'test'}>Test</button>
             <button className="ghost sm" onClick={() => introspect(d.id)} disabled={busy === d.id + 'intro'}>Read schema</button>
-            <button className="ghost sm" onClick={() => del(d.id)}>Delete</button>
           </div>
           {d.kind === 'db' && (
             <>

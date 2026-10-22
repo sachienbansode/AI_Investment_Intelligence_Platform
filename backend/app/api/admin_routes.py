@@ -1668,7 +1668,19 @@ def _ds_public(d: DataSource) -> dict:
 
 def _mask_url(u: str) -> str:
     import re as _re
-    return _re.sub(r"://([^:/@]+):([^@]+)@", r"://\1:••••@", u or "")
+    u = _re.sub(r"://([^:/@]+):([^@]+)@", r"://\1:••••@", u or "")
+
+    def _mh(m):
+        host = m.group(2)
+        if _re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host):      # IPv4 -> keep 1st & last octet
+            p = host.split(".")
+            masked = f"{p[0]}.•••.•••.{p[3]}"
+        elif len(host) > 6:                                  # hostname -> keep ends
+            masked = host[:2] + "•••" + host[-3:]
+        else:
+            masked = "•••"
+        return m.group(1) + masked + (m.group(3) or "")
+    return _re.sub(r"(@)([^:/@]+)(:\d+)?", _mh, u)
 
 
 @router.get("/data-sources")
@@ -1724,15 +1736,10 @@ def update_data_source(sid: int, body: DataSourceBody, admin: User = Depends(req
 
 @router.delete("/data-sources/{sid}")
 def delete_data_source(sid: int, admin: User = Depends(require_admin)):
-    db = SessionLocal()
-    try:
-        d = db.get(DataSource, sid)
-        if d:
-            db.delete(d); db.commit()
-            audit_log("data_source_delete", by=admin.email, sid=sid)
-        return {"deleted": True}
-    finally:
-        db.close()
+    # Deletion is disabled by policy — sources are retired via the enable/disable
+    # toggle (with confirmation) instead, so a mis-click can't drop a connection.
+    raise HTTPException(status_code=405,
+                        detail="Deleting data sources is disabled. Disable the source instead.")
 
 
 @router.post("/data-sources/{sid}/test")

@@ -786,6 +786,20 @@ textarea:focus { border-color: var(--accent); }
 .pf-verdict li { margin: 3px 0; font-size: .86rem; }
 @media (max-width: 720px) { .pf-verdict { grid-template-columns: 1fr; } .pf-scorecard { flex-direction: column; align-items: flex-start; } }
 
+/* Portfolio fundamentals strip (CMOTS) */
+.pf-funds { margin: 2px 0 14px; }
+.pf-funds-h { font-size: .9rem; font-weight: 650; margin-bottom: 8px; color: var(--navy); }
+.pf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pf-kpi { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.pf-kpi > span { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.pf-kpi > b { font-size: 1.25rem; font-weight: 700; color: var(--navy); line-height: 1.1; }
+.pf-kpi > i { font-size: .72rem; font-style: normal; }
+.pf-kpi-wide { grid-column: span 2; }
+.pf-capbar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--border); margin: 4px 0 2px; }
+.pf-capbar span { display: block; height: 100%; }
+@media (max-width: 560px) { .pf-kpi-wide { grid-column: span 1; } }
+
 /* ── Share menu on an answer ── */
 .share-wrap { position: relative; display: inline-block; margin-left: auto; }
 .share-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30;

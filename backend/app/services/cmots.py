@@ -198,7 +198,8 @@ def fundamentals(symbol: str) -> dict:
     out = {"co_code": cc}
     ttm = _q(f"SELECT pe_ttm, pb_ttm, eps_ttm, dividendyield, mcap, sectorpe, "
              f"pegratio, operatingprofitmargin, netprofitmargin FROM fundamentalttm "
-             f"WHERE co_code = {icc} LIMIT 1", max_rows=1)
+             f"WHERE co_code = {icc} ORDER BY etl_fetched_at DESC NULLS LAST LIMIT 1",
+             max_rows=1)
     if ttm:
         out.update({k: v for k, v in ttm[0].items() if v is not None})
     perf = _latest_by_yrc("performanceratios", ["roe", "roa"], icc)
@@ -207,4 +208,40 @@ def fundamentals(symbol: str) -> dict:
     val = _latest_by_yrc("valuationratios", ["pe", "price_bookvalue", "ev_ebitda"], icc)
     for d in (perf, stab, val):
         out.update({k: v for k, v in d.items() if v is not None and k != "yrc"})
+    return out
+
+
+def fundamentals_batch(symbols: list) -> dict:
+    """{SYMBOL -> fundamentals dict} for many symbols in one query (portfolio use).
+    Picks the latest fundamentalttm row per company. Empty for unmapped symbols."""
+    cmap = cocode_map()
+    pairs = []   # (symbol_upper, co_code_int)
+    for s in symbols or []:
+        su = str(s or "").strip().upper()
+        info = cmap.get(su)
+        cc = info.get("co_code") if info else None
+        try:
+            if cc is not None:
+                pairs.append((su, int(cc)))
+        except (TypeError, ValueError):
+            continue
+    if not pairs:
+        return {}
+    cc_to_sym = {cc: su for su, cc in pairs}
+    ids = ",".join(str(cc) for _, cc in pairs)
+    rows = _q(f"SELECT co_code, pe_ttm, pb_ttm, eps_ttm, netprofitmargin, "
+              f"operatingprofitmargin, pegratio, mcap, sectorpe, dividendyield "
+              f"FROM fundamentalttm WHERE co_code IN ({ids}) "
+              f"ORDER BY co_code, etl_fetched_at DESC NULLS LAST", max_rows=len(pairs) * 4 + 10)
+    out = {}
+    for r in rows:
+        cc = r.get("co_code")
+        try:
+            cc = int(cc)
+        except (TypeError, ValueError):
+            continue
+        sym = cc_to_sym.get(cc)
+        if not sym or sym in out:   # keep only the first (latest) row per company
+            continue
+        out[sym] = {k: v for k, v in r.items() if v is not None and k != "co_code"}
     return out

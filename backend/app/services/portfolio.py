@@ -189,15 +189,77 @@ async def portfolio_metrics(holdings: list[Holding]) -> dict:
         f"({'+' if pnl_abs >= 0 else '-'}Rs {abs(pnl_abs):,.0f}) versus invested cost."
     )
 
+    # ---- CMOTS fundamentals overlay (per holding + value-weighted portfolio) ----
+    fmap = {}
+    try:
+        from app.services import cmots
+        if cmots.available():
+            fmap = cmots.fundamentals_batch([r["symbol"] for r in rows]) or {}
+    except Exception:
+        fmap = {}
+
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    for r in rows:
+        f = fmap.get(r["symbol"]) or {}
+        r["pe"] = _num(f.get("pe_ttm"))
+        r["pb"] = _num(f.get("pb_ttm"))
+        r["eps"] = _num(f.get("eps_ttm"))
+        r["net_margin"] = _num(f.get("netprofitmargin"))
+        r["op_margin"] = _num(f.get("operatingprofitmargin"))
+        r["peg"] = _num(f.get("pegratio"))
+        r["mcap_cr"] = _num(f.get("mcap"))
+
+    def _wavg(key):
+        num = sum(r["value"] * r[key] for r in rows if r.get(key) is not None)
+        den = sum(r["value"] for r in rows if r.get(key) is not None)
+        return (round(num / den, 2), round(den / total * 100, 1)) if den else (None, 0.0)
+
+    w_pe, pe_cov = _wavg("pe")
+    w_nm, nm_cov = _wavg("net_margin")
+    w_peg, _ = _wavg("peg")
+    # market-cap mix by CMOTS mcap (Rs cr): large >=20000, mid 5000-20000, small <5000
+    capmix = {"large": 0.0, "mid": 0.0, "small": 0.0, "unknown": 0.0}
+    for r in rows:
+        mc = r.get("mcap_cr")
+        key = ("unknown" if mc is None else "large" if mc >= 20000 else "mid" if mc >= 5000 else "small")
+        capmix[key] += r["value"] / total * 100
+    capmix = {k: round(v, 1) for k, v in capmix.items()}
+    fundamentals = {
+        "available": bool(fmap),
+        "weighted_pe": w_pe, "pe_coverage_pct": pe_cov,
+        "weighted_net_margin": w_nm, "margin_coverage_pct": nm_cov,
+        "weighted_peg": w_peg, "cap_mix_pct": capmix,
+    }
+    # fundamentals-driven verdict lines
+    if w_nm is not None and nm_cov >= 40:
+        if w_nm >= 15:
+            strengths.append(f"Strong profitability — value-weighted **net margin {w_nm}%**.")
+        elif w_nm < 5:
+            watchouts.append(f"Thin profitability — value-weighted **net margin {w_nm}%**.")
+    if w_pe is not None and pe_cov >= 40 and w_pe >= 45:
+        watchouts.append(f"Richly valued — value-weighted **P/E {w_pe}**.")
+    if capmix["small"] >= 40:
+        watchouts.append(f"**{capmix['small']}%** of value in small-caps — higher risk.")
+    elif capmix["large"] >= 60:
+        strengths.append(f"**{capmix['large']}%** in large-caps — stability tilt.")
+
     holdings_out = sorted(
         [{"symbol": r["symbol"], "weight_pct": r["weight_pct"], "value": r["value"],
-          "pnl_pct": r["pnl_pct"], "sector": r["sector"], "score": r["score"], "band": r["band"]}
+          "pnl_pct": r["pnl_pct"], "sector": r["sector"], "score": r["score"], "band": r["band"],
+          "pe": r.get("pe"), "pb": r.get("pb"), "net_margin": r.get("net_margin"),
+          "mcap_cr": r.get("mcap_cr")}
          for r in rows], key=lambda r: r["weight_pct"], reverse=True)
 
     return {"weights": weights, "sector_exposure": sector_exp, "concentration": concentration,
             "diversification": diversification, "deductions": deductions, "health": health,
             "pnl": pnl, "status": rag, "status_label": rag_label, "headline": headline,
-            "holdings": holdings_out, "portfolio_score": portfolio_score, "verdict": verdict}
+            "holdings": holdings_out, "portfolio_score": portfolio_score, "verdict": verdict,
+            "fundamentals": fundamentals}
 
 
 async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
@@ -216,6 +278,9 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         "concentration": m["concentration"], "diversification": m["diversification"],
         "weakest": m["portfolio_score"].get("weakest"),
         "strongest": m["portfolio_score"].get("strongest"),
+        "fundamentals": {k: m.get("fundamentals", {}).get(k) for k in
+                         ("weighted_pe", "weighted_net_margin", "weighted_peg", "cap_mix_pct")}
+        if m.get("fundamentals", {}).get("available") else None,
     }
     prompt = (
         f"Portfolio metrics: {json.dumps(ctx)}\n"
@@ -223,6 +288,8 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         "conclusion sentence (the overall read, referencing the value-weighted NIYTRI "
         "Score and health). Then 3-5 markdown bullets ('- ') of factual observations on "
         "quality (NIYTRI Score bands), diversification, concentration and sector tilt, "
+        "and — when 'fundamentals' is present — valuation and profitability (value-weighted "
+        "P/E, net margin, PEG) and the market-cap mix (large/mid/small). "
         "bolding key numbers with **. Reference specific holdings where relevant. "
         "Describe the data only — do NOT recommend buying, selling or holding anything, "
         "and give no price targets. Output the conclusion line, a blank line, then bullets."
@@ -246,4 +313,5 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         diversification=m["diversification"], concentration_risk=m["concentration"],
         sector_exposure=m["sector_exposure"], insights=insights, disclaimer=AI_DISCLAIMER,
         holdings=m["holdings"], portfolio_score=m["portfolio_score"], verdict=m["verdict"],
+        fundamentals=m.get("fundamentals", {}),
     )
