@@ -336,8 +336,10 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
 
   /* tap-friendly compact input row */
   .chat-input { gap: 6px; }
-  .chat-input input { padding: 9px 12px; font-size: 16px; border-radius: 9px; }
-  .chat-input button { padding: 9px 14px; min-height: 38px; }
+  .chat-input input,
+  .chat-input textarea { padding: 10px 12px; font-size: 16px; border-radius: 9px; }
+  .chat-input textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-input button { padding: 9px 14px; min-height: 40px; flex: none; white-space: nowrap; }
 }
 .msg { display: flex; margin: 10px 0; }
 .msg.user { justify-content: flex-end; }

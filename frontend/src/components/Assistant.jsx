@@ -205,7 +205,16 @@ export default function Assistant({ seed, clearSeed, go }) {
   const [symSet, setSymSet] = useState(new Set())
   const [histOpen, setHistOpen] = useState(false)
   const [rated, setRated] = useState({})
+  const [isNarrow, setIsNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 680)
   const bottom = useRef(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(max-width: 680px)')
+    const on = () => setIsNarrow(mq.matches); on()
+    mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on)
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on) }
+  }, [])
 
   const loadSessions = () => api.chatSessions().then(d => setSessions(d.sessions)).catch(() => {})
   useEffect(() => {
@@ -545,7 +554,7 @@ export default function Assistant({ seed, clearSeed, go }) {
           <textarea ref={taRef} value={input} rows={1}
                  onChange={e => { setInput(e.target.value); const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px' }}
                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                 placeholder="Ask anything — Shift+Enter for a new line…" disabled={busy} />
+                 placeholder={isNarrow ? 'Ask anything…' : 'Ask anything — Shift+Enter for a new line…'} disabled={busy} />
           <button onClick={() => send()} disabled={busy || !input.trim()}>Send</button>
         </div>
       </div>
