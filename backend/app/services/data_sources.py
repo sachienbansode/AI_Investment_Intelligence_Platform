@@ -74,9 +74,12 @@ def _db_engine(src):
     connect_args = {}
     if url.startswith("postgres"):
         connect_args["connect_timeout"] = 10
+        # Apply timeout + schema at CONNECT time (libpq options) rather than per-query
+        # SET statements, so a failed SET can never leave a transaction aborted (25P02).
+        opts = ["-c statement_timeout=30000"]
         if schema:
-            # resolve unqualified table names against this schema (then public)
-            connect_args["options"] = f"-c search_path={schema},public"
+            opts.append(f"-c search_path={schema},public")
+        connect_args["options"] = " ".join(opts)
     eng = create_engine(url, pool_pre_ping=True, pool_recycle=1800,
                         connect_args=connect_args)
     _engines[src.id] = (key, eng)
@@ -147,15 +150,10 @@ def run_sql(src, sql: str, max_rows: int = 200, timeout_s: int = 20) -> dict:
     if not re.search(r"\blimit\b", sql, re.IGNORECASE):
         sql = f"{sql}\nLIMIT {int(max_rows)}"
     eng = _db_engine(src)
-    with eng.connect() as c:
-        try:
-            if eng.dialect.name == "postgresql":
-                c.execute(text(f"SET LOCAL statement_timeout = {int(timeout_s) * 1000}"))
-                sch = _db_schema(src)
-                if sch:
-                    c.execute(text(f"SET LOCAL search_path = {sch}, public"))
-        except Exception:
-            pass
+    # AUTOCOMMIT: each read-only query is independent, so one failure can never leave
+    # the connection in an aborted-transaction state (Postgres 25P02). Timeout and
+    # search_path are applied via the connection options in _db_engine.
+    with eng.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
         res = c.execute(text(sql))
         cols = list(res.keys())
         rows = [{cols[i]: _jsonable(v) for i, v in enumerate(r)}

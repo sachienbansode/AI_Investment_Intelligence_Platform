@@ -61,19 +61,24 @@ export function mdToHtml(text) {
       })
       const headers = cells(line)
       const al = k => aligns[k] ? ` style="text-align:${aligns[k]}"` : ''
-      let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>'
-      headers.forEach((h, k) => { t += `<th${al(k)}${colTip(h)}>${inline(h)}</th>` })
-      t += '</tr></thead><tbody>'
+      // collect body rows first so a header-only table (no data) is skipped entirely
       let j = i + 2
+      let body = ''
+      let nrows = 0
       while (j < lines.length && lines[j].trim() !== '' && lines[j].includes('|')) {
         const row = cells(lines[j].trim())
-        t += '<tr>'
-        headers.forEach((_, k) => { t += `<td${al(k)}>${inline(row[k] || '')}</td>` })
-        t += '</tr>'
+        body += '<tr>'
+        headers.forEach((_, k) => { body += `<td${al(k)}>${inline(row[k] || '')}</td>` })
+        body += '</tr>'
+        nrows++
         j++
       }
-      t += '</tbody></table></div>'
-      html += t
+      if (nrows > 0) {
+        let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>'
+        headers.forEach((h, k) => { t += `<th${al(k)}${colTip(h)}>${inline(h)}</th>` })
+        t += '</tr></thead><tbody>' + body + '</tbody></table></div>'
+        html += t
+      }
       i = j - 1
       continue
     }

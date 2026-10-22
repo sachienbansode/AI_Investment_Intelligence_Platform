@@ -109,18 +109,25 @@ async def _thematic_fallback(prompt: str, theme_hint: str = "") -> str:
     sys = (
         "You are a thematic stock-DISCOVERY assistant for Indian equities. From the NIYTRI "
         "universe below (real NSE symbols, each with our internal NIYTRI Score 0-100), shortlist "
-        "the names most relevant to the user's theme/request. Use ONLY symbols from the list. "
-        "Output: ONE bold takeaway line, then a markdown table with columns "
-        "| Symbol | Sector | NIYTRI Score | Why relevant | (3-8 rows). Keep 'Why relevant' a short "
-        "phrase tied to the theme. This is INFORMATION / discovery only — NOT investment advice, "
-        "no price targets, no buy/sell calls." + theme_hint)
+        "the names most relevant to the user's theme/request. Use ONLY symbols from the list.\n"
+        "OUTPUT FORMAT — be CONCISE, output EXACTLY this and NOTHING else:\n"
+        "1) ONE short bold takeaway sentence.\n"
+        "2) A blank line.\n"
+        "3) A single markdown table: | Symbol | Sector | NIYTRI Score | Why relevant | with 3-8 "
+        "data rows (never a header with no rows). 'Why relevant' = a short phrase.\n"
+        "Do NOT add any other sections — no 'Screening Note', 'Alternative', 'Recommendation', "
+        "'Source', bullet lists, '---' separators, or extra commentary. This is INFORMATION / "
+        "discovery only — NOT investment advice, no price targets, no buy/sell calls." + theme_hint)
     usr = ("Request: " + prompt
            + "\nNIYTRI universe (JSON): " + json.dumps(scored[:140], default=str)[:6000]
            + (("\nIn today's news: " + ", ".join(sorted(set(impacted))[:20])) if impacted else ""))
     try:
         r = await get_llm_router().complete(sys, usr, task="screener_fallback",
-                                            max_tokens=600, temperature=0.4)
+                                            max_tokens=420, temperature=0.3)
         txt = (r.text or "").strip()
+        # tidy: drop stray '---' rules and collapse blank runs
+        txt = re.sub(r"(?m)^\s*-{3,}\s*$", "", txt)
+        txt = re.sub(r"\n{3,}", "\n\n", txt).strip()
         if txt:
             return ("> **Note:** the connected market data couldn't screen this precisely, so "
                     "here's a qualitative shortlist from the **NIYTRI Score** universe and "
