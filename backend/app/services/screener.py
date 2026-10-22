@@ -46,6 +46,31 @@ def suggestions() -> dict:
     return {"themes": list(THEMES.keys()), "prompts": TRENDING_PROMPTS}
 
 
+def _dedupe_rows(res: dict) -> dict:
+    """Keep one row per company. Prefers a co_code / symbol / name key column; falls
+    back to the whole-row signature. Preserves order."""
+    rows = res.get("rows") or []
+    cols = res.get("columns") or []
+    if not rows:
+        return res
+    low = {c.lower(): c for c in cols}
+    keycol = next((low[k] for k in ("co_code", "cocode", "nsesymbol", "symbol",
+                                    "bsecode", "isin", "companyname", "name") if k in low), None)
+    seen, out = set(), []
+    for r in rows:
+        if keycol is not None and r.get(keycol) not in (None, ""):
+            sig = ("k", r.get(keycol))
+        else:
+            sig = ("r", tuple(sorted((str(k), str(v)) for k, v in r.items())))
+        if sig in seen:
+            continue
+        seen.add(sig)
+        out.append(r)
+    res["rows"] = out
+    res["row_count"] = len(out)
+    return res
+
+
 def _pick_sources(source_id):
     sources = ds.enabled_sources()
     db_sources = [s for s in sources if s.kind == "db" and s.schema_json]
@@ -123,8 +148,18 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
         "SELECT over the connected market database(s) below. RULES: SELECT or WITH only; a "
         "SINGLE statement; ALWAYS include LIMIT " + str(max_rows) + "; use ONLY tables/columns "
         "present in the schema; include identifying columns (symbol/name) plus the filtered "
-        "metrics and a sensible ORDER BY. If the data needed isn't in the schema, return an "
-        "empty sql and say what's missing. Respond with STRICT JSON only: "
+        "metrics and a sensible ORDER BY.\n"
+        "CRITICAL QUALITY RULES:\n"
+        "1. ONE ROW PER COMPANY. A company's co_code can repeat across rows (e.g. standalone vs "
+        "consolidated). De-duplicate: use GROUP BY the company key or SELECT DISTINCT ON (co_code) "
+        "... ORDER BY co_code, <recency col> — never return the same company twice.\n"
+        "2. MATCH THEMES BY CLASSIFICATION, NOT COMPANY NAME. Interpret a theme/sector ONLY via "
+        "sector/industry classification columns (e.g. sectorname, industry). NEVER filter on the "
+        "company NAME containing a keyword — 'fab' in 'Texfab' is textiles, not semiconductor "
+        "fabrication. Do NOT use companyname LIKE '%keyword%' for theme matching.\n"
+        "3. If the connected data has no column that genuinely identifies the theme/metric asked "
+        "for, return an EMPTY sql and say what's missing — do NOT force a loose name match.\n"
+        "Respond with STRICT JSON only: "
         '{"source_id": <int>, "sql": "<sql or empty>", "assumptions": "<short>"}.' + theme_hint +
         "\n\nSCHEMA:\n" + schema)
     try:
@@ -158,6 +193,9 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
             return _fb_payload(fb)
         return {"error": "The screen query failed: " + str(e)[:200], "sql": sql,
                 "rows": [], "columns": [], "source": src.name}
+
+    # Safety-net de-duplication: one row per company even if the SQL returned dupes.
+    res = _dedupe_rows(res)
 
     if not res.get("rows"):
         fb = await _thematic_fallback(prompt, theme_hint)
