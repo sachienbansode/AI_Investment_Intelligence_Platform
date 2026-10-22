@@ -6,6 +6,15 @@ import ChartBlock from './ChartBlock.jsx'
 import { confirmDialog, toast } from '../dialog.jsx'
 
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
+
+// Friendly labels for grounding sources (instead of raw snake_case types)
+const SRC_LABELS = {
+  ai_score: 'NIYTRI Score', ai_scores_summary: 'NIYTRI Score distribution',
+  cmots_fundamentals: 'CMOTS fundamentals', live_sector_indices: 'NSE sector indices',
+  computed: 'Computed on platform data', news: 'Market news', research: 'Broker research',
+  web: 'Web', quote: 'Live quote', ai_score_summary: 'NIYTRI Score summary',
+}
+const srcLabel = t => SRC_LABELS[t] || String(t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 const newSession = () => 'chat-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 const SUGGESTIONS = [
@@ -502,7 +511,7 @@ export default function Assistant({ seed, clearSeed, go }) {
                       <ul>
                         {m.sources.map((s, j) => (
                           <li key={j}>
-                            {s.type}{s.symbol ? `: ${s.symbol}` : ''}
+                            {srcLabel(s.type)}{s.symbol ? `: ${s.symbol}` : ''}
                             {s.link ? <> — <a href={s.link} target="_blank" rel="noreferrer">{s.title || s.link}</a></> : s.title ? ` — ${s.title}` : ''}
                           </li>
                         ))}
@@ -525,6 +534,8 @@ export default function Assistant({ seed, clearSeed, go }) {
                           <button className="fb-btn" onClick={() => rate(i, 1)}>Yes</button>
                           <button className="fb-btn" onClick={() => rate(i, -1)}>No</button>
                         </>}
+                    <button className="fb-btn" title="Copy answer"
+                            onClick={() => { navigator.clipboard?.writeText(m.text).then(() => toast('Copied', { type: 'success' })).catch(() => {}) }}>Copy</button>
                     <ShareMenu question={i > 0 ? messages[i - 1].text : ''} answer={m.text} charts={m.charts} />
                   </div>
                 )}

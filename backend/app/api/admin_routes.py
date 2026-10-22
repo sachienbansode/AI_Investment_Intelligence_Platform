@@ -1679,7 +1679,8 @@ def _mask_url(u: str) -> str:
             masked = host[:2] + "•••" + host[-3:]
         else:
             masked = "•••"
-        return m.group(1) + masked + (m.group(3) or "")
+        port = ":••••" if m.group(3) else ""      # mask the port entirely
+        return m.group(1) + masked + port
     return _re.sub(r"(@)([^:/@]+)(:\d+)?", _mh, u)
 
 

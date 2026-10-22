@@ -477,6 +477,41 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     + "Pillars: " + json.dumps(row.pillar_scores) + ". " + (row.explanation or ""))
                 sources.append({"type": "ai_score", "symbol": sym, "date": row.score_date})
 
+        # CMOTS authoritative fundamentals for the mentioned stock(s) — grounds
+        # "tell me about X" style answers in real India-specific numbers.
+        if mentioned:
+            try:
+                from app.services import cmots
+                if cmots.available():
+                    fb = cmots.fundamentals_batch(mentioned[:3])
+                    for sym in mentioned[:3]:
+                        f = fb.get(sym)
+                        if not f:
+                            continue
+                        bits = []
+                        for k, lab in (("pe_ttm", "P/E (TTM)"), ("pb_ttm", "P/B"),
+                                       ("eps_ttm", "EPS"), ("netprofitmargin", "net margin %"),
+                                       ("operatingprofitmargin", "op margin %"),
+                                       ("pegratio", "PEG"), ("sectorpe", "sector P/E"),
+                                       ("dividendyield", "div yield %")):
+                            if f.get(k) is not None:
+                                bits.append(f"{lab}={f[k]}")
+                        mc = f.get("mcap")
+                        if mc is not None:
+                            try:
+                                bits.append(f"mcap={round(float(mc)):,} cr")
+                            except (TypeError, ValueError):
+                                pass
+                        if bits:
+                            context_parts.append(
+                                "CMOTS_FUNDAMENTALS " + sym + " (AUTHORITATIVE India "
+                                "fundamentals, trailing-twelve-month — state these EXACT figures "
+                                "for valuation/profitability; do not invent or round differently): "
+                                + ", ".join(bits))
+                            sources.append({"type": "cmots_fundamentals", "symbol": sym})
+            except Exception:
+                pass
+
         # Platform-wide score context: full distribution + extremes so questions
         # like "stocks below 50" or "top stocks" are answered from real data.
         latest = (db.query(StockScore.score_date)

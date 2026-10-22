@@ -786,6 +786,30 @@ textarea:focus { border-color: var(--accent); }
 .pf-verdict li { margin: 3px 0; font-size: .86rem; }
 @media (max-width: 720px) { .pf-verdict { grid-template-columns: 1fr; } .pf-scorecard { flex-direction: column; align-items: flex-start; } }
 
+/* Portfolio holdings editor — compact, scrollable, enterprise density */
+.pf-holdings-head { display: flex; align-items: center; justify-content: space-between;
+  margin: 4px 0 8px; }
+.pf-holdings-head > span { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.pf-holdings-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: 10px; }
+.pf-holdings { border-collapse: separate; border-spacing: 0; }
+.pf-holdings thead th { position: sticky; top: 0; z-index: 1; background: var(--panel2);
+  font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+  padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.pf-holdings td { padding: 4px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.pf-holdings tr:last-child td { border-bottom: none; }
+.pf-holdings tbody tr:hover td { background: var(--panel2); }
+.pf-holdings input { width: 100%; padding: 7px 10px; border: 1px solid transparent;
+  background: transparent; border-radius: 7px; font-size: .86rem; transition: border-color .12s, background .12s; }
+.pf-holdings input:hover { border-color: var(--border); }
+.pf-holdings input:focus { border-color: var(--accent); background: var(--panel); outline: none; }
+.pf-holdings input.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pf-holdings th:nth-child(2), .pf-holdings th:nth-child(3) { text-align: right; }
+.pf-holdings th:last-child, .pf-holdings td:last-child { width: 40px; text-align: center; }
+.pf-row-x { width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent;
+  color: var(--muted); cursor: pointer; font-size: .8rem; line-height: 1; }
+.pf-row-x:hover { background: rgba(224,80,63,.12); color: var(--red); }
+
 /* Portfolio fundamentals strip (CMOTS) */
 .pf-funds { margin: 2px 0 14px; }
 .pf-funds-h { font-size: .9rem; font-weight: 650; margin-bottom: 8px; color: var(--navy); }

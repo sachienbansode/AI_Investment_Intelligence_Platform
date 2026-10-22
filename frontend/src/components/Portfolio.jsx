@@ -240,26 +240,33 @@ export default function Portfolio() {
             {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name} · {i.sector}</option>)}
           </datalist>
 
-          <table className="holdings">
-            <thead><tr>
-              <th title="NSE trading symbol — type to search the instruments master">Symbol (NSE)</th>
-              <th title="Number of shares you hold">Qty</th>
-              <th title="Your average buy price per share in rupees">Avg price ₹</th>
-              <th />
-            </tr></thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i}>
-                  <td><input list="pf-inst" value={r.symbol} placeholder="Type to search…"
-                             onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} /></td>
-                  <td><input type="number" value={r.quantity} onChange={e => update(i, 'quantity', e.target.value)} /></td>
-                  <td><input type="number" value={r.avg_price} onChange={e => update(i, 'avg_price', e.target.value)} /></td>
-                  <td><button className="ghost" onClick={() => remove(i)} title="Remove this holding">✕</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="toolbar"><button onClick={add}>+ Add holding</button></div>
+          <div className="pf-holdings-head">
+            <span>{rows.length} holding{rows.length === 1 ? '' : 's'}</span>
+            <button className="ghost sm" onClick={add}>+ Add holding</button>
+          </div>
+          <div className="pf-holdings-wrap">
+            <table className="holdings pf-holdings">
+              <thead><tr>
+                <th title="NSE trading symbol — type to search the instruments master">Symbol (NSE)</th>
+                <th title="Number of shares you hold">Qty</th>
+                <th title="Your average buy price per share in rupees">Avg price ₹</th>
+                <th aria-label="Remove" />
+              </tr></thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td><input list="pf-inst" value={r.symbol} placeholder="Search symbol…"
+                               onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} /></td>
+                    <td><input type="number" className="num" value={r.quantity} placeholder="0"
+                               onChange={e => update(i, 'quantity', e.target.value)} /></td>
+                    <td><input type="number" className="num" value={r.avg_price} placeholder="0.00"
+                               onChange={e => update(i, 'avg_price', e.target.value)} /></td>
+                    <td><button className="pf-row-x" onClick={() => remove(i)} title="Remove this holding">✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
