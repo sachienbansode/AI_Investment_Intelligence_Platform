@@ -677,12 +677,37 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         ((v["score"]["avg"], k) for k, v in sector_stats.items()
                          if v.get("score")), reverse=True)
                     if _ranked:
-                        _t, _b = _ranked[0], _ranked[-1]
+                        _tk, _bk = _ranked[0][1], _ranked[-1][1]
+                        _ts, _bs = sector_stats[_tk]["score"], sector_stats[_bk]["score"]
+                        _tc, _bc = sector_stats[_tk]["count"], sector_stats[_bk]["count"]
                         context_parts.append(
                             "SECTOR_SCORE_RANK (AUTHORITATIVE — state EXACTLY): the sector with the "
-                            f"HIGHEST average {score_label} is {_t[1]} ({_t[0]}); the LOWEST is "
-                            f"{_b[1]} ({_b[0]}). Do NOT call any other sector the leader/laggard, and "
+                            f"HIGHEST average {score_label} is {_tk} (avg {_ts['avg']} across {_tc} "
+                            f"stocks, range {_ts['min']}-{_ts['max']}); the LOWEST is {_bk} (avg "
+                            f"{_bs['avg']} across {_bc} stocks, range {_bs['min']}-{_bs['max']}). "
+                            "When you name the leader/laggard, add a SHORT justification in the same "
+                            "sentence using these numbers (e.g. 'leads with an average score of X "
+                            "across N stocks'). Do NOT call any other sector the leader/laggard, and "
                             "do NOT confuse the largest sector (most stocks) with the top-scoring one.")
+
+                    # Pre-built, exact sector table so the model never invents numbers.
+                    _tbl = sorted(sector_stats.items(),
+                                  key=lambda kv: -kv[1]["score"]["avg"])
+                    _lines = ["| Sector | Avg " + score_label + " | Today's avg move | Stocks |",
+                              "|---|--:|--:|--:|"]
+                    for _sn, _st in _tbl[:14]:
+                        _dm = _st.get("day_change_pct")
+                        _dmv = (f"{_dm['avg']:+.2f}%" if _dm and _dm.get("avg") is not None else "—")
+                        _lines.append(f"| {_sn} | {_st['score']['avg']} | {_dmv} | {_st['count']} |")
+                    context_parts.append(
+                        "SECTOR_TABLE (AUTHORITATIVE, PRECOMPUTED): if the user wants a sector "
+                        "breakdown / overview, REPRODUCE THIS TABLE EXACTLY as markdown — do NOT "
+                        "change, round, reorder, add or remove any number or row, and do NOT invent "
+                        "a different 'today's performance' column. These are the platform's own "
+                        "NIYTRI sectors; 'Today's avg move' is the average day price move of the "
+                        "stocks in each sector. (For NSE sector-INDEX moves, that's the separate "
+                        "live sector-performance chart — never relabel a Nifty index as a NIYTRI "
+                        "sector.)\n" + "\n".join(_lines))
 
                 if wants_sector_perf:
                     sec_idx = await _safe(md.get_sector_indices(), default=[], timeout=6.0)
