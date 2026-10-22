@@ -267,10 +267,16 @@ function SectorPerf() {
   useEffect(() => { let a = true; api.sectorPerformance().then(r => a && setD(r)).catch(() => a && setD({ sectors: [] })); return () => { a = false } }, [])
   if (!d) return <p className="hint">Loading sector performance…</p>
   const arr = (d.sectors || []).slice(0, 12)
-  if (!arr.length) return <p className="hint">No price-move data yet.</p>
+  if (!arr.length) return <p className="hint">No sector performance data yet.</p>
+  const live = d.basis === 'live_sector_indices'
+  const title = live
+    ? 'Sector Performance — NSE sectoral indices (last session)'
+    : `Sector Performance — last session price move${d.as_of ? ' (' + d.as_of + ')' : ''}`
+  const note = live
+    ? 'Official NSE sectoral index % moves (real market) — the same basis market sites report.'
+    : 'Average day price % move per sector from stored EOD prices (real market, delayed).'
   return (
-    <Wrap title={`Sector Performance — last session price move${d.as_of ? ' (' + d.as_of + ')' : ''}`}
-          note="Average day price % move per sector from stored EOD prices (real market, delayed).">
+    <Wrap title={title} note={note}>
       <BarChart labels={arr.map(x => x.sector)} values={arr.map(x => x.avg_change)}
                 colors={arr.map(x => x.avg_change >= 0 ? 'var(--green)' : 'var(--red)')} fmtY={v => v + '%'} />
     </Wrap>

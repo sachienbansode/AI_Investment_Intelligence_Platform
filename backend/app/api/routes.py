@@ -1170,10 +1170,30 @@ async def run_screener(req: _ScreenReq, user: User = Depends(get_current_user)):
     return out
 
 
+# cache for live sector-index pulls (avoid hammering Yahoo)
+_SECIDX_CACHE = {"t": 0.0, "data": []}
+
+def _live_sector_indices(max_age=120):
+    """Live NSE sectoral index moves via the aggregator (cached). [] if unavailable."""
+    import time as _t, asyncio as _a
+    if _SECIDX_CACHE["data"] and (_t.time() - _SECIDX_CACHE["t"]) < max_age:
+        return _SECIDX_CACHE["data"]
+    try:
+        from app.data.aggregator import get_market_data
+        data = _a.run(get_market_data().get_sector_indices())
+    except Exception:
+        data = []
+    if data:
+        _SECIDX_CACHE["data"] = data
+        _SECIDX_CACHE["t"] = _t.time()
+    return data
+
+
 @router.get("/public/sector-performance")
 def sector_performance():
-    """REAL-MARKET view: average last-session price % move per sector (from stored
-    EOD prices), plus top gainers/losers. Complements the NIYTRI-Score sector view."""
+    """REAL-MARKET view: live NSE sectoral index % moves (matches standard reporting),
+    with top gainers/losers from stored EOD prices. Falls back to per-sector stock
+    averages if the live index feed is unavailable."""
     from sqlalchemy import func as _f
     db = SessionLocal()
     try:
@@ -1197,12 +1217,24 @@ def sector_performance():
         bysec = {}
         for sym, ch, sec in moves:
             bysec.setdefault(sec, []).append(ch)
-        sectors = [{"sector": k, "avg_change": round(sum(v) / len(v), 2), "count": len(v)}
-                   for k, v in bysec.items() if len(v) >= 2]
-        sectors.sort(key=lambda x: -x["avg_change"])
+        stock_sectors = [{"sector": k, "avg_change": round(sum(v) / len(v), 2),
+                          "count": len(v)} for k, v in bysec.items() if len(v) >= 2]
+        stock_sectors.sort(key=lambda x: -x["avg_change"])
         movers = sorted(moves, key=lambda m: -m[1])
         gainers = [{"symbol": s, "change": c} for s, c, _ in movers[:10]]
         losers = [{"symbol": s, "change": c} for s, c, _ in movers[::-1][:10]]
-        return {"as_of": str(maxd), "sectors": sectors, "gainers": gainers, "losers": losers}
+        # Primary: live NSE sectoral indices (matches ChatGPT / standard reporting)
+        idx = _live_sector_indices()
+        if idx:
+            sectors = [{"sector": r["sector"], "avg_change": r["pct_change"],
+                        "last": r.get("last")} for r in idx]
+            basis = "live_sector_indices"
+            as_of = "live"
+        else:
+            sectors = stock_sectors
+            basis = "stored_stock_average"
+            as_of = str(maxd)
+        return {"as_of": as_of, "basis": basis, "sectors": sectors,
+                "gainers": gainers, "losers": losers}
     finally:
         db.close()

@@ -127,6 +127,35 @@ class MarketDataAggregator:
                ("^DJI", "DOW JONES (GL)"), ("^FTSE", "FTSE 100 (GL)"),
                ("^N225", "NIKKEI 225 (GL)"), ("^HSI", "HANG SENG (GL)")]
 
+    # NSE sectoral indices (live, via Yahoo) — matches standard market reporting
+    _SECTOR_IDX = [("^CNXIT", "Nifty IT"), ("^NSEBANK", "Nifty Bank"),
+                   ("^CNXAUTO", "Nifty Auto"), ("^CNXPHARMA", "Nifty Pharma"),
+                   ("^CNXFMCG", "Nifty FMCG"), ("^CNXMETAL", "Nifty Metal"),
+                   ("^CNXREALTY", "Nifty Realty"), ("^CNXENERGY", "Nifty Energy"),
+                   ("^CNXINFRA", "Nifty Infra"), ("^CNXMEDIA", "Nifty Media"),
+                   ("^CNXPSUBANK", "Nifty PSU Bank"),
+                   ("NIFTY_FIN_SERVICE.NS", "Nifty Fin Services")]
+
+    async def get_sector_indices(self) -> list:
+        """Live NSE sectoral index % moves (last session), ranked desc. [] if unavailable."""
+        import asyncio as _a
+        if not getattr(self, "_allow_fallback", True):
+            return []
+        try:
+            res = await _a.gather(*[self._yahoo.get_index(sym, lbl)
+                                    for sym, lbl in self._SECTOR_IDX],
+                                  return_exceptions=True)
+        except Exception as e:
+            log.warning("sector indices fetch failed: %s", e)
+            return []
+        out = []
+        for r in res:
+            if isinstance(r, dict) and r.get("pct_change") is not None:
+                out.append({"sector": r.get("index"), "pct_change": r.get("pct_change"),
+                            "last": r.get("last")})
+        out.sort(key=lambda x: -(x["pct_change"] or 0))
+        return out
+
     async def get_indices(self) -> list[dict]:
         """NSE indices + key BSE indices, plus global indices when enabled."""
         import asyncio

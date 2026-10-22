@@ -405,6 +405,11 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     wants_news = any(k in _ql for k in (
         "news", "today", "happening", "latest", "why", "moved", "head", "rally",
         "update", "announce", "result", "earnings", "fell", "rose", "gain", "drop"))
+    # Real-market sector performance intent -> ground on LIVE NSE sector indices
+    wants_sector_perf = ("sector" in _ql or "industr" in _ql) and any(
+        k in _ql for k in ("perform", "best", "worst", "top", "lead", "laggard",
+        "gainer", "loser", "up ", "down ", "today", "doing", "move", "rally",
+        "real market", "actual"))
     # A pure definition/how-to question (no specific script) needs no platform data.
     if not mentioned and _re.match(
             r"\s*(what is|what's|whats|explain|define|difference between|how does|how do)\b", _ql):
@@ -625,6 +630,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "user asks for a narrower group (e.g. 'PSU banks') that isn't its own sector, "
                     "compute from ALL_SCORES but follow the ACCURACY RULES above. "
                     + json.dumps(sector_stats, separators=(",", ":")))
+
+                if wants_sector_perf:
+                    sec_idx = await _safe(md.get_sector_indices(), default=[], timeout=6.0)
+                    if sec_idx:
+                        context_parts.append(
+                        "LIVE_SECTOR_INDICES (REAL MARKET - authoritative for 'which sector "
+                        "performed best/worst today / is up/down'; these are the official NSE "
+                        "sectoral indices' last-session % moves, same as any market site. "
+                        "USE THESE EXACT % figures for the real-market view and rank by them; "
+                        "do NOT substitute the NIYTRI-Score sector view for 'performance'): "
+                        + json.dumps(sec_idx, separators=(",", ":")))
+                        sources.append({"type": "live_sector_indices",
+                                        "count": len(sec_idx)})
 
                 # FULL multi-day history across the ENTIRE universe (not just a
                 # top/bottom slice) so "performing positive / consistent over the
