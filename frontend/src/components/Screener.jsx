@@ -111,7 +111,7 @@ export default function Screener() {
           {res.rows?.length > 0 ? (
             <>
               <div className="hint" style={{ margin: '4px 0 6px' }}>{res.rows.length} result{res.rows.length === 1 ? '' : 's'}</div>
-              <div className="md-table-wrap" style={{ maxHeight: 460, overflowY: 'auto' }}>
+              <div className="md-table-wrap md-scroll" style={{ maxHeight: 460, overflowY: 'auto' }}>
                 <table className="md-table">
                   <thead><tr>{res.columns.map(c => <th key={c}>{prettyHead(c)}</th>)}</tr></thead>
                   <tbody>

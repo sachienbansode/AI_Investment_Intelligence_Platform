@@ -671,6 +671,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "compute from ALL_SCORES but follow the ACCURACY RULES above. "
                     + json.dumps(sector_stats, separators=(",", ":")))
 
+                    # Deterministic leader/laggard by AVG NIYTRI Score so the model
+                    # never confuses the biggest sector with the highest-scoring one.
+                    _ranked = sorted(
+                        ((v["score"]["avg"], k) for k, v in sector_stats.items()
+                         if v.get("score")), reverse=True)
+                    if _ranked:
+                        _t, _b = _ranked[0], _ranked[-1]
+                        context_parts.append(
+                            "SECTOR_SCORE_RANK (AUTHORITATIVE — state EXACTLY): the sector with the "
+                            f"HIGHEST average {score_label} is {_t[1]} ({_t[0]}); the LOWEST is "
+                            f"{_b[1]} ({_b[0]}). Do NOT call any other sector the leader/laggard, and "
+                            "do NOT confuse the largest sector (most stocks) with the top-scoring one.")
+
                 if wants_sector_perf:
                     sec_idx = await _safe(md.get_sector_indices(), default=[], timeout=6.0)
                     if sec_idx:

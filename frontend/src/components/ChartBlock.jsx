@@ -71,8 +71,9 @@ function BarChart({ labels, values, colors, fmtY = v => v }) {
   const [hi, setHi] = useState(null)
   const n = values.length
   if (!n) return <p className="hint">No data.</p>
-  const W = 640, H = 210, M = { l: 44, r: 12, t: 16, b: 46 }
+  const W = 680, H = 240, M = { l: 44, r: 12, t: 16, b: 66 }
   const iw = W - M.l - M.r, ih = H - M.t - M.b
+  const shortLabel = s => String(s || '').replace(/^nifty\s+/i, '').slice(0, 12)
   const vmax = Math.max(0, ...values), vmin = Math.min(0, ...values)
   const span = (vmax - vmin) || 1
   const bw = Math.min(48, iw / n * 0.62)
@@ -103,7 +104,8 @@ function BarChart({ labels, values, colors, fmtY = v => v }) {
                          begin="0s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1" />
               </rect>
               {hi !== i && <text x={X(i)} y={v >= 0 ? top - 4 : top + h + 11} textAnchor="middle" className="t2pt">{fmtY(v)}</text>}
-              <text x={X(i)} y={H - 26} textAnchor="middle" className="t2date">{String(labels[i]).slice(0, 12)}</text>
+              <text x={X(i)} y={M.t + ih + 14} textAnchor="end" className="t2date"
+                    transform={`rotate(-30 ${X(i)} ${M.t + ih + 14})`}>{shortLabel(labels[i])}</text>
               <rect x={X(i) - iw / n / 2} y={M.t} width={iw / n} height={ih} fill="transparent"
                     onMouseEnter={() => setHi(i)} />
             </g>
