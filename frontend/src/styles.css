@@ -786,6 +786,15 @@ textarea:focus { border-color: var(--accent); }
 .pf-verdict li { margin: 3px 0; font-size: .86rem; }
 @media (max-width: 720px) { .pf-verdict { grid-template-columns: 1fr; } .pf-scorecard { flex-direction: column; align-items: flex-start; } }
 
+/* Bar chart hover tooltip */
+.bar2-wrap { position: relative; }
+.bar2-tip { position: absolute; top: 2px; transform: translateX(-50%); pointer-events: none;
+  background: var(--navy); color: #fff; border-radius: 7px; padding: 5px 9px; font-size: .74rem;
+  white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.18); z-index: 2; }
+.bar2-tip b { font-weight: 600; }
+.bar2-tip span { font-variant-numeric: tabular-nums; opacity: .92; }
+
 /* Portfolio holdings editor — advanced, compact, constrained width */
 .pf-hold { max-width: 560px; border: 1px solid var(--border); border-radius: 12px;
   overflow: hidden; background: var(--panel); }

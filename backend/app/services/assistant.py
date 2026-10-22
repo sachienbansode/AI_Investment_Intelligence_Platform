@@ -40,13 +40,13 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   buy/sell/hold call, and do NOT give a specific numeric price target.
 - When asked for "top/best stocks" or rankings, report the platform's scores
   factually (symbol + score out of 100) from AI_SCORES_SUMMARY in context.
-- PERFORMANCE vs SCORE (show BOTH, concisely): for "best/worst performing", "top/worst
-  sectors/stocks today", "gainers/losers", present TWO clearly-labelled views: (a) REAL
-  MARKET - today's price move (from day-change / the sector-performance chart), and (b)
-  NIYTRI SCORE - the internal quality ranking. Keep the text SHORT: a one-line takeaway
-  per view (the charts carry the detail) - do NOT write long paragraphs. Never present
-  average NIYTRI Scores as "today's performance"; label each view. If the user says
-  "not as per score" / "actual performance", give the real-market view only.
+- PERFORMANCE vs SCORE (BE CONCISE - ONE view + a chart): for "best/worst performing",
+  "top/worst sectors/stocks today", "gainers/losers", lead with ONE short takeaway
+  sentence (best vs worst), then a COMPACT table of only the TOP 3 and BOTTOM 3 (NOT every
+  row - the chart already shows the full list). The default view is the REAL MARKET price
+  move; do NOT also dump the NIYTRI-Score ranking in the same reply - offer it as a
+  follow-up instead. Never present average NIYTRI Scores as "today's performance". Keep
+  the whole reply to a few lines; the chart + hover carry the detail.
 - DISCLAIMERS: do NOT append investment-disclaimer, "not investment advice",
   "informational only", "AI-generated", or "consult an adviser" caveats to your
   chat replies - those already appear in the app header and the accepted Terms.
@@ -100,7 +100,12 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
   ranking / side-by-side), format it as a GitHub-style markdown table (| col | col |
   with a |---|---| separator row) - it renders as a clean bordered table. Default to
   a table for any 2+ rows x 2+ columns of figures; use bullets only for a short,
-  non-tabular list. Keep a brief one-line takeaway above the table.
+  non-tabular list. Keep a brief one-line takeaway above the table. CAP tables at ~6 rows
+  when a chart accompanies the answer (e.g. top 3 + bottom 3) - the chart shows the full
+  list, so never reproduce every row as a long table.
+- BE CONCISE: default to SHORT answers - a one or two line takeaway plus at most one
+  compact table and/or one chart. Do NOT write long multi-paragraph replies or dump every
+  data point. Put extra depth into the follow-up suggestions, not the main answer.
 - CHARTS (use PROACTIVELY - users love them): whenever a chart would make the answer
   clearer, ADD one - don't wait to be asked. Default to a chart for: a single stock's
   trend / progress / performance / score or price history ("how is X doing", "show me
@@ -1349,11 +1354,13 @@ def _auto_charts(question: str, mentioned, existing: list) -> list:
             add({"src": "bound", "type": "score_history", "symbol": s0})
     else:
         if "sector" in ql:
+            # Keep it concise: ONE chart. Performance intent -> real-market sector
+            # moves; strength intent -> NIYTRI Score. (The other view is offered as
+            # a follow-up suggestion rather than a second chart.)
             if any(k in ql for k in ("perform", "today", "gainer", "loser", "moved", "move", "best", "worst", "up ", "down", "return", "rally", "fell", "rose")):
                 add({"src": "bound", "type": "sector_perf"})   # real market (price move)
-                add({"src": "bound", "type": "sector"})        # internal NIYTRI Score
             else:
-                add({"src": "bound", "type": "sector"})
+                add({"src": "bound", "type": "sector"})        # internal NIYTRI Score
         elif any(k in ql for k in ("gainer", "loser", "top movers", "biggest move")):
             add({"src": "bound", "type": "sector_perf"})
         elif any(k in ql for k in ("distribution", "how many strong", "spread", "bands", "below 50", "above 65", "below 45")):

@@ -341,11 +341,21 @@ export default function Assistant({ seed, clearSeed, go }) {
       cand.push(...shuffle(perSym).slice(0, 3))
     }
     if (isSector || isIndex) {
-      cand.push(
-        'Which sectors are strongest right now?',
-        'Top 5 stocks by score',
-        'What are today’s biggest decliners by score?',
-        'How is overall market sentiment in the news?')
+      const isPerf = has(/\b(perform|today|gainer|loser|moved|best|worst|up|down|return|rally|fell|rose)\b/)
+      if (isPerf) {
+        // offer the OTHER view + more detail, since the main answer is kept short
+        cand.push(
+          'Show sector strength by NIYTRI Score',
+          'Show the full sector breakdown',
+          'Which stocks led the top sector today?',
+          'How is overall market sentiment in the news?')
+      } else {
+        cand.push(
+          'Which sectors are strongest right now?',
+          'Show real-market sector performance today',
+          'Top 5 stocks by score',
+          'What are today’s biggest decliners by score?')
+      }
     }
     if (isNews && syms.length === 0) {
       cand.push(

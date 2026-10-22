@@ -68,31 +68,54 @@ function LineChart({ labels, values, color = 'var(--accent)', fmtY = v => v }) {
 
 // ---- generic bars (illustrative + reused for sector / distribution) --------
 function BarChart({ labels, values, colors, fmtY = v => v }) {
+  const [hi, setHi] = useState(null)
   const n = values.length
   if (!n) return <p className="hint">No data.</p>
-  const W = 640, H = 210, M = { l: 44, r: 12, t: 14, b: 46 }
+  const W = 640, H = 210, M = { l: 44, r: 12, t: 16, b: 46 }
   const iw = W - M.l - M.r, ih = H - M.t - M.b
-  const hv = Math.max(...values, 1)
+  const vmax = Math.max(0, ...values), vmin = Math.min(0, ...values)
+  const span = (vmax - vmin) || 1
   const bw = Math.min(48, iw / n * 0.62)
   const X = i => M.l + iw * ((i + 0.5) / n)
-  const Y = v => M.t + ih * (1 - v / hv)
+  const Y = v => M.t + ih * (1 - (v - vmin) / span)
+  const y0 = Y(0)                                   // zero baseline (handles negatives)
+  const ticks = vmin < 0 ? [vmax, 0, vmin] : [vmax, vmax / 2, 0]
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="trend2-svg" preserveAspectRatio="none">
-      {[0, hv / 2, hv].map((t, k) => (
-        <g key={k}>
-          <line x1={M.l} y1={Y(t)} x2={W - M.r} y2={Y(t)} stroke="var(--border)" strokeWidth="1" />
-          <text x={M.l - 6} y={Y(t) + 3} textAnchor="end" className="t2axis">{fmtY(Math.round(t * 10) / 10)}</text>
-        </g>
-      ))}
-      {values.map((v, i) => (
-        <g key={i}>
-          <rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={M.t + ih - Y(v)} rx="3"
-                fill={(colors && colors[i]) || PALETTE[i % PALETTE.length]} />
-          <text x={X(i)} y={Y(v) - 4} textAnchor="middle" className="t2pt">{fmtY(v)}</text>
-          <text x={X(i)} y={H - 26} textAnchor="middle" className="t2date">{String(labels[i]).slice(0, 12)}</text>
-        </g>
-      ))}
-    </svg>
+    <div className="bar2-wrap" onMouseLeave={() => setHi(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="trend2-svg" preserveAspectRatio="none">
+        {ticks.map((t, k) => (
+          <g key={k}>
+            <line x1={M.l} y1={Y(t)} x2={W - M.r} y2={Y(t)}
+                  stroke={t === 0 ? 'var(--muted)' : 'var(--border)'} strokeWidth="1"
+                  strokeDasharray={t === 0 ? '0' : '3 3'} />
+            <text x={M.l - 6} y={Y(t) + 3} textAnchor="end" className="t2axis">{fmtY(Math.round(t * 10) / 10)}</text>
+          </g>
+        ))}
+        {values.map((v, i) => {
+          const top = v >= 0 ? Y(v) : y0, h = Math.max(1, Math.abs(Y(v) - y0))
+          const fill = (colors && colors[i]) || PALETTE[i % PALETTE.length]
+          return (
+            <g key={i} opacity={hi == null || hi === i ? 1 : 0.4} style={{ transition: 'opacity .15s' }}>
+              <rect x={X(i) - bw / 2} y={top} width={bw} height={h} rx="3" fill={fill}>
+                <animate attributeName="height" from="0" to={h} dur="0.5s"
+                         begin="0s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1" />
+                <animate attributeName="y" from={y0} to={top} dur="0.5s"
+                         begin="0s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1" />
+              </rect>
+              {hi !== i && <text x={X(i)} y={v >= 0 ? top - 4 : top + h + 11} textAnchor="middle" className="t2pt">{fmtY(v)}</text>}
+              <text x={X(i)} y={H - 26} textAnchor="middle" className="t2date">{String(labels[i]).slice(0, 12)}</text>
+              <rect x={X(i) - iw / n / 2} y={M.t} width={iw / n} height={ih} fill="transparent"
+                    onMouseEnter={() => setHi(i)} />
+            </g>
+          )
+        })}
+      </svg>
+      {hi != null && (
+        <div className="bar2-tip" style={{ left: (X(hi) / W * 100) + '%' }}>
+          <b>{String(labels[hi])}</b><span>{fmtY(values[hi])}</span>
+        </div>
+      )}
+    </div>
   )
 }
 

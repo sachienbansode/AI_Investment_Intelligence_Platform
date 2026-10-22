@@ -217,6 +217,14 @@ function Integrations() {
                   title="Send a tiny test prompt to each configured provider to confirm the keys/models actually work">
             {testing ? 'Testing…' : 'Test AI connectivity'}</button>
         </div>
+        <p className="hint" style={{ marginTop: 4 }}>
+          Fallback order ({data.settings?.llm_strategy === 'round_robin' ? 'round robin' : 'failover'}):
+          {' '}<strong>{(data.settings?.llm_provider_order || []).join(' → ') || '—'}</strong>.
+          {' '}Change the priority/fallback order in <strong>LLM routing</strong> (below).
+          <button className="ghost sm" style={{ marginLeft: 8 }}
+                  onClick={() => document.getElementById('llm-routing')?.scrollIntoView({ behavior: 'smooth' })}>
+            Go to routing</button>
+        </p>
         {test && (
           <div className="deductions" style={{ marginTop: 0 }}>
             <h4>{test.any_provider_working ? '✓ At least one provider is working'
@@ -982,7 +990,7 @@ function Settings() {
       </div>
 
       {llm && (
-      <div className="panel">
+      <div className="panel" id="llm-routing">
         <h4>LLM routing</h4>
         <div className="deductions" style={{ marginTop: 0 }}>
           <p style={{ margin: 0 }}><strong>How it works.</strong> <strong>Failover</strong> — the
