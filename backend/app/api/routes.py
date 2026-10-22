@@ -140,21 +140,56 @@ async def chat_suggestions(user: User = Depends(get_current_user)):
     finally:
         db.close()
 
-    sugg = ["Help me build a starter portfolio"]
-    for sym in liked[:2]:
-        sugg.append(f"What's driving {sym}'s {label}?")
-    for sym in watch[:2]:
-        q = f"Latest news on {sym}"
-        if q not in sugg:
+    # ---- DYNAMIC: lead with today's market + news ----------------------------
+    dyn = []
+    try:
+        idx = _live_sector_indices()        # live NSE sector index moves (cached)
+        if idx:
+            best, worst = idx[0], idx[-1]
+            if (best.get("pct_change") or 0) > 0.1:
+                dyn.append(f"What's driving {best['sector']} today?")
+            if (worst.get("pct_change") or 0) < -0.1:
+                dyn.append(f"Why is {worst['sector']} down today?")
+    except Exception:
+        pass
+    try:
+        from app.services import news_intel
+        news = news_intel.latest_news(limit=15, days=1) or news_intel.latest_news(limit=15)
+        seen_s = set()
+        for n in news:
+            for s in (n.get("impacted_stocks") or []):
+                su = str(s).strip().upper()
+                if su and su not in seen_s:
+                    seen_s.add(su)
+            if len(seen_s) >= 3:
+                break
+        for s in list(seen_s)[:2]:
+            dyn.append(f"Why is {s} in the news today?")
+        if news:
+            dyn.append("What moved the market today?")
+    except Exception:
+        pass
+
+    # ---- assemble: dynamic first, then personalised, then evergreen ----------
+    sugg = []
+    def _add(q):
+        if q and q not in sugg:
             sugg.append(q)
-    for d in [f"Suggest top strong stocks across sectors", f"Top stocks by {label}",
-              "What moved the market today?", "Summarize today's market news",
-              f"Which stocks are below 50 on {label}?"]:
+    for q in dyn:
+        _add(q)
+        if len(sugg) >= 3:
+            break
+    for sym in liked[:1]:
+        _add(f"What's driving {sym}'s {label}?")
+    for sym in watch[:1]:
+        _add(f"Latest news on {sym}")
+    for d in ["Summarize today's market news", "Help me build a starter portfolio",
+              "Suggest top strong stocks across sectors", f"Top stocks by {label}"]:
         if len(sugg) >= 5:
             break
-        if d not in sugg:
-            sugg.append(d)
-    return {"suggestions": sugg[:5], "personalized": bool(liked or watch)}
+        _add(d)
+    return {"suggestions": sugg[:5], "personalized": bool(liked or watch),
+            "dynamic": bool(dyn)}
 
 
 class DeviceRegister(BaseModel):
@@ -1143,7 +1178,7 @@ async def mute_alert_symbol(req: MuteReq, user: User = Depends(get_current_user)
     return alerts.mute_symbol(user.id, req.symbol, req.mute)
 
 
-# ──────────────────────────── Ask Ashika — Screeners ─────────────────────────
+# ──────────────────────────── NIYTRI Screeners ─────────────────────────
 class _ScreenReq(BaseModel):
     prompt: str
     source_id: int | None = None

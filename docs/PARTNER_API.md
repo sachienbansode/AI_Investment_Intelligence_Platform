@@ -233,7 +233,7 @@ curl -X POST -H "Authorization: Bearer $NIYTRI_KEY" -H "Content-Type: applicatio
 
 ### 5.7 `GET /screener/themes` · scope `screen`
 
-Thematic keywords and suggested/trending prompts for the Ask Ashika screener.
+Thematic keywords and suggested/trending prompts for the NIYTRI screener.
 
 ```bash
 curl -H "Authorization: Bearer $NIYTRI_KEY" \

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml } from '../md.js'
 
-// Ask Ashika — Screeners: natural-language screening over the connected market data.
+// NIYTRI Screeners: natural-language screening over the connected market data.
 export default function Screener() {
   const [sug, setSug] = useState({ themes: [], prompts: [] })
   const [q, setQ] = useState('')

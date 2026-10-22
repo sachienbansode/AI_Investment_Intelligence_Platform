@@ -143,7 +143,7 @@ async def partner_portfolio(req: PortfolioRequest,
 
 @router.get("/screener/themes", summary="Screener themes + trending prompts")
 async def partner_screener_themes(key: PartnerKey = Depends(require_scope("screen"))):
-    """Thematic keywords and suggested prompts for the Ask Ashika screener."""
+    """Thematic keywords and suggested prompts for the NIYTRI screener."""
     return screener.suggestions()
 
 

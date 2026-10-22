@@ -1,4 +1,4 @@
-"""Ask Ashika - Screeners.
+"""NIYTRI Screeners.
 
 Turns a natural-language screening prompt into ONE read-only SQL SELECT over the
 admin-connected market database(s) (see data_sources.py), runs it, and distils the

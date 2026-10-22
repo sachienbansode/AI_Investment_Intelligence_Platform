@@ -566,6 +566,17 @@ def _seed_roles():
             db.add(Role(name="Administrator", pages=ALL_PAGES, is_admin=True))
             db.add(Role(name="User", pages=USER_PAGES, is_admin=False))
             db.commit()
+        else:
+            # Heal: give the default "User" role standard pages added after it was
+            # first seeded (e.g. Screeners), so existing deploys pick them up on boot.
+            changed = False
+            urole = db.query(Role).filter_by(name="User").first()
+            if urole and isinstance(urole.pages, list):
+                for pg in ("Screeners",):
+                    if pg not in urole.pages:
+                        urole.pages = urole.pages + [pg]; changed = True
+            if changed:
+                db.commit()
     finally:
         db.close()
 
