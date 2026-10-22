@@ -11,6 +11,9 @@ const inr = v => RS + Math.round(v).toLocaleString('en-IN')
 const crore = v => v == null ? '—' : (v >= 100000
   ? RS + (v / 100000).toFixed(2) + ' L Cr'
   : RS + Math.round(v).toLocaleString('en-IN') + ' Cr')
+// deterministic avatar colour from the symbol
+const AV_COLORS = ['#F6611F', '#1E63D6', '#12A06B', '#7c5cfc', '#C07D0A', '#e0503f', '#0B7285', '#9C36B5']
+const avatarColor = s => AV_COLORS[(String(s || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % AV_COLORS.length]
 
 // Compact donut + legend for sector allocation.
 function PieMini({ data }) {
@@ -240,32 +243,47 @@ export default function Portfolio() {
             {all.map(i => <option key={i.symbol} value={i.symbol}>{i.name} · {i.sector}</option>)}
           </datalist>
 
-          <div className="pf-holdings-head">
-            <span>{rows.length} holding{rows.length === 1 ? '' : 's'}</span>
-            <button className="ghost sm" onClick={add}>+ Add holding</button>
-          </div>
-          <div className="pf-holdings-wrap">
-            <table className="holdings pf-holdings">
-              <thead><tr>
-                <th title="NSE trading symbol — type to search the instruments master">Symbol (NSE)</th>
-                <th title="Number of shares you hold">Qty</th>
-                <th title="Your average buy price per share in rupees">Avg price ₹</th>
-                <th aria-label="Remove" />
-              </tr></thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i}>
-                    <td><input list="pf-inst" value={r.symbol} placeholder="Search symbol…"
-                               onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} /></td>
-                    <td><input type="number" className="num" value={r.quantity} placeholder="0"
-                               onChange={e => update(i, 'quantity', e.target.value)} /></td>
-                    <td><input type="number" className="num" value={r.avg_price} placeholder="0.00"
-                               onChange={e => update(i, 'avg_price', e.target.value)} /></td>
-                    <td><button className="pf-row-x" onClick={() => remove(i)} title="Remove this holding">✕</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="pf-hold">
+            <div className="pf-hold-top">
+              <div className="pf-hold-count">
+                <b>{rows.length}</b> holding{rows.length === 1 ? '' : 's'}
+                {(() => { const v = rows.filter(r => r.symbol && +r.quantity > 0 && +r.avg_price > 0).length
+                  return v !== rows.length ? <span className="hint"> · {v} ready</span> : null })()}
+              </div>
+              <button className="pf-add" onClick={add}><span>+</span> Add holding</button>
+            </div>
+            <div className="pf-hold-grid pf-hold-headrow">
+              <span>Holding</span><span className="r">Qty</span><span className="r">Avg price</span>
+              <span className="r">Invested</span><span />
+            </div>
+            <div className="pf-hold-body">
+              {rows.map((r, i) => {
+                const q = +r.quantity || 0, a = +r.avg_price || 0, val = q * a
+                return (
+                  <div className="pf-hold-grid pf-hold-row" key={i}>
+                    <div className="pf-sym">
+                      <span className="pf-av" style={{ background: avatarColor(r.symbol) }}>
+                        {(r.symbol || '?').slice(0, 2)}</span>
+                      <input list="pf-inst" className="pf-sym-in" value={r.symbol} placeholder="Search symbol…"
+                             onChange={e => update(i, 'symbol', e.target.value.toUpperCase())} />
+                    </div>
+                    <div className="pf-field">
+                      <input type="number" className="num" value={r.quantity} placeholder="0"
+                             onChange={e => update(i, 'quantity', e.target.value)} /></div>
+                    <div className="pf-field">
+                      <span className="pf-rs">₹</span>
+                      <input type="number" className="num pf-has-rs" value={r.avg_price} placeholder="0.00"
+                             onChange={e => update(i, 'avg_price', e.target.value)} /></div>
+                    <div className="pf-inv">{val ? inr(val) : <span className="hint">—</span>}</div>
+                    <button className="pf-row-x" onClick={() => remove(i)} title="Remove">✕</button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="pf-hold-foot">
+              <span>Total invested</span>
+              <b>{inr(rows.reduce((s, r) => s + (+r.quantity || 0) * (+r.avg_price || 0), 0))}</b>
+            </div>
           </div>
         </>
       )}

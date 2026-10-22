@@ -786,29 +786,59 @@ textarea:focus { border-color: var(--accent); }
 .pf-verdict li { margin: 3px 0; font-size: .86rem; }
 @media (max-width: 720px) { .pf-verdict { grid-template-columns: 1fr; } .pf-scorecard { flex-direction: column; align-items: flex-start; } }
 
-/* Portfolio holdings editor — compact, scrollable, enterprise density */
-.pf-holdings-head { display: flex; align-items: center; justify-content: space-between;
-  margin: 4px 0 8px; }
-.pf-holdings-head > span { font-size: .82rem; color: var(--muted); font-weight: 600; }
-.pf-holdings-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border);
-  border-radius: 10px; }
-.pf-holdings { border-collapse: separate; border-spacing: 0; }
-.pf-holdings thead th { position: sticky; top: 0; z-index: 1; background: var(--panel2);
-  font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
-  padding: 9px 12px; border-bottom: 1px solid var(--border); }
-.pf-holdings td { padding: 4px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.pf-holdings tr:last-child td { border-bottom: none; }
-.pf-holdings tbody tr:hover td { background: var(--panel2); }
-.pf-holdings input { width: 100%; padding: 7px 10px; border: 1px solid transparent;
-  background: transparent; border-radius: 7px; font-size: .86rem; transition: border-color .12s, background .12s; }
-.pf-holdings input:hover { border-color: var(--border); }
-.pf-holdings input:focus { border-color: var(--accent); background: var(--panel); outline: none; }
-.pf-holdings input.num { text-align: right; font-variant-numeric: tabular-nums; }
-.pf-holdings th:nth-child(2), .pf-holdings th:nth-child(3) { text-align: right; }
-.pf-holdings th:last-child, .pf-holdings td:last-child { width: 40px; text-align: center; }
+/* Portfolio holdings editor — advanced, compact, constrained width */
+.pf-hold { max-width: 560px; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; background: var(--panel); }
+.pf-hold-top { display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--panel2); }
+.pf-hold-count { font-size: .86rem; color: var(--muted); }
+.pf-hold-count b { color: var(--navy); font-size: .98rem; }
+.pf-add { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--accent);
+  background: var(--orange-soft); color: var(--accent); border-radius: 8px; padding: 6px 11px;
+  font-size: .82rem; font-weight: 600; cursor: pointer; }
+.pf-add span { font-size: 1rem; line-height: 1; }
+.pf-add:hover { background: var(--accent); color: #fff; }
+/* shared row grid: symbol | qty | avg | invested | x */
+.pf-hold-grid { display: grid; grid-template-columns: 1fr 78px 104px 104px 30px;
+  align-items: center; gap: 8px; padding: 6px 12px; }
+.pf-hold-headrow { font-size: .66rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--faint); padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel2); }
+.pf-hold-headrow .r { text-align: right; }
+.pf-hold-body { max-height: 400px; overflow-y: auto; }
+.pf-hold-row { border-bottom: 1px solid var(--border); }
+.pf-hold-row:last-child { border-bottom: none; }
+.pf-hold-row:hover { background: var(--panel2); }
+.pf-sym { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.pf-av { flex: none; width: 28px; height: 28px; border-radius: 7px; color: #fff;
+  font-size: .64rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  text-transform: uppercase; letter-spacing: .02em; }
+.pf-sym-in { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent;
+  border-radius: 7px; padding: 6px 8px; font-size: .88rem; font-weight: 600; color: var(--text); }
+.pf-sym-in:hover { border-color: var(--border); }
+.pf-sym-in:focus { border-color: var(--accent); background: var(--bg2); outline: none; }
+.pf-field { position: relative; }
+.pf-field input { width: 100%; border: 1px solid var(--border); background: var(--bg2);
+  border-radius: 7px; padding: 6px 9px; font-size: .86rem; text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--text); }
+.pf-field input:focus { border-color: var(--accent); outline: none; }
+.pf-field input::-webkit-outer-spin-button, .pf-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pf-field input[type=number] { -moz-appearance: textfield; }
+.pf-rs { position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--faint); font-size: .8rem; pointer-events: none; }
+.pf-has-rs { padding-left: 18px !important; text-align: right; }
+.pf-inv { text-align: right; font-size: .86rem; font-weight: 600; color: var(--navy);
+  font-variant-numeric: tabular-nums; }
 .pf-row-x { width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent;
-  color: var(--muted); cursor: pointer; font-size: .8rem; line-height: 1; }
+  color: var(--faint); cursor: pointer; font-size: .78rem; line-height: 1; }
 .pf-row-x:hover { background: rgba(224,80,63,.12); color: var(--red); }
+.pf-hold-foot { display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-top: 1px solid var(--border); background: var(--panel2); }
+.pf-hold-foot span { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.pf-hold-foot b { font-size: 1rem; color: var(--navy); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .pf-hold { max-width: 100%; }
+  .pf-hold-grid { grid-template-columns: 1fr 64px 86px 86px 26px; gap: 6px; padding: 6px 9px; }
+}
 
 /* Portfolio fundamentals strip (CMOTS) */
 .pf-funds { margin: 2px 0 14px; }
