@@ -298,8 +298,10 @@ def ensure_cmots_source():
     """If settings.cmots_database_url is set, upsert a 'CMOTS' DB data source and try
     to introspect it (non-fatal if the DB isn't reachable yet). Idempotent; safe at boot."""
     try:
-        from app.config import settings
-    except Exception:
+        from app.config import get_settings
+        settings = get_settings()
+    except Exception as e:
+        log.warning("ensure_cmots_source: cannot load settings: %s", e)
         return
     url = (getattr(settings, "cmots_database_url", "") or "").strip()
     if not url:
