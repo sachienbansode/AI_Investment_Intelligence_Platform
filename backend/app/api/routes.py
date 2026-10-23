@@ -1037,6 +1037,9 @@ async def agents_status(user: User = Depends(get_current_user)):
     freq = {
         "daily_scoring": f"daily at {int(get_setting('daily_scoring_hour')):02d}:00 (server time)",
         "news_refresh": f"every {int(get_setting('news_refresh_minutes'))} minutes",
+        "daily_prices": "daily at 18:30 IST",
+        "purge_shares": "daily at 03:30 IST",
+        "theme_tagging": "daily at 02:00 IST (screener theme tags)",
     }
     jobs = [{"id": j.id,
              "frequency": freq.get(j.id, ""),
