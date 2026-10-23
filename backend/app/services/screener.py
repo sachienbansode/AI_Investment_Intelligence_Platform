@@ -82,59 +82,79 @@ def _pick_sources(source_id):
 
 
 async def _thematic_fallback(prompt: str, theme_hint: str = "") -> str:
-    """Qualitative shortlist when the structured DB can't answer: grounded in the
-    NIYTRI-scored universe (real NSE symbols) + today's news. Information, not advice."""
+    """Theme discovery when a precise structured screen isn't possible: the LLM names
+    the NSE companies it knows for the theme, then we VALIDATE + enrich each against
+    CMOTS (companymaster: real + sector) and our NIYTRI Scores. Table built in code so
+    it's always clean. Information / discovery only — not advice."""
+    # 1) LLM names candidate NSE companies for the theme (uses its market knowledge)
+    namer_sys = (
+        "You identify NSE-listed Indian companies relevant to an investment theme or request. "
+        "Use your knowledge of the Indian market; put the best-known pure-plays first. Output "
+        'STRICT JSON ONLY: {"symbols":[{"symbol":"<NSE trading symbol>","why":"<short reason>"}]} '
+        "with 6-14 entries. NSE symbols only, no exchange suffix, no commentary." + theme_hint)
+    try:
+        r = await get_llm_router().complete(namer_sys, "Theme / request: " + prompt,
+                                            task="screener_names", max_tokens=500, temperature=0.2)
+        m = re.search(r"\{.*\}", r.text, re.DOTALL)
+        cands = (json.loads(m.group(0)).get("symbols") if m else []) or []
+    except Exception as e:
+        log.warning("screener fallback namer failed: %s", e)
+        cands = []
+    if not cands:
+        return ""
+
+    # 2) validate + enrich against CMOTS companymaster + latest NIYTRI Scores
+    cmap = {}
+    try:
+        from app.services import cmots
+        if cmots.available():
+            cmap = cmots.cocode_map()            # {SYMBOL: {co_code, sector, name}}
+    except Exception:
+        cmap = {}
     from app.db.database import Instrument, SessionLocal, StockScore
+    syms = [str(c.get("symbol", "")).upper().strip() for c in cands if c.get("symbol")]
     db = SessionLocal()
     try:
-        latest = (db.query(StockScore.score_date)
-                  .order_by(StockScore.score_date.desc()).first())
-        secmap = {r.symbol: (r.sector or "") for r in db.query(Instrument).all()}
-        scored = []
-        if latest:
-            rows = (db.query(StockScore).filter_by(score_date=latest[0])
-                    .order_by(StockScore.composite_score.desc()).all())
-            for r in rows[:140]:
-                scored.append({"symbol": r.symbol, "sector": secmap.get(r.symbol, ""),
-                               "score": r.composite_score})
+        instr = {i.symbol.upper(): (i.sector or "", i.name or "")
+                 for i in db.query(Instrument).all()}
+        score_map = {}
+        if syms:
+            for s, sc in (db.query(StockScore.symbol, StockScore.composite_score)
+                          .filter(StockScore.symbol.in_(syms))
+                          .order_by(StockScore.symbol, StockScore.score_date.desc()).all()):
+                su = s.upper()
+                if su not in score_map and sc is not None:
+                    score_map[su] = round(float(sc), 1)
     finally:
         db.close()
-    impacted = []
-    try:
-        from app.services import news_intel
-        for n in news_intel.latest_news(limit=20):
-            impacted += [str(s).upper() for s in (n.get("impacted_stocks") or [])]
-    except Exception:
-        impacted = []
-    sys = (
-        "You are a thematic stock-DISCOVERY assistant for Indian equities. From the NIYTRI "
-        "universe below (real NSE symbols, each with our internal NIYTRI Score 0-100), shortlist "
-        "the names most relevant to the user's theme/request. Use ONLY symbols from the list.\n"
-        "OUTPUT FORMAT — be CONCISE, output EXACTLY this and NOTHING else:\n"
-        "1) ONE short bold takeaway sentence.\n"
-        "2) A blank line.\n"
-        "3) A single markdown table: | Symbol | Sector | NIYTRI Score | Why relevant | with 3-8 "
-        "data rows (never a header with no rows). 'Why relevant' = a short phrase.\n"
-        "Do NOT add any other sections — no 'Screening Note', 'Alternative', 'Recommendation', "
-        "'Source', bullet lists, '---' separators, or extra commentary. This is INFORMATION / "
-        "discovery only — NOT investment advice, no price targets, no buy/sell calls." + theme_hint)
-    usr = ("Request: " + prompt
-           + "\nNIYTRI universe (JSON): " + json.dumps(scored[:140], default=str)[:6000]
-           + (("\nIn today's news: " + ", ".join(sorted(set(impacted))[:20])) if impacted else ""))
-    try:
-        r = await get_llm_router().complete(sys, usr, task="screener_fallback",
-                                            max_tokens=420, temperature=0.3)
-        txt = (r.text or "").strip()
-        # tidy: drop stray '---' rules and collapse blank runs
-        txt = re.sub(r"(?m)^\s*-{3,}\s*$", "", txt)
-        txt = re.sub(r"\n{3,}", "\n\n", txt).strip()
-        if txt:
-            return ("> **Note:** the connected market data couldn't screen this precisely, so "
-                    "here's a qualitative shortlist from the **NIYTRI Score** universe and "
-                    "today's news.\n\n" + txt)
-    except Exception as e:
-        log.warning("screener fallback failed: %s", e)
-    return ""
+
+    rows = []
+    for c in cands:
+        sym = str(c.get("symbol", "")).upper().strip()
+        if not sym:
+            continue
+        ci, inf = cmap.get(sym), instr.get(sym)
+        if not ci and not inf:
+            continue                              # keep it real — only names we actually have
+        sector = (ci.get("sector") if ci else "") or (inf[0] if inf else "") or "—"
+        name = (ci.get("name") if ci else "") or (inf[1] if inf else sym)
+        rows.append({"symbol": sym, "name": name, "sector": sector,
+                     "score": score_map.get(sym), "why": (c.get("why") or "").strip()})
+    if not rows:
+        return ""
+    rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+
+    # 3) build the table in code (clean — no LLM markdown artefacts)
+    out = ["| Symbol | Company | Sector | NIYTRI Score | Why relevant |",
+           "|---|---|---|--:|---|"]
+    for r in rows[:12]:
+        sc = r["score"] if r["score"] is not None else "—"
+        out.append(f"| {r['symbol']} | {r['name']} | {r['sector']} | {sc} | {r['why']} |")
+    n = min(len(rows), 12)
+    note = (f"> **{n} theme-relevant {'name' if n == 1 else 'names'}** — identified from market "
+            "knowledge and matched to our tracked data (NIYTRI Score shown where we rate the stock). "
+            "No precise metric screen was possible for this theme on the connected data.")
+    return note + "\n\n" + "\n".join(out)
 
 
 async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
@@ -184,7 +204,8 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     def _fb_payload(summary):
         return {"summary": summary, "rows": [], "columns": [], "sql": "",
                 "source": "NIYTRI analysis", "fallback": True,
-                "assumptions": spec.get("assumptions", ""), "disclaimer": AI_DISCLAIMER}
+                "assumptions": "theme match across our tracked universe",
+                "disclaimer": AI_DISCLAIMER}
 
     if not sql:
         fb = await _thematic_fallback(prompt, theme_hint)
