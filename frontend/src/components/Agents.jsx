@@ -85,6 +85,15 @@ export default function Agents() {
     catch (e) { setMsg(e.message) }
     setBusy('')
   }
+  async function runThemeTags() {
+    setBusy('themes'); setMsg('')
+    try {
+      const r = await api.runThemeTags()
+      setMsg(r.started ? 'Theme-tagging started in the background — check back in ~1 min.'
+                       : (r.message || 'Theme-tagging is already running.'))
+    } catch (e) { setMsg(e.message) }
+    setBusy('')
+  }
 
   useEffect(() => { load(); return () => clearTimeout(timer.current) }, [])
 
@@ -116,6 +125,9 @@ export default function Agents() {
             {busy === 'score' ? 'Starting…' : 'Run scoring pipeline'}</button>
           <button className="ghost" onClick={refreshNews} disabled={!!busy}>
             {busy === 'news' ? 'Refreshing…' : 'Refresh news'}</button>
+          <button className="ghost" onClick={runThemeTags} disabled={!!busy}
+                  title="Classify NSE companies into screener themes (BESS, Silicon Chips, EV…) via the LLM, validated against CMOTS + NIYTRI Scores.">
+            {busy === 'themes' ? 'Starting…' : 'Run theme tagging'}</button>
           <label className="hint" title="Re-score every script in scope, even ones already scored today (higher cost). Off = only missing/failed scripts are re-run.">
             <input type="checkbox" checked={forceFull} onChange={e => setForceFull(e.target.checked)} /> Force full re-score
           </label>
