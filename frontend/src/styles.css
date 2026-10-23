@@ -1377,3 +1377,18 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .niy-score.niy-weak { background: rgba(224,80,63,.14); color: var(--red); border-color: rgba(224,80,63,.3); }
 .niy-score.niy-na { background: var(--panel2); color: var(--muted); cursor: default; border-color: var(--border); }
 .niy-score.niy-na:hover { transform: none; box-shadow: none; }
+
+/* Horizontal bar chart (sector performance / strength) — labels left, animated */
+.hbar { display: flex; flex-direction: column; gap: 8px; padding: 6px 2px 2px; }
+.hbar-row { display: grid; grid-template-columns: 120px 1fr 62px; align-items: center; gap: 10px; }
+.hbar-lab { font-size: .82rem; color: var(--text); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-align: right; }
+.hbar-track { position: relative; height: 16px; background: var(--panel2); border-radius: 5px; }
+.hbar-track.div::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px;
+  width: 1px; background: var(--muted); opacity: .5; }
+.hbar-fill { position: absolute; top: 0; bottom: 0; border-radius: 5px; min-width: 2px;
+  transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.hbar-row:hover .hbar-fill { filter: brightness(1.08); }
+.hbar-val { font-size: .82rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .hbar-row { grid-template-columns: 92px 1fr 54px; gap: 7px; }
+  .hbar-lab, .hbar-val { font-size: .76rem; } }

@@ -186,6 +186,40 @@ function CompareMini({ symbols }) {
   )
 }
 
+const shortSector = s => String(s || '').replace(/^nifty\s+/i, '')
+
+// Horizontal bar chart — labels on the left (never overlap), animated width, hover.
+// diverging=true draws +/- from a centre zero line (for % performance).
+function HBarChart({ items, diverging = false, fmt = v => v, colorFor }) {
+  const [on, setOn] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setOn(true), 40); return () => clearTimeout(t) }, [])
+  if (!items || !items.length) return <p className="hint">No data.</p>
+  const maxAbs = Math.max(1, ...items.map(it => Math.abs(it.value || 0)))
+  const maxPos = Math.max(1, ...items.map(it => it.value || 0))
+  return (
+    <div className="hbar">
+      {items.map((it, i) => {
+        const v = Number(it.value) || 0
+        const col = colorFor ? colorFor(v) : 'var(--accent)'
+        const style = diverging
+          ? (v >= 0
+              ? { left: '50%', width: (on ? (Math.abs(v) / maxAbs) * 50 : 0) + '%', background: col }
+              : { right: '50%', width: (on ? (Math.abs(v) / maxAbs) * 50 : 0) + '%', background: col })
+          : { left: 0, width: (on ? (Math.max(v, 0) / maxPos) * 100 : 0) + '%', background: col }
+        return (
+          <div className="hbar-row" key={i}>
+            <div className="hbar-lab" title={it.label}>{it.label}</div>
+            <div className={'hbar-track' + (diverging ? ' div' : '')}>
+              <div className="hbar-fill" style={style} />
+            </div>
+            <div className="hbar-val" style={{ color: col }}>{fmt(v)}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function SectorBars() {
   const [rows, setRows] = useState(null)
   useEffect(() => { let a = true; api.scores().then(r => a && setRows(r.scores || [])).catch(() => a && setRows([])); return () => { a = false } }, [])
@@ -197,8 +231,8 @@ function SectorBars() {
   if (!arr.length) return <p className="hint">No sector data.</p>
   return (
     <Wrap title="Sector Strength — Average NIYTRI Score" note="Average of approved scores per sector (top 10).">
-      <BarChart labels={arr.map(x => x[0])} values={arr.map(x => Math.round(x[1] * 10) / 10)}
-                colors={arr.map(x => band(x[1]))} />
+      <HBarChart items={arr.map(x => ({ label: shortSector(x[0]), value: Math.round(x[1] * 10) / 10 }))}
+                 colorFor={band} />
     </Wrap>
   )
 }
@@ -302,8 +336,9 @@ function SectorPerf() {
     : 'Average day price % move per sector from stored EOD prices (real market, delayed).'
   return (
     <Wrap title={title} note={note}>
-      <BarChart labels={arr.map(x => x.sector)} values={arr.map(x => x.avg_change)}
-                colors={arr.map(x => x.avg_change >= 0 ? 'var(--green)' : 'var(--red)')} fmtY={v => v + '%'} />
+      <HBarChart diverging items={arr.map(x => ({ label: shortSector(x.sector), value: x.avg_change }))}
+                 fmt={v => (v >= 0 ? '+' : '') + v + '%'}
+                 colorFor={v => (v >= 0 ? 'var(--green)' : 'var(--red)')} />
     </Wrap>
   )
 }
