@@ -318,6 +318,8 @@ export const api = {
   settingsHistory: (limit = 50) => http('/admin/settings-history?limit=' + limit),
   // Data sources (admin) + screener
   dataSources: () => http('/admin/data-sources'),
+  themeTagsStatus: () => http('/admin/theme-tags/status'),
+  runThemeTags: () => http('/admin/theme-tags/run', { method: 'POST' }),
   dataSourceCreate: (body) => http('/admin/data-sources', { method: 'POST', body: JSON.stringify(body) }),
   dataSourceUpdate: (id, body) => http('/admin/data-sources/' + id, { method: 'PUT', body: JSON.stringify(body) }),
   dataSourceDelete: (id) => http('/admin/data-sources/' + id, { method: 'DELETE' }),

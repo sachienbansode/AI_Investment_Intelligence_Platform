@@ -371,6 +371,22 @@ class DataSource(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class ThemeTag(Base):
+    """A company tagged to a thematic bucket (BESS, Silicon Chips, ...) by the
+    Theme-Tagging agent, so the screener can answer niche themes precisely/instantly
+    instead of an on-the-fly LLM fallback. Refreshed on a schedule + on demand."""
+    __tablename__ = "theme_tags"
+    id = Column(Integer, primary_key=True)
+    theme = Column(String, index=True)             # e.g. "BESS"
+    symbol = Column(String, index=True)            # NSE symbol
+    co_code = Column(Integer, nullable=True)       # CMOTS company code if matched
+    company_name = Column(String, default="")
+    sector = Column(String, default="")
+    why = Column(Text, default="")                 # short relevance phrase
+    created_at = Column(DateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("theme", "symbol", name="uq_theme_symbol"),)
+
+
 class EmailLog(Base):
     __tablename__ = "email_logs"
     id = Column(Integer, primary_key=True)

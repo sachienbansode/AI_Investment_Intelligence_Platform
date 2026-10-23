@@ -130,6 +130,20 @@ export default function App() {
   function openSector(sec) { setSectorSeed(sec); setTab('Stock Scores'); setNavOpen(false) }
   function openStock(sym) { setStockSym(sym); setTab('Stock'); setNavOpen(false) }
 
+  // App-wide: clicking any NIYTRI-score badge (.niy-score[data-sym]) opens that
+  // stock's detail — works from chat answers, screener, portfolio, anywhere.
+  useEffect(() => {
+    const onClick = (e) => {
+      const el = e.target.closest && e.target.closest('.niy-score[data-sym]')
+      if (el) {
+        const sym = el.getAttribute('data-sym')
+        if (sym) { e.preventDefault(); openStock(sym.toUpperCase()) }
+      }
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+
   useEffect(() => { api.branding().then(d => setBrand(d || { logo: '' })).catch(() => {}) }, [])
   useEffect(() => {
     if (!brand.logo) return

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { mdToHtml } from '../md.js'
+import { mdToHtml, scoreBadge } from '../md.js'
 import { toast } from '../dialog.jsx'
 
 const RS = String.fromCharCode(0x20B9)
@@ -488,8 +488,8 @@ export default function Portfolio() {
                         <td style={{ textAlign: 'right' }}>{h.pe != null ? h.pe.toFixed(1) : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{h.net_margin != null ? h.net_margin.toFixed(1) + '%' : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{h.mcap_cr != null ? crore(h.mcap_cr) : '—'}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: bandColor(h.score) }}>
-                          {h.score != null ? h.score : '—'}</td>
+                        <td style={{ textAlign: 'right' }}
+                            dangerouslySetInnerHTML={{ __html: scoreBadge(h.score, h.symbol) }} />
                       </tr>
                     ))}
                   </tbody>

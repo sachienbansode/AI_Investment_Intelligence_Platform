@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { mdToHtml } from '../md.js'
+import { mdToHtml, scoreBadge } from '../md.js'
 
 // NIYTRI Screeners: natural-language screening over the connected market data.
 
@@ -117,7 +117,10 @@ export default function Screener() {
                   <tbody>
                     {res.rows.map((r, i) => (
                       <tr key={i}>{res.columns.map(c => (
-                        <td key={c} style={isNum(r[c]) ? { textAlign: 'right' } : undefined}>{fmtCell(r[c])}</td>
+                        /niytri score|^score$/i.test(c)
+                          ? <td key={c} style={{ textAlign: 'right' }}
+                                dangerouslySetInnerHTML={{ __html: scoreBadge(r[c], r['Symbol'] || r['symbol']) }} />
+                          : <td key={c} style={isNum(r[c]) ? { textAlign: 'right' } : undefined}>{fmtCell(r[c])}</td>
                       ))}</tr>
                     ))}
                   </tbody>

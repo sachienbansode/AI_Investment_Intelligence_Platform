@@ -26,6 +26,20 @@ const colTip = h => {
   return v ? ` title="${v.replace(/"/g, '&quot;')}" class="has-tip"` : ''
 }
 
+// A colored, clickable NIYTRI-Score badge (green >=65, amber 50-64, red <50).
+export function scoreBadge(raw, sym) {
+  const s = String(raw == null ? '' : raw).replace(/[*`]/g, '').trim()
+  if (s === '' || s === '—' || s === '-' || s.toLowerCase() === 'null')
+    return '<span class="niy-score niy-na" title="No NIYTRI Score yet">—</span>'
+  const n = Number(s)
+  if (isNaN(n)) return s
+  const band = n >= 65 ? 'strong' : n >= 50 ? 'neutral' : 'weak'
+  const sy = String(sym || '').replace(/[^A-Za-z0-9&.\-]/g, '').toUpperCase()
+  const d = sy ? ` data-sym="${sy}"` : ''
+  const tip = sy ? `NIYTRI Score ${n}/100 — click to view ${sy}` : `NIYTRI Score ${n}/100`
+  return `<span class="niy-score niy-${band}"${d} title="${tip}">${n}</span>`
+}
+
 export function mdToHtml(text) {
   if (!text) return ''
   const esc = text
@@ -61,6 +75,11 @@ export function mdToHtml(text) {
       })
       const headers = cells(line)
       const al = k => aligns[k] ? ` style="text-align:${aligns[k]}"` : ''
+      // locate a NIYTRI-score column + the symbol column so scores render as
+      // clickable colored badges (highlight the score everywhere, click -> stock).
+      const hnorm = headers.map(h => String(h).replace(/[*`]/g, '').trim().toLowerCase())
+      const scoreIdx = hnorm.findIndex(h => h === 'niytri score' || h === 'score' || h === 'niytri')
+      const symIdx = hnorm.findIndex(h => h === 'symbol' || h === 'scrip' || h === 'ticker')
       // collect body rows first so a header-only table (no data) is skipped entirely
       let j = i + 2
       let body = ''
@@ -68,7 +87,13 @@ export function mdToHtml(text) {
       while (j < lines.length && lines[j].trim() !== '' && lines[j].includes('|')) {
         const row = cells(lines[j].trim())
         body += '<tr>'
-        headers.forEach((_, k) => { body += `<td${al(k)}>${inline(row[k] || '')}</td>` })
+        headers.forEach((_, k) => {
+          if (k === scoreIdx) {
+            body += `<td${al(k)}>${scoreBadge(row[k] || '', symIdx >= 0 ? row[symIdx] : '')}</td>`
+          } else {
+            body += `<td${al(k)}>${inline(row[k] || '')}</td>`
+          }
+        })
         body += '</tr>'
         nrows++
         j++

@@ -157,7 +157,45 @@ async def _thematic_fallback(prompt: str, theme_hint: str = "") -> str:
     return note + "\n\n" + "\n".join(out)
 
 
+def _tag_result(theme: str, tags: list) -> dict:
+    cols = ["Symbol", "Company", "Sector", "NIYTRI Score", "Why relevant"]
+    rows = [{"Symbol": t["symbol"], "Company": t["company"], "Sector": t["sector"],
+             "NIYTRI Score": (t["score"] if t["score"] is not None else None),
+             "Why relevant": t["why"]} for t in tags]
+    secs = sorted({t["sector"] for t in tags if t.get("sector") and t["sector"] != "—"})
+    scored = [t["score"] for t in tags if t.get("score") is not None]
+    sec_txt = f" across {len(secs)} sectors" if secs else ""
+    if scored:
+        top = max(tags, key=lambda t: (t["score"] is not None, t["score"] or 0))
+        strong = sum(1 for s in scored if s >= 65)
+        summary = (f"**{theme}: {len(rows)} tagged companies{sec_txt}.** "
+                   f"Highest-rated is **{top['symbol']} ({top['score']})**; NIYTRI Scores range "
+                   f"{min(scored)}–{max(scored)}"
+                   + (f", with {strong} scoring 65+ (strong)." if strong else ".")
+                   + " Click any score to open the stock. "
+                   "Themes with no precise metric column are matched this way, not by a formula screen.")
+    else:
+        summary = (f"**{theme}: {len(rows)} tagged companies{sec_txt}.** "
+                   "None are NIYTRI-rated yet — tap a name to explore it.")
+    return {"summary": summary, "columns": cols, "rows": rows, "sql": "",
+            "source": f"NIYTRI theme tags · {theme}",
+            "assumptions": "LLM-identified · CMOTS-validated · NIYTRI-scored",
+            "disclaimer": AI_DISCLAIMER}
+
+
 async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
+    # Fast path: a known theme with pre-built tags (Theme-Tagging agent) -> precise,
+    # instant, no LLM call.
+    try:
+        from app.services import theme_tagging
+        _th = theme_tagging.match_theme(prompt)
+        if _th:
+            _tags = theme_tagging.tags_for(_th)
+            if _tags:
+                return _tag_result(_th, _tags)
+    except Exception as e:
+        log.warning("theme-tag fast path failed: %s", e)
+
     db_sources = _pick_sources(source_id)
     if not db_sources:
         return {"error": "No connected database source with a schema yet. An admin can add "
@@ -204,7 +242,7 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     def _fb_payload(summary):
         return {"summary": summary, "rows": [], "columns": [], "sql": "",
                 "source": "NIYTRI analysis", "fallback": True,
-                "assumptions": "theme match across our tracked universe",
+                "assumptions": "LLM-identified · CMOTS-validated · NIYTRI-scored",
                 "disclaimer": AI_DISCLAIMER}
 
     if not sql:

@@ -9,8 +9,21 @@ export default function DataSources() {
   const [busy, setBusy] = useState('')
   const [sql, setSql] = useState({})
   const [out, setOut] = useState({})
+  const [tt, setTt] = useState(null)
   const load = () => api.dataSources().then(d => setList(d.sources || [])).catch(() => {})
-  useEffect(() => { load() }, [])
+  const loadTt = () => api.themeTagsStatus().then(setTt).catch(() => {})
+  useEffect(() => { load(); loadTt() }, [])
+
+  async function runThemeTags() {
+    setBusy('tt')
+    try {
+      const r = await api.runThemeTags()
+      toast(r.started ? 'Theme tagging started — refresh status in ~1 min' : (r.message || 'Already running'),
+            { type: r.started ? 'success' : 'error' })
+      setTimeout(loadTt, 1500)
+    } catch (e) { toast(e.message, { type: 'error' }) }
+    setBusy('')
+  }
 
   async function add() {
     if (!form.name.trim()) return
@@ -70,6 +83,27 @@ export default function DataSources() {
                      value={form.base_url} onChange={e => setForm({ ...form, base_url: e.target.value })} />}
           <button onClick={add} disabled={busy === 'add'}>{busy === 'add' ? 'Adding…' : '+ Add source'}</button>
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head">
+          <h4 style={{ margin: 0 }}>Theme-Tagging agent</h4>
+          <button onClick={runThemeTags} disabled={busy === 'tt' || tt?.running}>
+            {tt?.running ? 'Running…' : busy === 'tt' ? 'Starting…' : 'Run now'}</button>
+        </div>
+        <p className="hint" style={{ marginTop: 6 }}>
+          Classifies NSE companies into screener themes (BESS, Silicon Chips, EV…) using the LLM,
+          validated against CMOTS + NIYTRI Scores. Runs automatically daily (~02:00 IST); screens
+          for these themes then answer instantly from the tags.
+        </p>
+        {tt && (
+          <p className="hint">
+            {tt.total_tags || 0} tags stored
+            {tt.last_run ? ` · last run ${new Date(tt.last_run).toLocaleString('en-IN')}` : ' · not run yet'}
+            {tt.last_count ? ` · ${tt.last_count} tagged last run` : ''}
+            {tt.last_error ? ` · last error: ${tt.last_error}` : ''}
+          </p>
+        )}
       </div>
 
       {list.map(d => (

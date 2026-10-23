@@ -1684,6 +1684,26 @@ def _mask_url(u: str) -> str:
     return _re.sub(r"(@)([^:/@]+)(:\d+)?", _mh, u)
 
 
+@router.get("/theme-tags/status")
+def theme_tags_status(admin: User = Depends(require_admin)):
+    """Theme-Tagging agent status (last run, tag count, running flag)."""
+    from app.services.theme_tagging import status
+    return status()
+
+
+@router.post("/theme-tags/run")
+async def theme_tags_run(admin: User = Depends(require_admin)):
+    """Run the Theme-Tagging agent now (background); returns immediately."""
+    import asyncio
+    from app.services.theme_tagging import refresh_all, status
+    st = status()
+    if st.get("running"):
+        return {"started": False, "message": "Already running.", **st}
+    asyncio.create_task(refresh_all())
+    audit_log("theme_tags_run", by=admin.email)
+    return {"started": True, "message": "Theme tagging started in the background."}
+
+
 @router.get("/data-sources")
 def list_data_sources(admin: User = Depends(require_admin)):
     db = SessionLocal()

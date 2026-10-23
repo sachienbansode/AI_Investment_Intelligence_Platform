@@ -1365,3 +1365,15 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 
 /* Sticky header inside a scrollable result table */
 .md-scroll thead th { position: sticky; top: 0; z-index: 2; }
+
+/* NIYTRI Score badge — colored, clickable to the stock detail, app-wide */
+.niy-score { display: inline-flex; align-items: center; justify-content: center; min-width: 34px;
+  padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: .82em; line-height: 1.5;
+  cursor: pointer; border: 1px solid transparent; font-variant-numeric: tabular-nums;
+  transition: transform .1s, box-shadow .1s; }
+.niy-score:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(11,37,69,.18); }
+.niy-score.niy-strong { background: rgba(18,160,107,.14); color: var(--green); border-color: rgba(18,160,107,.3); }
+.niy-score.niy-neutral { background: rgba(192,125,10,.14); color: var(--amber); border-color: rgba(192,125,10,.3); }
+.niy-score.niy-weak { background: rgba(224,80,63,.14); color: var(--red); border-color: rgba(224,80,63,.3); }
+.niy-score.niy-na { background: var(--panel2); color: var(--muted); cursor: default; border-color: var(--border); }
+.niy-score.niy-na:hover { transform: none; box-shadow: none; }
