@@ -126,7 +126,7 @@ export default function Agents() {
           <button className="ghost" onClick={refreshNews} disabled={!!busy}>
             {busy === 'news' ? 'Refreshing…' : 'Refresh news'}</button>
           <button className="ghost" onClick={runThemeTags} disabled={!!busy}
-                  title="Classify NSE companies into screener themes (BESS, Silicon Chips, EV…) via the LLM, validated against CMOTS + NIYTRI Scores.">
+                  title="Classify NSE companies into screener themes (BESS, Silicon Chips, EV…), validated against market data + NIYTRI Scores.">
             {busy === 'themes' ? 'Starting…' : 'Run theme tagging'}</button>
           <label className="hint" title="Re-score every script in scope, even ones already scored today (higher cost). Off = only missing/failed scripts are re-run.">
             <input type="checkbox" checked={forceFull} onChange={e => setForceFull(e.target.checked)} /> Force full re-score

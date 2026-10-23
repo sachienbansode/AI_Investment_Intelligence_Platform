@@ -17,6 +17,17 @@ from app.services import data_sources as ds
 
 log = logging.getLogger(__name__)
 
+# End users never see vendor / schema names — everything is branded as NIYTRI's own.
+BRAND = "NIYTRI Data Intelligence"
+_SCRUB = re.compile(
+    r"\b(cmots|companymaster|fundamentalttm|proftandloss|balancesheet|quarterlyresults|"
+    r"valuationratios|performanceratios|marginratios|financialstabilityratios|price_change)\b",
+    re.IGNORECASE)
+
+
+def _scrub(txt):
+    return _SCRUB.sub(BRAND, txt) if isinstance(txt, str) else txt
+
 # Thematic keyword -> expansion hints (sectors / synonyms) the LLM can use.
 THEMES = {
     "BESS": ["battery energy storage", "grid storage", "cells"],
@@ -179,7 +190,7 @@ def _tag_result(theme: str, tags: list) -> dict:
                    "None are NIYTRI-rated yet — tap a name to explore it.")
     return {"summary": summary, "columns": cols, "rows": rows, "sql": "",
             "source": f"NIYTRI theme tags · {theme}",
-            "assumptions": "LLM-identified · CMOTS-validated · NIYTRI-scored",
+            "assumptions": "",
             "disclaimer": AI_DISCLAIMER}
 
 
@@ -242,23 +253,23 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     def _fb_payload(summary):
         return {"summary": summary, "rows": [], "columns": [], "sql": "",
                 "source": "NIYTRI analysis", "fallback": True,
-                "assumptions": "LLM-identified · CMOTS-validated · NIYTRI-scored",
+                "assumptions": "",
                 "disclaimer": AI_DISCLAIMER}
 
     if not sql:
         fb = await _thematic_fallback(prompt, theme_hint)
         if fb:
             return _fb_payload(fb)
-        return {"summary": spec.get("assumptions") or "I couldn't build a screen for that from the "
-                "connected data.", "rows": [], "columns": [], "sql": "", "source": src.name}
+        return {"summary": "I couldn't build a precise screen for that right now.",
+                "rows": [], "columns": [], "sql": "", "source": BRAND}
     try:
         res = ds.run_sql(src, sql, max_rows=max_rows)
     except Exception as e:
         fb = await _thematic_fallback(prompt, theme_hint)
         if fb:
             return _fb_payload(fb)
-        return {"error": "The screen query failed: " + str(e)[:200], "sql": sql,
-                "rows": [], "columns": [], "source": src.name}
+        return {"error": "The screen couldn't be completed right now.", "sql": "",
+                "rows": [], "columns": [], "source": BRAND}
 
     # Safety-net de-duplication: one row per company even if the SQL returned dupes.
     res = _dedupe_rows(res)
@@ -284,6 +295,6 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     except Exception:
         summary = f"Found {res['row_count']} matching stock(s)."
 
-    return {"summary": summary, "columns": res["columns"], "rows": res["rows"],
-            "sql": sql, "source": src.name, "assumptions": spec.get("assumptions", ""),
+    return {"summary": _scrub(summary), "columns": res["columns"], "rows": res["rows"],
+            "sql": "", "source": BRAND, "assumptions": _scrub(spec.get("assumptions", "")),
             "disclaimer": AI_DISCLAIMER}

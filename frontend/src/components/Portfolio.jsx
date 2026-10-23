@@ -374,7 +374,7 @@ export default function Portfolio() {
 
           {result.fundamentals?.available && (
             <div className="pf-funds">
-              <div className="pf-funds-h">Fundamentals <span className="hint">· value-weighted · CMOTS</span></div>
+              <div className="pf-funds-h">Fundamentals <span className="hint">· value-weighted · NIYTRI Data Intelligence</span></div>
               <div className="pf-kpis">
                 {result.fundamentals.weighted_pe != null && (
                   <div className="pf-kpi"><span>Weighted P/E</span><b>{result.fundamentals.weighted_pe}</b>

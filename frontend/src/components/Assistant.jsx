@@ -10,7 +10,7 @@ const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', 
 // Friendly labels for grounding sources (instead of raw snake_case types)
 const SRC_LABELS = {
   ai_score: 'NIYTRI Score', ai_scores_summary: 'NIYTRI Score distribution',
-  cmots_fundamentals: 'CMOTS fundamentals', live_sector_indices: 'NSE sector indices',
+  fundamentals: 'Fundamentals', cmots_fundamentals: 'Fundamentals', live_sector_indices: 'NSE sector indices',
   computed: 'Computed on platform data', news: 'Market news', research: 'Broker research',
   web: 'Web', quote: 'Live quote', ai_score_summary: 'NIYTRI Score summary',
 }

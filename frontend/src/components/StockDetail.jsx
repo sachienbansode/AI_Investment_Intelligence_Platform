@@ -261,7 +261,7 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
         return (
           <div className="panel sd-stats" style={{ marginTop: 14 }}>
             <div className="hint" style={{ marginBottom: 10 }}>
-              Fundamentals &amp; Risk <span style={{ opacity: .7 }}>· CMOTS{rk.days ? ' · ' + rk.days + 'd history' : ''}</span>
+              Fundamentals &amp; Risk <span style={{ opacity: .7 }}>· NIYTRI Data Intelligence{rk.days ? ' · ' + rk.days + 'd history' : ''}</span>
             </div>
             <div className="sd-stat-grid">
               {rows.map(([k, v]) => (
