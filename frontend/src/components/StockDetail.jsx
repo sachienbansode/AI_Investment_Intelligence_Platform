@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { idxTag } from '../md.js'
 
 // ── Global stock search (topbar). Loads the instrument universe once, filters by
 //    symbol OR company name, opens the detail page. ──────────────────────────
@@ -159,7 +160,7 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
 
       <div className="sd-head">
         <div>
-          <div className="sd-sym">{d.symbol} {d.sector && <span className="sd-sec">{d.sector}</span>}</div>
+          <div className="sd-sym">{d.symbol} {idxTag(d.symbol) && <span className="idx-tag">{idxTag(d.symbol)}</span>} {d.sector && <span className="sd-sec">{d.sector}</span>}</div>
           <div className="sd-name">{d.name}</div>
         </div>
         <div className="sd-price">

@@ -40,12 +40,20 @@ export function scoreBadge(raw, sym) {
   return `<span class="niy-score niy-${band}"${d} title="${tip}">${n}</span>`
 }
 
-// A clickable stock symbol → opens that stock's detail (handled app-wide).
+// Symbol -> primary index tag (NIFTY50 / NIFTY500 / …), loaded once by the app.
+let _idxTags = {}
+export function setIndexTags(m) { _idxTags = m || {} }
+export function idxTag(sym) { return _idxTags[String(sym || '').toUpperCase()] || '' }
+
+// A clickable stock symbol → opens that stock's detail (handled app-wide), with its
+// index-membership tag (NIFTY50 / NIFTY500 / …) shown next to it.
 export function symLink(raw) {
   const s = String(raw == null ? '' : raw).replace(/[*`]/g, '').trim()
   const sy = s.replace(/[^A-Za-z0-9&.\-]/g, '').toUpperCase()
   if (!sy) return inline(s)
-  return `<span class="stock-link" data-sym="${sy}" title="View ${sy}">${inline(s)}</span>`
+  const tag = _idxTags[sy]
+  const tagHtml = tag ? ` <span class="idx-tag">${tag}</span>` : ''
+  return `<span class="stock-link" data-sym="${sy}" title="View ${sy}">${inline(s)}</span>${tagHtml}`
 }
 
 export function mdToHtml(text) {

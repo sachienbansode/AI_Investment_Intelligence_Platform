@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { fmtIST } from '../fmt.js'
 import { api } from '../api.js'
-import { mdToHtml } from '../md.js'
+import { mdToHtml, idxTag } from '../md.js'
 import Sparkline from './Sparkline.jsx'
 import ScoreHistoryPanel from './ScoreHistoryPanel.jsx'
 import { toast } from '../dialog.jsx'
@@ -197,7 +197,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
             <Fragment key={s.symbol}>
               <tr className="row-click" onClick={() => setOpen(open === s.symbol ? null : s.symbol)}>
                 <td title={names[s.symbol] || s.symbol}>
-                  <strong>{s.symbol}</strong>
+                  <strong>{s.symbol}</strong> {idxTag(s.symbol) && <span className="idx-tag">{idxTag(s.symbol)}</span>}
                   {names[s.symbol] && <div className="script-name">{names[s.symbol]}</div>}
                 </td>
                 <td className="hint">{s.sector || '—'}</td>

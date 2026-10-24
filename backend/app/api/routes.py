@@ -295,7 +295,31 @@ async def instruments(user: User = Depends(get_current_user)):
         rows = (db.query(Instrument).filter_by(is_active=True)
                 .order_by(Instrument.symbol).all())
         return {"instruments": [{"symbol": r.symbol, "name": r.name,
-                                 "sector": r.sector} for r in rows]}
+                                 "sector": r.sector, "indices": r.indices or []} for r in rows]}
+    finally:
+        db.close()
+
+
+# Primary (most specific) index-membership tag per symbol, for UI badges everywhere.
+_IDX_PRIORITY = ["NIFTY50", "NIFTY NEXT 50", "NIFTYNEXT50", "NIFTY100", "NIFTY200",
+                 "NIFTY500", "NSE", "BSE"]
+
+
+def _primary_index(tags):
+    up = [str(t).upper().replace(" ", "") for t in (tags or [])]
+    for p in _IDX_PRIORITY:
+        if p.replace(" ", "") in up:
+            return p.replace("NIFTYNEXT50", "NIFTY NEXT 50")
+    return up[0] if up else ""
+
+
+@router.get("/index-tags")
+async def index_tags(user: User = Depends(get_current_user)):
+    """{symbol: primary index tag} for every active instrument — small, cached by the UI."""
+    db = SessionLocal()
+    try:
+        rows = db.query(Instrument.symbol, Instrument.indices).filter_by(is_active=True).all()
+        return {"tags": {s: _primary_index(idx) for s, idx in rows if _primary_index(idx)}}
     finally:
         db.close()
 

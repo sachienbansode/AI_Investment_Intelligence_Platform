@@ -120,6 +120,7 @@ export const api = {
   setEmailConfig: (body) => http('/admin/email-config', { method: 'POST', body: JSON.stringify(body) }),
   emailTest: (to) => http('/admin/email-test', { method: 'POST', body: JSON.stringify({ to }) }),
   stockDetail: (sym) => http('/stock/' + encodeURIComponent(sym)),
+  indexTags: () => http('/index-tags'),
   cmotsStock: (sym) => http('/cmots/stock/' + encodeURIComponent(sym)),
   cmotsStatus: () => http('/cmots/status'),
   priceHistory: (sym, range) => http('/price-history/' + encodeURIComponent(sym) + '?range=' + encodeURIComponent(range || '1M')),

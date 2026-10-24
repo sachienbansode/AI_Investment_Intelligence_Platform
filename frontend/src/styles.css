@@ -1399,3 +1399,8 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .stock-link:hover { background: var(--orange-soft); border-radius: 3px; }
 .md-table .stock-link { border-bottom: none; }
 .md-table .stock-link:hover { text-decoration: underline; background: transparent; }
+
+/* Index-membership tag (NIFTY50 / NIFTY500 …) shown next to stock names */
+.idx-tag { display: inline-block; font-size: .6rem; font-weight: 700; letter-spacing: .03em;
+  padding: 1px 6px; border-radius: 999px; background: var(--blue-soft); color: var(--blue);
+  vertical-align: middle; white-space: nowrap; }

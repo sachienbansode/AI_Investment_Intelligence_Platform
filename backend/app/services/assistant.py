@@ -976,10 +976,13 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "USER_WATCHLIST (the current user's OWN saved watchlist — you DO have this, "
                     "NEVER say you lack access to it). Each entry shows the NIYTRI Score AND the "
                     "recent ~5-day price move: " + ", ".join(items) + ". "
-                    "When judging which are 'doing / scoring well', use BOTH bases: a stock is "
-                    "doing well only if its NIYTRI Score is strong (65+) AND/OR its recent price "
-                    "move is clearly positive; name none as 'well' if neither holds. For 'news on "
-                    "my watchlist', scan the NEWS items for these symbols (say so plainly if none).")
+                    "When judging which are 'doing / scoring well', weigh THREE things together: "
+                    "(1) the NIYTRI Score band (strong = 65+), (2) the recent ~5-day price move, "
+                    "and (3) any relevant recent NEWS on the stock (from the NEWS context). A stock "
+                    "is doing well only if the score is strong AND/OR the price trend is clearly "
+                    "positive (and no materially negative news); name none as 'well' if that doesn't "
+                    "hold. Briefly mention the price move and any notable news in your verdict. For "
+                    "'news on my watchlist', scan the NEWS items for these symbols (say so if none).")
                 sources.append({"type": "watchlist", "count": len(wl)})
             else:
                 context_parts.append(

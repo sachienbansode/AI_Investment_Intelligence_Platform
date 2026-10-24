@@ -145,6 +145,11 @@ export default function App() {
   }, [])
 
   useEffect(() => { api.branding().then(d => setBrand(d || { logo: '' })).catch(() => {}) }, [])
+  // Load symbol -> index tag map once, so stock names show NIFTY50/NIFTY500 badges app-wide.
+  useEffect(() => {
+    if (!user) return
+    import('./md.js').then(m => api.indexTags().then(r => m.setIndexTags(r.tags || {})).catch(() => {}))
+  }, [user])
   useEffect(() => {
     if (!brand.logo) return
     let link = document.querySelector("link[rel='icon']")

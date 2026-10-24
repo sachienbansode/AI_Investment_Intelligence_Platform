@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { idxTag } from '../md.js'
 import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
 import Pager from './Pager.jsx'
@@ -188,7 +189,7 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
                   <td>
                     <strong title="Click for NIYTRI Score history" style={{ cursor: 'pointer' }}
                             onClick={() => setExpanded(x => (x === r.symbol ? null : r.symbol))}>
-                      {r.symbol} <span className="hint" style={{ fontWeight: 400 }}>{expanded === r.symbol ? '▲' : '▾'}</span>
+                      {r.symbol} {idxTag(r.symbol) && <span className="idx-tag">{idxTag(r.symbol)}</span>} <span className="hint" style={{ fontWeight: 400 }}>{expanded === r.symbol ? '▲' : '▾'}</span>
                     </strong>
                     {(r.name || r.sector) && <div className="script-name">{[r.name, r.sector].filter(Boolean).join(' \u00b7 ')}</div>}
                   </td>
