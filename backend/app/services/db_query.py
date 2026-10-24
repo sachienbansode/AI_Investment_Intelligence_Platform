@@ -23,6 +23,7 @@ import decimal
 import json
 import logging
 import re
+import time
 
 from sqlalchemy import text
 
@@ -32,18 +33,103 @@ log = logging.getLogger(__name__)
 
 # Virtual, already-user-scoped tables the model may reference.
 USER_VIEWS = {"my_watchlist", "my_portfolio"}
-# Real tables the model may read directly (no PII / no config / no methodology).
-BASE_TABLES = {"stock_scores", "instruments", "news_items"}
-ALLOWED_TABLES = BASE_TABLES | USER_VIEWS
 
-# Explicitly blocked even if referenced indirectly - defense in depth.
-BLOCKED_TABLES = {
-    "users", "roles", "app_settings", "watchlist_items", "portfolios",
-    "chat_messages", "chat_feedback", "pipeline_runs", "research_documents",
-    "research_chunks", "user_activity", "device_tokens",
+# Tables NEVER queryable — PII, auth, config, methodology, raw per-user rows.
+# (Denylist model: everything else in the app DB is auto-discovered and allowed,
+# so new analytics tables are picked up automatically; sensitive ones never are.)
+SENSITIVE = {
+    "users", "roles", "app_settings", "partner_keys", "data_sources",
+    "chat_messages", "chat_feedback", "chat_shares", "setting_changes",
+    "settingchange", "email_logs", "email_log", "invite_codes", "invitecode",
+    "device_tokens", "devicetoken", "user_activity", "research_chunks",
+    # raw per-user tables -> only reachable via the user views below
+    "watchlist_items", "portfolios",
     "sqlite_master", "sqlite_temp_master", "information_schema", "pg_catalog",
     "pg_class", "pg_tables", "pg_user", "pg_shadow", "pg_authid", "pg_settings",
 }
+BLOCKED_TABLES = SENSITIVE           # kept for defense-in-depth checks below
+
+# Semantic hints appended to the introspected columns for known analytics tables.
+_HINTS = {
+    "stock_scores": "DAILY history: many rows per symbol, one per score_date (text "
+    "'YYYY-MM-DD'). composite_score 0-100. quality_status in (approved,pending,rejected). "
+    "`fundamentals` JSON (eps,pb,dividend_yield,beta,roe,change_pct,volume,week52_high,"
+    "week52_low). For today/latest use score_date=(SELECT MAX(score_date) FROM stock_scores).",
+    "instruments": "one row per script; `indices` is a JSON list of membership tags.",
+    "news_items": "impacted_stocks/impacted_sectors are JSON lists; sentiment is text.",
+    "theme_tags": "screener theme tags: theme, symbol, co_code, company_name, sector.",
+    "pipeline_runs": "scoring-pipeline run history.",
+}
+
+# Fallback schema doc if live introspection is unavailable.
+_FALLBACK_DOC = """READ-ONLY SQL ACCESS - you may query ONLY these tables:
+- instruments(symbol, name, sector, is_active, in_scoring_universe, indices)
+- stock_scores(symbol, score_date, composite_score, quality_status, pe, market_cap,
+    last_price, explanation, pillar_scores, fundamentals, created_at)
+- news_items(title, link, source, published, summary_short, summary_detailed,
+    impacted_stocks, impacted_sectors, sentiment, created_at)
+- my_watchlist(symbol, created_at)  -- the CURRENT user's watchlist only.
+- my_portfolio(holdings, created_at, updated_at)  -- the CURRENT user's holdings only.
+RULES: ONE SELECT, no writes/DDL/semicolons, portable, always LIMIT."""
+
+_cache = {"t": 0.0, "allowed": set(), "doc": ""}
+
+
+def _introspect():
+    from sqlalchemy import inspect as _sqinsp
+    names = []
+    cols_by = {}
+    try:
+        insp = _sqinsp(engine)
+        for t in insp.get_table_names():
+            if t.lower() in SENSITIVE:
+                continue
+            names.append(t)
+            try:
+                cols_by[t] = [c["name"] for c in insp.get_columns(t)]
+            except Exception:
+                cols_by[t] = []
+    except Exception as e:
+        log.warning("db_query introspect failed: %s", e)
+    allowed = {n.lower() for n in names} | USER_VIEWS
+    lines = ["READ-ONLY SQL ACCESS - you may query ONLY these tables (any other is rejected):"]
+    for t in sorted(names):
+        cols = ", ".join(cols_by.get(t, []))
+        hint = ("  -- " + _HINTS[t.lower()]) if t.lower() in _HINTS else ""
+        lines.append(f"- {t}({cols}){hint}")
+    lines.append("- my_watchlist(symbol, created_at)  -- the CURRENT user's watchlist only.")
+    lines.append("- my_portfolio(holdings, created_at, updated_at)  -- the CURRENT user's "
+                 "holdings only; `holdings` is a JSON array of {symbol,quantity,avg_price,sector}.")
+    lines.append("RULES: write ONE standard SQL SELECT (WITH/JOIN/GROUP BY/ORDER BY/LIMIT/"
+                 "aggregates OK). No writes, DDL, semicolons or other tables. Portable across "
+                 "SQLite and PostgreSQL. Always add a sensible LIMIT.")
+    return allowed, "\n".join(lines)
+
+
+def refresh_schema():
+    """Re-introspect the app DB and rebuild the allow-set + schema doc. Nightly + lazy."""
+    allowed, doc = _introspect()
+    if allowed:
+        _cache.update(t=time.time(), allowed=allowed, doc=doc)
+    return {"count": len(allowed - USER_VIEWS), "tables": sorted(allowed - USER_VIEWS)}
+
+
+def _ensure(max_age=3600):
+    if not _cache["allowed"] or (time.time() - _cache["t"]) > max_age:
+        try:
+            refresh_schema()
+        except Exception:
+            pass
+
+
+def allowed_tables():
+    _ensure()
+    return _cache["allowed"] or (USER_VIEWS | {"stock_scores", "instruments", "news_items"})
+
+
+def schema_doc():
+    _ensure()
+    return _cache["doc"] or _FALLBACK_DOC
 
 # Forbidden tokens (writes, DDL, multi-statement, dangerous functions).
 _FORBIDDEN = re.compile(
@@ -115,11 +201,12 @@ def validate_sql(query: str) -> str:
     # WITH-clause CTE names are allowed; collect them so they don't trip the check.
     ctes = {m.group(1).lower() for m in
             re.finditer(r"(?:with|,)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+as\s*\(", low)}
-    bad = (refs - ALLOWED_TABLES) - ctes
+    allowed = allowed_tables()
+    bad = (refs - allowed) - ctes
     if bad:
         raise ValueError(
             "query references tables that are not allowed: " + ", ".join(sorted(bad))
-            + ". Allowed: " + ", ".join(sorted(ALLOWED_TABLES)))
+            + ". Allowed: " + ", ".join(sorted(allowed)))
     if BLOCKED_TABLES & refs:
         raise ValueError("query references a blocked table")
     return q
@@ -192,3 +279,4 @@ def run_query(query: str, user_id=None, max_rows: int = 200) -> dict:
 def run_many(queries, user_id=None, max_rows: int = 200, max_queries: int = 3) -> list:
     return [run_query(q, user_id=user_id, max_rows=max_rows)
             for q in list(queries)[:max_queries] if isinstance(q, str) and q.strip()]
+SCHEMA_DOC = _FALLBACK_DOC  # backward-compat alias

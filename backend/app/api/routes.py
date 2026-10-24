@@ -1040,6 +1040,7 @@ async def agents_status(user: User = Depends(get_current_user)):
         "daily_prices": "daily at 18:30 IST",
         "purge_shares": "daily at 03:30 IST",
         "theme_tagging": "daily at 02:00 IST (screener theme tags)",
+        "schema_refresh": "daily at 00:00 IST (relearn DB + source schemas)",
     }
     jobs = [{"id": j.id,
              "frequency": freq.get(j.id, ""),

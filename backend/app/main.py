@@ -131,6 +131,28 @@ async def lifespan(app: FastAPI):
                       CronTrigger(hour=2, minute=0, timezone=IST),
                       id="theme_tagging", replace_existing=True,
                       misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
+    # Schema-refresh agent (~00:00 IST): relearn the app DB schema and re-introspect
+    # every connected data source, so new tables/columns/integrations are picked up
+    # automatically and the assistant/screener always query against a current schema.
+    def _refresh_schemas():
+        try:
+            from app.services import db_query
+            db_query.refresh_schema()
+        except Exception as e:
+            log.warning("app schema refresh failed: %s", e)
+        try:
+            from app.services import data_sources as _ds
+            for s in _ds.enabled_sources():
+                try:
+                    _ds.introspect(s)
+                except Exception as e:
+                    log.warning("source reintrospect failed (%s): %s", getattr(s, "name", "?"), e)
+        except Exception as e:
+            log.warning("sources refresh failed: %s", e)
+    scheduler.add_job(_refresh_schemas,
+                      CronTrigger(hour=0, minute=0, timezone=IST),
+                      id="schema_refresh", replace_existing=True,
+                      misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
     scheduler.start()
     # Catch-up: if the box was down/restarted past the scheduled hour and today's
     # run hasn't happened yet, kick one off shortly after boot.
