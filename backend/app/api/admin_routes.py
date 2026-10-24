@@ -1684,6 +1684,25 @@ def _mask_url(u: str) -> str:
     return _re.sub(r"(@)([^:/@]+)(:\d+)?", _mh, u)
 
 
+@router.get("/schema-refresh/status")
+def schema_refresh_status(admin: User = Depends(require_admin)):
+    """Schema-Refresh agent status (last run, app tables, sources, new identifications)."""
+    from app.services.schema_agent import status
+    return status()
+
+
+@router.post("/schema-refresh/run")
+async def schema_refresh_run(admin: User = Depends(require_admin)):
+    """Run the Schema-Refresh agent now (background); returns immediately."""
+    import asyncio
+    from app.services.schema_agent import run, status
+    if status().get("running"):
+        return {"started": False, "message": "Already running.", **status()}
+    asyncio.get_event_loop().run_in_executor(None, run)
+    audit_log("schema_refresh_run", by=admin.email)
+    return {"started": True, "message": "Schema refresh started in the background."}
+
+
 @router.get("/theme-tags/status")
 def theme_tags_status(admin: User = Depends(require_admin)):
     """Theme-Tagging agent status (last run, tag count, running flag)."""

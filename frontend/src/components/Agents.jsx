@@ -94,8 +94,21 @@ export default function Agents() {
     } catch (e) { setMsg(e.message) }
     setBusy('')
   }
+  const [sr, setSr] = useState(null)
+  const loadSr = () => api.schemaRefreshStatus().then(setSr).catch(() => {})
+  async function runSchemaRefresh() {
+    setBusy('schema'); setMsg('')
+    try {
+      const r = await api.runSchemaRefresh()
+      setMsg(r.started ? 'Schema refresh started — relearning DB + sources…'
+                       : (r.message || 'Schema refresh is already running.'))
+      const poll = setInterval(() => loadSr(), 2000)
+      setTimeout(() => clearInterval(poll), 20000)
+    } catch (e) { setMsg(e.message) }
+    setBusy('')
+  }
 
-  useEffect(() => { load(); return () => clearTimeout(timer.current) }, [])
+  useEffect(() => { load(); loadSr(); return () => clearTimeout(timer.current) }, [])
 
   if (err) return <p className="note">{err}</p>
   if (!s) return <p className="hint">Loading…</p>
@@ -128,6 +141,9 @@ export default function Agents() {
           <button className="ghost" onClick={runThemeTags} disabled={!!busy}
                   title="Classify NSE companies into screener themes (BESS, Silicon Chips, EV…), validated against market data + NIYTRI Scores.">
             {busy === 'themes' ? 'Starting…' : 'Run theme tagging'}</button>
+          <button className="ghost" onClick={runSchemaRefresh} disabled={!!busy || sr?.running}
+                  title="Relearn the app DB schema and re-introspect every connected source, so new tables/columns/integrations are known.">
+            {sr?.running ? 'Refreshing…' : busy === 'schema' ? 'Starting…' : 'Run schema refresh'}</button>
           <label className="hint" title="Re-score every script in scope, even ones already scored today (higher cost). Off = only missing/failed scripts are re-run.">
             <input type="checkbox" checked={forceFull} onChange={e => setForceFull(e.target.checked)} /> Force full re-score
           </label>
@@ -136,6 +152,35 @@ export default function Agents() {
         <p className="hint" style={{ marginTop: 8 }}>Run the full agentic scoring pipeline on
           demand, or pull the latest market news now. Scoring is disabled while a run is in progress.</p>
       </div>
+
+      {sr && (
+        <div className="panel">
+          <div className="panel-head">
+            <h4 style={{ margin: 0 }}>Schema-Refresh agent {sr.running && <span className="tag running">running…</span>}</h4>
+            <span className="hint">{sr.last_run ? 'last run ' + new Date(sr.last_run).toLocaleString('en-IN') : 'not run yet'}</span>
+          </div>
+          <p className="hint" style={{ marginTop: 6 }}>
+            Relearns the app database schema and re-introspects every connected source (midnight IST + on demand),
+            so new integrations, tables and columns are picked up automatically.
+          </p>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+            <li className="hint"><b>{(sr.app_tables || []).length}</b> app analytics tables available to the query engine</li>
+            {(sr.sources || []).map(x => (
+              <li className="hint" key={x.name}>Source <b>{x.name}</b>: {x.tables} tables introspected</li>
+            ))}
+            {(sr.new_app_tables || []).length > 0 && (
+              <li className="up">New app tables identified: <b>{sr.new_app_tables.join(', ')}</b></li>
+            )}
+            {(sr.new_source_tables || []).map(ns => (
+              <li className="up" key={ns.source}>New in <b>{ns.source}</b>: {ns.tables.length} table(s)</li>
+            ))}
+            {!(sr.new_app_tables || []).length && !(sr.new_source_tables || []).length && sr.last_run && (
+              <li className="hint">No new tables since the last run.</li>
+            )}
+            {sr.last_error && <li className="down">Last error: {sr.last_error}</li>}
+          </ul>
+        </div>
+      )}
 
       {run && run.agents && (
         <div className="agent-grid">

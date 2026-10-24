@@ -135,20 +135,8 @@ async def lifespan(app: FastAPI):
     # every connected data source, so new tables/columns/integrations are picked up
     # automatically and the assistant/screener always query against a current schema.
     def _refresh_schemas():
-        try:
-            from app.services import db_query
-            db_query.refresh_schema()
-        except Exception as e:
-            log.warning("app schema refresh failed: %s", e)
-        try:
-            from app.services import data_sources as _ds
-            for s in _ds.enabled_sources():
-                try:
-                    _ds.introspect(s)
-                except Exception as e:
-                    log.warning("source reintrospect failed (%s): %s", getattr(s, "name", "?"), e)
-        except Exception as e:
-            log.warning("sources refresh failed: %s", e)
+        from app.services.schema_agent import run as _run_schema
+        _run_schema()
     scheduler.add_job(_refresh_schemas,
                       CronTrigger(hour=0, minute=0, timezone=IST),
                       id="schema_refresh", replace_existing=True,
