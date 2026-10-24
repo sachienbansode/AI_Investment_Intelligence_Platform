@@ -134,7 +134,7 @@ export default function App() {
   // stock's detail — works from chat answers, screener, portfolio, anywhere.
   useEffect(() => {
     const onClick = (e) => {
-      const el = e.target.closest && e.target.closest('.niy-score[data-sym]')
+      const el = e.target.closest && e.target.closest('.niy-score[data-sym], .stock-link[data-sym]')
       if (el) {
         const sym = el.getAttribute('data-sym')
         if (sym) { e.preventDefault(); openStock(sym.toUpperCase()) }

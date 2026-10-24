@@ -345,8 +345,8 @@ button.danger:hover { background: #c9302c; border-color: #c9302c; filter: none; 
 .msg.user { justify-content: flex-end; }
 .bubble { max-width: 76%; padding: 11px 15px; border-radius: 14px;
   background: var(--panel2); border: 1px solid var(--border); }
-.msg.user .bubble { background: linear-gradient(135deg, var(--accent), #3a6fd8);
-  border: none; }
+.msg.user .bubble { background: linear-gradient(135deg, var(--blue), var(--blue2));
+  color: #fff; border: none; }
 .bubble p { margin: 0; white-space: pre-wrap; }
 .meta { margin-top: 9px; font-size: .73rem; color: var(--muted);
   border-top: 1px solid var(--border); padding-top: 7px; }
@@ -1318,7 +1318,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .msg .bubble { max-width: 80%; box-shadow: 0 1px 2px rgba(11,37,69,.05); }
 .msg.assistant .bubble { background: var(--panel); border: 1px solid var(--border);
   border-radius: 5px 16px 16px 16px; }
-.msg.user .bubble { border-radius: 16px 5px 16px 16px; box-shadow: 0 3px 14px rgba(246,97,31,.20); }
+.msg.user .bubble { border-radius: 16px 5px 16px 16px; box-shadow: 0 3px 14px rgba(30,99,214,.22); }
 
 /* Premium pills (themes, prompts, follow-ups) */
 .chip { transition: transform .12s, border-color .12s, color .12s, background .12s, box-shadow .12s; }
@@ -1392,3 +1392,10 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .hbar-val { font-size: .82rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .hbar-row { grid-template-columns: 92px 1fr 54px; gap: 7px; }
   .hbar-lab, .hbar-val { font-size: .76rem; } }
+
+/* Clickable stock symbol in answers/tables -> opens the stock detail */
+.stock-link { cursor: pointer; color: var(--accent); font-weight: 650;
+  border-bottom: 1px dotted var(--accent); transition: color .1s, background .1s; }
+.stock-link:hover { background: var(--orange-soft); border-radius: 3px; }
+.md-table .stock-link { border-bottom: none; }
+.md-table .stock-link:hover { text-decoration: underline; background: transparent; }

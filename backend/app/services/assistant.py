@@ -948,19 +948,38 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             wl = [w.symbol.upper() for w in (db.query(WatchlistItem)
                   .filter_by(user_id=user_id).order_by(WatchlistItem.created_at).all())]
             if wl:
-                smap = {}
+                from app.db.database import StockPrice as _SP
+                smap, perf = {}, {}
                 for sym in wl:
                     r = (db.query(StockScore).filter_by(symbol=sym)
                          .order_by(StockScore.score_date.desc()).first())
                     if r and r.composite_score is not None:
                         smap[sym] = round(float(r.composite_score), 1)
-                items = [f"{s} (NIYTRI Score {smap[s]})" if s in smap else s for s in wl]
+                    # recent price performance: ~5-trading-day % move from EOD history
+                    try:
+                        px = [p.close for p in (db.query(_SP).filter_by(symbol=sym)
+                              .order_by(_SP.price_date.desc()).limit(6).all())
+                              if p.close is not None]
+                        if len(px) >= 2 and px[-1]:
+                            perf[sym] = round((px[0] - px[-1]) / px[-1] * 100, 2)
+                    except Exception:
+                        pass
+                def _lab(s):
+                    bits = []
+                    if s in smap:
+                        bits.append(f"score {smap[s]}")
+                    if s in perf:
+                        bits.append(f"{'+' if perf[s] >= 0 else ''}{perf[s]}% last ~5d")
+                    return f"{s} ({', '.join(bits)})" if bits else s
+                items = [_lab(s) for s in wl]
                 context_parts.append(
                     "USER_WATCHLIST (the current user's OWN saved watchlist — you DO have this, "
-                    "NEVER say you lack access to it): " + ", ".join(items) + ". "
-                    "For 'news on my watchlist', scan the NEWS items and report those mentioning "
-                    "these symbols / their companies (say so plainly if none today). For "
-                    "'my watchlist scores', use the scores shown here.")
+                    "NEVER say you lack access to it). Each entry shows the NIYTRI Score AND the "
+                    "recent ~5-day price move: " + ", ".join(items) + ". "
+                    "When judging which are 'doing / scoring well', use BOTH bases: a stock is "
+                    "doing well only if its NIYTRI Score is strong (65+) AND/OR its recent price "
+                    "move is clearly positive; name none as 'well' if neither holds. For 'news on "
+                    "my watchlist', scan the NEWS items for these symbols (say so plainly if none).")
                 sources.append({"type": "watchlist", "count": len(wl)})
             else:
                 context_parts.append(

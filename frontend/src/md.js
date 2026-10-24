@@ -40,6 +40,14 @@ export function scoreBadge(raw, sym) {
   return `<span class="niy-score niy-${band}"${d} title="${tip}">${n}</span>`
 }
 
+// A clickable stock symbol → opens that stock's detail (handled app-wide).
+export function symLink(raw) {
+  const s = String(raw == null ? '' : raw).replace(/[*`]/g, '').trim()
+  const sy = s.replace(/[^A-Za-z0-9&.\-]/g, '').toUpperCase()
+  if (!sy) return inline(s)
+  return `<span class="stock-link" data-sym="${sy}" title="View ${sy}">${inline(s)}</span>`
+}
+
 export function mdToHtml(text) {
   if (!text) return ''
   const esc = text
@@ -79,7 +87,8 @@ export function mdToHtml(text) {
       // clickable colored badges (highlight the score everywhere, click -> stock).
       const hnorm = headers.map(h => String(h).replace(/[*`]/g, '').trim().toLowerCase())
       const scoreIdx = hnorm.findIndex(h => h === 'niytri score' || h === 'score' || h === 'niytri')
-      const symIdx = hnorm.findIndex(h => h === 'symbol' || h === 'scrip' || h === 'ticker')
+      const symIdx = hnorm.findIndex(h => h === 'symbol' || h === 'scrip' || h === 'script'
+        || h === 'ticker' || h === 'stock')
       // collect body rows first so a header-only table (no data) is skipped entirely
       let j = i + 2
       let body = ''
@@ -90,6 +99,8 @@ export function mdToHtml(text) {
         headers.forEach((_, k) => {
           if (k === scoreIdx) {
             body += `<td${al(k)}>${scoreBadge(row[k] || '', symIdx >= 0 ? row[symIdx] : '')}</td>`
+          } else if (k === symIdx) {
+            body += `<td${al(k)}>${symLink(row[k] || '')}</td>`
           } else {
             body += `<td${al(k)}>${inline(row[k] || '')}</td>`
           }
