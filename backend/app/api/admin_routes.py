@@ -1364,7 +1364,8 @@ def user_activity(from_: str = Query(None, alias="from"), to: str = Query(None))
         "invites": {"sent": sent, "delivered": delivered, "joined": joined,
                     "sent_in_range": sent_in_range, "top_inviters": top_inviters},
         "waitlist": {"count": len(wl),
-                     "list": [{"email": w.email, "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:2000]]},
+                     "list": [{"email": w.email, "reason": (w.reason or ""),
+                               "created_at": (aware(w.created_at).isoformat() if w.created_at else None)} for w in wl[:2000]]},
         "users": user_rows,
     }
 

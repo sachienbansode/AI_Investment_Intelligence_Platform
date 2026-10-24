@@ -106,10 +106,40 @@ def _introspect():
     return allowed, "\n".join(lines)
 
 
+def table_columns() -> dict:
+    """{table: [columns]} for every non-sensitive app table (for schema hints)."""
+    from sqlalchemy import inspect as _sqinsp
+    out = {}
+    try:
+        insp = _sqinsp(engine)
+        for t in insp.get_table_names():
+            if t.lower() in SENSITIVE:
+                continue
+            try:
+                out[t] = [c["name"] for c in insp.get_columns(t)]
+            except Exception:
+                out[t] = []
+    except Exception as e:
+        log.warning("table_columns failed: %s", e)
+    return out
+
+
 def refresh_schema():
-    """Re-introspect the app DB and rebuild the allow-set + schema doc. Nightly + lazy."""
+    """Re-introspect the app DB and rebuild the allow-set + schema doc. Nightly + lazy.
+    Merges any stored semantic hints (schema_hints) into the doc so the planner knows
+    what new tables/columns mean, not just their names."""
     allowed, doc = _introspect()
     if allowed:
+        try:
+            from app.services.schema_hints import get_hints
+            hints = get_hints("app")
+            if hints:
+                extra = [("  [%s] %s" % (t, d)) for t, d in sorted(hints.items())
+                         if t not in _HINTS]
+                if extra:
+                    doc = doc + "\nTABLE NOTES:\n" + "\n".join(extra)
+        except Exception:
+            pass
         _cache.update(t=time.time(), allowed=allowed, doc=doc)
     return {"count": len(allowed - USER_VIEWS), "tables": sorted(allowed - USER_VIEWS)}
 

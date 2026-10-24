@@ -191,6 +191,7 @@ class GoogleRequest(BaseModel):
 
 class WaitlistRequest(BaseModel):
     email: EmailStr
+    reason: str = ""
 
 
 @router.get("/registration-info")
@@ -259,7 +260,11 @@ def google_auth(req: GoogleRequest, request: Request):
 
 @router.post("/waitlist")
 def join_waitlist(req: WaitlistRequest):
-    res = registration.add_to_waitlist(req.email)
+    reason = (req.reason or "").strip()
+    if len(reason) < 10:
+        raise HTTPException(400, "Please share what you'd like to achieve with NIYTRI AI "
+                                 "Intelligence (at least 10 characters).")
+    res = registration.add_to_waitlist(req.email, reason=reason[:1000])
     return {"ok": True, **res}
 
 

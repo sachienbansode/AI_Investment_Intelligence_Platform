@@ -302,6 +302,7 @@ class Waitlist(Base):
     __tablename__ = "waitlist"
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, index=True)
+    reason = Column(Text, default="")          # why they want to join / their objective
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -369,6 +370,20 @@ class DataSource(Base):
     note = Column(Text, default="")
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class SchemaHint(Base):
+    """LLM-generated plain-English description for a table (and its key columns), so
+    the query planner understands new data, not just column names. Scope is 'app'
+    (our DB) or a connected source's name (e.g. 'CMOTS'). Refreshed by the schema agent."""
+    __tablename__ = "schema_hints"
+    id = Column(Integer, primary_key=True)
+    scope = Column(String, index=True)             # "app" | source name
+    table_name = Column(String, index=True)
+    description = Column(Text, default="")
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+    __table_args__ = (UniqueConstraint("scope", "table_name", name="uq_schema_hint"),)
 
 
 class ThemeTag(Base):
@@ -446,6 +461,7 @@ _MIGRATIONS = [
     ("stock_scores", "last_price", "FLOAT"),
     ("stock_scores", "fundamentals", "JSON"),
     ("instruments", "indices", "JSON"),
+    ("waitlist", "reason", "TEXT DEFAULT ''"),
     ("users", "role_id", "INTEGER"),
     ("users", "avatar", "TEXT"),
     ("users", "referral_code", "VARCHAR"),

@@ -170,25 +170,46 @@ async def chat_suggestions(user: User = Depends(get_current_user)):
     except Exception:
         pass
 
-    # ---- assemble: dynamic first, then personalised, then evergreen ----------
+    # ---- category pools so the mix is varied, dynamic and shows app features --
+    import random as _rnd
+    edu = [
+        "Help me understand what the NIYTRI app can do",
+        f"How is the {label} calculated and what does it mean?",
+        f"What do the {label} bands (strong / neutral / weak) mean?",
+        "How do I read my portfolio's health score?",
+        "What kinds of questions can I ask you?",
+    ]
+    data_rich = [
+        f"Show stocks with a strong {label} (65+) for at least 70% of the last 30 days",
+        f"How many stocks score above 65 on the {label} today?",
+        f"Which stocks improved their {label} the most recently?",
+        f"Which stocks are below 50 on the {label}?",
+        f"Top 5 stocks by {label}",
+        "Which sectors are strongest right now?",
+    ]
+    market = ["What moved the market today?", "Summarize today's market news",
+              "How is overall market sentiment in the news?"]
+    personal = ([f"What's driving {s}'s {label}?" for s in liked[:2]]
+                + [f"Latest news on {s}" for s in watch[:2]])
+
     sugg = []
     def _add(q):
         if q and q not in sugg:
             sugg.append(q)
-    for q in dyn:
+    if dyn:
+        _add(_rnd.choice(dyn[:3]))                 # 1 live "today" prompt
+    _add(_rnd.choice(edu))                          # 1 app / methodology
+    for q in _rnd.sample(data_rich, min(2, len(data_rich))):  # 2 data-rich
         _add(q)
-        if len(sugg) >= 3:
+    _add(_rnd.choice(personal or market))           # 1 personal (or market)
+    rest = dyn + edu + data_rich + market + personal
+    _rnd.shuffle(rest)
+    for q in rest:                                  # fill to 6
+        if len(sugg) >= 6:
             break
-    for sym in liked[:1]:
-        _add(f"What's driving {sym}'s {label}?")
-    for sym in watch[:1]:
-        _add(f"Latest news on {sym}")
-    for d in ["Summarize today's market news", "Help me build a starter portfolio",
-              "Suggest top strong stocks across sectors", f"Top stocks by {label}"]:
-        if len(sugg) >= 5:
-            break
-        _add(d)
-    return {"suggestions": sugg[:5], "personalized": bool(liked or watch),
+        _add(q)
+    _rnd.shuffle(sugg)                              # rotate order each load
+    return {"suggestions": sugg[:6], "personalized": bool(liked or watch),
             "dynamic": bool(dyn)}
 
 

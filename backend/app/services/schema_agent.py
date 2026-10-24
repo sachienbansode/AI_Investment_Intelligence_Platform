@@ -21,6 +21,7 @@ _status = {
     "sources": [],             # [{name, tables}] per connected source (last run)
     "new_app_tables": [],      # app tables newly discovered on the last run
     "new_source_tables": [],   # [{source, tables:[...]}] newly discovered on last run
+    "described": 0,            # tables given a plain-English description this run
 }
 
 
@@ -69,11 +70,29 @@ def run() -> dict:
         except Exception as e:
             log.warning("schema_agent sources refresh failed: %s", e)
 
+        # ---- auto-describe new/undocumented tables (so the bot UNDERSTANDS them) --
+        described = 0
+        try:
+            import asyncio
+            from app.services import db_query, schema_hints
+            described += asyncio.run(schema_hints.describe_missing("app", db_query.table_columns()))
+            from app.services import data_sources as ds
+            for s in ds.enabled_sources():
+                tc = {t.get("table"): [c.get("name") for c in (t.get("columns") or [])]
+                      for t in ((s.schema_json or {}).get("tables") or []) if t.get("table")}
+                if tc:
+                    described += asyncio.run(schema_hints.describe_missing(s.name, tc))
+            # rebuild the app doc so the new hints are live immediately
+            db_query.refresh_schema()
+        except Exception as e:
+            log.warning("schema describe failed: %s", e)
+
         _status.update(
             app_tables=app_tables,
             sources=[{"name": s["name"], "tables": s["tables"], "_tnames": s["_tnames"]} for s in sources],
             new_app_tables=new_app,
             new_source_tables=new_src,
+            described=described,
             last_run=utcnow().isoformat(),
         )
         return {"ok": True, "app_tables": len(app_tables),

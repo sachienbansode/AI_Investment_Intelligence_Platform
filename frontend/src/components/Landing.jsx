@@ -404,6 +404,7 @@ export default function Landing({ onLogin }) {
   const [view, setView] = useState('signin')
   const [full_name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [wlReason, setWlReason] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [invite, setInvite] = useState('')
@@ -506,8 +507,10 @@ export default function Landing({ onLogin }) {
     catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
   async function doWaitlist(e) {
-    e.preventDefault(); setBusy(true); setErr(''); setOk('')
-    try { const r = await api.waitlist(email); setOk(r && r.status === 'exists' ? "You're already on the waitlist — currently #" + r.position + " of " + r.total + "." : "You're on the list! You're #" + (r?.position || '?') + " in line — we'll email you when a seat opens.") }
+    e.preventDefault(); setErr(''); setOk('')
+    if (wlReason.trim().length < 10) { setErr("Please share what you'd like to achieve with NIYTRI AI Intelligence (a sentence is fine)."); return }
+    setBusy(true)
+    try { const r = await api.waitlist(email, wlReason.trim()); setOk(r && r.status === 'exists' ? "You're already on the waitlist — currently #" + r.position + " of " + r.total + "." : "You're on the list! You're #" + (r?.position || '?') + " in line — we'll email you when a seat opens.") }
     catch (ex) { setErr(ex.message) } finally { setBusy(false) }
   }
   async function doResend() { setBusy(true); setErr(''); setOk(''); try { await api.resendVerification(pending.email); setOk('Verification email re-sent.') } catch (ex) { setErr(ex.message) } finally { setBusy(false) } }
@@ -599,8 +602,11 @@ export default function Landing({ onLogin }) {
                   )}
                   {view === 'waitlist' && (
                     <form onSubmit={doWaitlist}>
-                      <p className="lp-vtext">Beta is invite-only right now. Leave your email and we'll reach out when a seat opens.</p>
+                      <p className="lp-vtext">Beta is invite-only right now. Leave your email and tell us what you're hoping to get out of NIYTRI — we review every request.</p>
                       <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
+                      <textarea className="lp-field" rows={3} required value={wlReason}
+                                placeholder="What do you want to achieve with NIYTRI AI Intelligence? (e.g. research Indian stocks, track my portfolio, find opportunities…)"
+                                onChange={e => setWlReason(e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Join Waitlist'}</button>
                     </form>
                   )}

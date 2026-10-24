@@ -165,6 +165,7 @@ export default function Agents() {
           </p>
           <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
             <li className="hint"><b>{(sr.app_tables || []).length}</b> app analytics tables available to the query engine</li>
+            {sr.described ? <li className="up">{sr.described} table(s) auto-described (plain-English meaning) this run</li> : null}
             {(sr.sources || []).map(x => (
               <li className="hint" key={x.name}>Source <b>{x.name}</b>: {x.tables} tables introspected</li>
             ))}

@@ -390,7 +390,7 @@ def login_or_register_google(id_token: str, invite_code: str | None, signup_ip: 
         db.close()
 
 
-def add_to_waitlist(email: str) -> dict:
+def add_to_waitlist(email: str, reason: str = "") -> dict:
     """Add an email to the waitlist. Returns {"status": added|exists, "position", "total"}."""
     email = (email or "").strip().lower()
     if not _EMAIL_RE.match(email):
@@ -406,7 +406,7 @@ def add_to_waitlist(email: str) -> dict:
             position = db.query(Waitlist).filter(Waitlist.id <= row.id).count()
             total = db.query(Waitlist).count()
             return {"status": "exists", "position": position, "total": total}
-        db.add(Waitlist(email=email))
+        db.add(Waitlist(email=email, reason=(reason or "")[:1000]))
         db.commit()
         total = db.query(Waitlist).count()
         return {"status": "added", "position": total, "total": total}

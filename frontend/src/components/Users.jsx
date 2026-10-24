@@ -220,8 +220,11 @@ export default function Users() {
             </div>
             {wlRows.length ? (
               <div className="ua-wl">{pagedWl.map((w, i) => (
-                <div key={i} className="ua-wl-row">
-                  <span>{w.email}<span className="hint" style={{ marginLeft: 8 }}>{fmtD(w.created_at)}</span></span>
+                <div key={i} className="ua-wl-row" style={{ alignItems: 'flex-start' }}>
+                  <span style={{ flex: 1 }}>
+                    {w.email}<span className="hint" style={{ marginLeft: 8 }}>{fmtD(w.created_at)}</span>
+                    {w.reason && <div className="hint" style={{ marginTop: 3, fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>“{w.reason}”</div>}
+                  </span>
                   <span className="ua-wl-act">
                     <button className="sm" title="Approve: email them an invite code and remove from waitlist" onClick={() => wlInvite(w.email)}>Approve</button>
                     <button className="ghost sm" title="Remove from waitlist" onClick={() => wlRemove(w.email)}>Remove</button>

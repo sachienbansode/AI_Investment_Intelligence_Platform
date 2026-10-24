@@ -210,9 +210,15 @@ def schema_text(sources, max_tables: int = 60, max_cols: int = 40) -> str:
                 parts.append("  fields: " + ", ".join(sc["fields"][:60]))
             continue
         parts.append(f"# SOURCE {s.id} \"{s.name}\" ({sc.get('dialect','db')})")
+        try:
+            from app.services.schema_hints import get_hints
+            _hints = get_hints(s.name)
+        except Exception:
+            _hints = {}
         for t in (sc.get("tables") or [])[:max_tables]:
             cols = ", ".join(f"{c['name']}:{c['type']}" for c in t.get("columns", [])[:max_cols])
-            parts.append(f"  {t['table']}({cols})")
+            note = ("  -- " + _hints[t["table"].lower()]) if t["table"].lower() in _hints else ""
+            parts.append(f"  {t['table']}({cols}){note}")
     return "\n".join(parts) or "(no data sources connected)"
 
 

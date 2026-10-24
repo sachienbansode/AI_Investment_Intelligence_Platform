@@ -1069,18 +1069,36 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         try:
             from app.services import db_query
             max_q = int(get_setting("assistant_sql_max_queries"))
+            max_r = int(get_setting("assistant_sql_max_rows"))
+            # Market data source (e.g. CMOTS) the planner can ALSO query.
+            market_src, market_schema = None, ""
+            try:
+                from app.services import data_sources as _ds
+                _dbs = [s for s in _ds.enabled_sources() if s.kind == "db" and s.schema_json]
+                if _dbs:
+                    market_src = _dbs[0]
+                    market_schema = (_ds.cmots_catalog_text()
+                                     if (market_src.name or "").upper() == "CMOTS"
+                                     else _ds.schema_text([market_src], max_tables=40, max_cols=25))
+            except Exception:
+                market_src, market_schema = None, ""
             plan_sys = (
                 "You convert an investor's question into at most " + str(max_q) +
-                " READ-ONLY SQL SELECT queries over the schema below, to fetch the exact "
-                "data needed to answer it from the live database. Rules: ONLY use the "
-                "listed tables; never write or modify data; ONE statement per query; "
-                "always add a LIMIT. Use my_watchlist / my_portfolio for the user's own "
-                "holdings. If the question needs no database lookup (a greeting, general "
-                "knowledge, methodology or advice question, or one already answered by "
-                "typical score/news context), return an empty list. Respond with STRICT "
-                'JSON only, no prose: {"queries": ["SELECT ..."]}.\n\n' + db_query.schema_doc())
+                " READ-ONLY SQL SELECT queries to fetch the exact data to answer it. You may "
+                "query TWO databases: source 'app' = the platform's own analytics (NIYTRI "
+                "Scores + full daily history, instruments, news, the user's watchlist/portfolio); "
+                + ("source 'market' = company fundamentals/financials/ratios. "
+                   if market_src else "") +
+                "TAG each query with its source. You CANNOT join across 'app' and 'market' in one "
+                "SQL — if you need both, emit one query per source and we'll combine the results. "
+                "Rules: SELECT only; ONE statement; always LIMIT; use my_watchlist/my_portfolio "
+                "for the user's own holdings. Return an empty list if no DB lookup is needed "
+                "(greeting, general knowledge, methodology/advice, or already answerable from "
+                'context). STRICT JSON only: {"queries":[{"source":"app","sql":"SELECT ..."}]}.'
+                "\n\nAPP SCHEMA (source 'app'):\n" + db_query.schema_doc()
+                + (("\n\nMARKET SCHEMA (source 'market'):\n" + market_schema) if market_src else ""))
             plan = await get_llm_router().complete(plan_sys, "Question: " + question,
-                                      task="sql_plan", max_tokens=300, temperature=0.0)
+                                      task="sql_plan", max_tokens=350, temperature=0.0)
             mqs = re.search(r"\{.*\}", plan.text, re.DOTALL)
             queries = []
             if mqs:
@@ -1088,13 +1106,26 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     queries = (json.loads(mqs.group(0)) or {}).get("queries") or []
                 except Exception:
                     queries = []
-            results = db_query.run_many(
-                queries, user_id=user_id,
-                max_rows=int(get_setting("assistant_sql_max_rows")), max_queries=max_q)
-            # Only pass the RESULT ROWS to the model — never the SQL text, table
-            # names or error messages, so internal schema/technical details can't
-            # leak into an answer. Errored queries are dropped silently.
-            ok = [{"rows": r.get("rows")} for r in (results or []) if not r.get("error") and r.get("rows")]
+            # Run each on its engine; collect ROWS ONLY (never SQL/table names/errors).
+            ok = []
+            for q in (queries or [])[:max_q]:
+                if isinstance(q, str):
+                    q = {"source": "app", "sql": q}
+                src_tag = (q.get("source") or "app").lower()
+                sql = q.get("sql") or ""
+                if not sql.strip():
+                    continue
+                try:
+                    if src_tag == "market" and market_src:
+                        r = _ds.run_sql(market_src, sql, max_rows=max_r)
+                        rows = r.get("rows")
+                    else:
+                        r = db_query.run_query(sql, user_id=user_id, max_rows=max_r)
+                        rows = None if r.get("error") else r.get("rows")
+                    if rows:
+                        ok.append({"rows": rows})
+                except Exception as _qe:
+                    log.warning("assistant query (%s) failed: %s", src_tag, _qe)
             if ok:
                 context_parts.append(
                     "DB_QUERY_RESULTS (LIVE read-only data queried just now for THIS "
