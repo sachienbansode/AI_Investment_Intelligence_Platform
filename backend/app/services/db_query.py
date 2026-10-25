@@ -261,6 +261,30 @@ def _scope(q: str, user_id):
     return q, needs_user
 
 
+def _scope_universe(q: str, syms) -> str:
+    """Hard-enforce a stock-universe scope by rewriting every reference to
+    stock_scores / instruments into a subquery filtered to `syms`. Applied in
+    code (not trusted to the LLM), so counts/averages/joins are correct even if
+    the planner omitted the filter. `syms` come from our own DB / constituent
+    lists and are sanitised to [A-Z0-9&._-], so inlining them is injection-safe."""
+    if not syms:
+        return q
+    vals = ",".join("'" + re.sub(r"[^A-Z0-9&._-]", "", str(x).upper()) + "'"
+                    for x in sorted(syms) if str(x).strip())
+    if not vals:
+        return q
+    for tbl in ("stock_scores", "instruments"):
+        subq = "SELECT * FROM %s WHERE symbol IN (%s)" % (tbl, vals)
+        pat = re.compile(r"\b" + tbl + r"\b(?:\s+(?:as\s+)?(?!(?:" + _NOT_ALIAS +
+                         r")\b)([a-zA-Z_][a-zA-Z0-9_]*))?", re.IGNORECASE)
+
+        def repl(m, _subq=subq, _tbl=tbl):
+            alias = m.group(1) or _tbl
+            return "(" + _subq + ") AS " + alias
+        q = pat.sub(repl, q)
+    return q
+
+
 def _jsonable(v):
     if isinstance(v, (_dt.datetime, _dt.date)):
         return v.isoformat()
@@ -271,12 +295,14 @@ def _jsonable(v):
     return str(v)
 
 
-def run_query(query: str, user_id=None, max_rows: int = 200) -> dict:
+def run_query(query: str, user_id=None, max_rows: int = 200, universe_syms=None) -> dict:
     """Validate + execute one read-only query. Returns
-    {sql, columns, rows, row_count, truncated} or {sql, error}. Never raises."""
+    {sql, columns, rows, row_count, truncated} or {sql, error}. Never raises.
+    When universe_syms is given, stock_scores/instruments are hard-filtered to it."""
     try:
         clean = validate_sql(query)
         scoped, _ = _scope(clean, user_id)
+        scoped = _scope_universe(scoped, universe_syms)
     except Exception as e:
         return {"sql": query, "error": str(e)}
     conn = engine.connect()

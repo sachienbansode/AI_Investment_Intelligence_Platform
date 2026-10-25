@@ -1174,7 +1174,13 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 "for the user's own holdings. Return an empty list if no DB lookup is needed "
                 "(greeting, general knowledge, methodology/advice, or already answerable from "
                 'context). STRICT JSON only: {"queries":[{"source":"app","sql":"SELECT ..."}]}.'
-                "\n\nAPP SCHEMA (source 'app'):\n" + db_query.schema_doc()
+                + ((
+                    "\n\nUNIVERSE SCOPE: the user restricted results to the " + uni_label +
+                    " universe. The 'app' source is AUTOMATICALLY hard-filtered to this "
+                    "universe (stock_scores/instruments), so you need not add a symbol filter "
+                    "there. For 'market' queries, restrict to the same universe where possible."
+                  ) if uni_syms is not None else "")
+                + "\n\nAPP SCHEMA (source 'app'):\n" + db_query.schema_doc()
                 + (("\n\nMARKET SCHEMA (source 'market'):\n" + market_schema) if market_src else ""))
             plan = await get_llm_router().complete(plan_sys, "Question: " + question,
                                       task="sql_plan", max_tokens=350, temperature=0.0)
@@ -1199,7 +1205,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                         r = _ds.run_sql(market_src, sql, max_rows=max_r)
                         rows = r.get("rows")
                     else:
-                        r = db_query.run_query(sql, user_id=user_id, max_rows=max_r)
+                        r = db_query.run_query(sql, user_id=user_id, max_rows=max_r,
+                                               universe_syms=uni_syms)
                         rows = None if r.get("error") else r.get("rows")
                     if rows:
                         ok.append({"rows": rows})
