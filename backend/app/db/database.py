@@ -187,6 +187,29 @@ class ChatFeedback(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+class FixProposal(Base):
+    """A fix proposed by the Feedback-Triage agent for a cluster of 'not helpful'
+    answers. The admin reviews each one: approve / reject / add input (which sends
+    it back for a revised proposal). On approval, GUIDANCE and SETTING fixes apply
+    LIVE (they are configuration/data, no deployment); CODE fixes are advisory only
+    and go through the normal review+deploy. Nothing here ever edits source code."""
+    __tablename__ = "fix_proposals"
+    id = Column(Integer, primary_key=True)
+    cluster_key = Column(String, index=True)          # stable key for the issue pattern
+    title = Column(String, default="")                # short label
+    summary = Column(Text, default="")                # what's going wrong
+    sample_questions = Column(JSON, default=list)     # example questions that failed
+    fix_type = Column(String, default="guidance")     # guidance | setting | code
+    fix_payload = Column(JSON, default=dict)          # guidance:{text}; setting:{key,value}; code:{description}
+    rationale = Column(Text, default="")
+    status = Column(String, default="pending", index=True)  # pending|approved|rejected|needs_input|applied
+    admin_note = Column(Text, default="")             # admin's added input
+    iterations = Column(Integer, default=0)           # revise count
+    feedback_count = Column(Integer, default=0)       # No-ratings in the cluster
+    created_at = Column(DateTime, default=utcnow, index=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class Alert(Base):
     """A per-user, in-app alert raised when a followed script's AI score crosses a
     band boundary or moves sharply between scoring days. Advice-free (informational).

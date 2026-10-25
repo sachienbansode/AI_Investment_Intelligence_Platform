@@ -179,6 +179,10 @@ DEFAULTS: dict = {
         "SHORT and conclusive - lead with the answer, then at most 3-5 supporting "
         "bullets. Bold key numbers and symbols."
     ),
+    # Learned guidance: short behavioural rules the Feedback-Triage agent appended
+    # after admin approval. Injected into the assistant CONTEXT at answer time, so
+    # approved fixes take effect LIVE with no deployment. List of strings.
+    "assistant_learned_guidance": [],
 }
 
 _cache: dict = {}
@@ -387,6 +391,12 @@ def _validate(key: str, value) -> None:
     elif key == "assistant_system_prompt":
         if not (isinstance(value, str) and 20 <= len(value) <= 4000):
             raise ValueError("assistant_system_prompt must be a string of 20-4000 chars")
+    elif key == "assistant_learned_guidance":
+        if not isinstance(value, list) or len(value) > 40:
+            raise ValueError("assistant_learned_guidance must be a list of <=40 items")
+        for it in value:
+            if not isinstance(it, str) or len(it) > 500:
+                raise ValueError("each learned-guidance item must be a string <=500 chars")
     elif key == "yahoo_symbol_aliases":
         if not (isinstance(value, dict)
                 and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())):

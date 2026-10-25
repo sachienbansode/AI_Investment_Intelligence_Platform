@@ -479,6 +479,12 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         f'CONTEXT (our core data), "Basis: Global Data" when from your own knowledge / broader '
         f'market knowledge, or "Basis: {platform_label} + Global Data" when both. '
         f'NEVER write "general knowledge" in the Basis line — always say "Global Data".')
+    # Admin-approved learned guidance from the Feedback-Triage agent (applies LIVE).
+    _lg = get_setting("assistant_learned_guidance") or []
+    if _lg:
+        context_parts.append(
+            "LEARNED GUIDANCE (admin-approved rules from user feedback - follow these "
+            "closely): " + " ".join("(%d) %s" % (i + 1, g) for i, g in enumerate(_lg)))
 
     async def _safe(coro, default=None, timeout=4.0):
         # Never let a slow/blocked market-data source (e.g. NSE on a datacenter
@@ -1332,6 +1338,21 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 _maxtok = max(_maxtok, 900)
             resp = await llm.complete(system_prompt(), prompt, task="ask_ai", max_tokens=_maxtok)
             answer_text, provider = resp.text, resp.provider
+            # Runtime deflection guard: if the model deflected ('I don't have / can't
+            # query / contact support') on a question we DID ground with platform data,
+            # retry ONCE with a stern correction before the user ever sees it.
+            try:
+                from app.services import answer_guard as _ag
+                if _ag.is_grounded(context_parts, deterministic) and _ag.looks_deflecting(answer_text):
+                    resp2 = await llm.complete(system_prompt(), prompt + _ag.RETRY_NUDGE,
+                                               task="ask_ai", max_tokens=_maxtok)
+                    if resp2 and resp2.text and not _ag.looks_deflecting(resp2.text):
+                        answer_text, provider = resp2.text, resp2.provider
+                        audit_log("answer_deflection_retry", ok=True)
+                    else:
+                        audit_log("answer_deflection_retry", ok=False)
+            except Exception as _ge:
+                log.warning("deflection guard failed: %s", _ge)
     except Exception as e:
         # Every LLM provider failed (e.g. account usage-limit / quota errors). Stay
         # useful: if the question maps to an exact code-computed figure, return that;

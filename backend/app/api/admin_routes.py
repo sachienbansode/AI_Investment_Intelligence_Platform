@@ -1875,6 +1875,58 @@ async def theme_tags_run(admin: User = Depends(require_admin)):
     return {"started": True, "message": "Theme tagging started in the background."}
 
 
+# ── Feedback-Triage agent (self-improvement loop) ────────────────────────
+class FixDecision(BaseModel):
+    action: str                     # "approve" | "reject"
+
+
+class FixInput(BaseModel):
+    note: str = Field(..., min_length=1, max_length=2000)
+
+
+@router.get("/fix-queue/status")
+def fix_queue_status(admin: User = Depends(require_admin)):
+    """Feedback-Triage agent status (pending/applied counts, learned-rule count)."""
+    from app.services import feedback_agent
+    return feedback_agent.status()
+
+
+@router.get("/fix-queue")
+def fix_queue_list(status: str = "", page: int = 1, admin: User = Depends(require_admin)):
+    """Paginated list of fix proposals (optionally filtered by status)."""
+    from app.services import feedback_agent
+    return feedback_agent.listing(status=status, page=max(1, page))
+
+
+@router.post("/fix-queue/run")
+async def fix_queue_run(admin: User = Depends(require_admin)):
+    """Run the Feedback-Triage agent now: cluster down-rated answers + propose fixes."""
+    from app.services import feedback_agent
+    res = await feedback_agent.run()
+    audit_log("fix_queue_run", by=admin.email, **res)
+    return {"started": True, **res}
+
+
+@router.post("/fix-queue/{pid}/decide")
+def fix_queue_decide(pid: int, req: FixDecision, admin: User = Depends(require_admin)):
+    """Approve (apply guidance/setting live; code -> acknowledged) or reject a proposal."""
+    from app.services import feedback_agent
+    res = feedback_agent.decide(pid, (req.action or "").lower(), admin=admin.email)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "failed"))
+    return res
+
+
+@router.post("/fix-queue/{pid}/input")
+async def fix_queue_input(pid: int, req: FixInput, admin: User = Depends(require_admin)):
+    """Admin adds input -> agent revises the proposal and returns it to 'pending'."""
+    from app.services import feedback_agent
+    res = await feedback_agent.revise(pid, req.note)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "failed"))
+    return res
+
+
 @router.get("/data-sources")
 def list_data_sources(admin: User = Depends(require_admin)):
     db = SessionLocal()

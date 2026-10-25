@@ -141,6 +141,16 @@ async def lifespan(app: FastAPI):
                       CronTrigger(hour=0, minute=0, timezone=IST),
                       id="schema_refresh", replace_existing=True,
                       misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
+
+    # Feedback-Triage agent (~01:30 IST): cluster 'not helpful' answers and propose
+    # fixes for admin review. Approved guidance/setting fixes apply live (no deploy).
+    async def _run_feedback_agent():
+        from app.services.feedback_agent import run as _run_fb
+        await _run_fb()
+    scheduler.add_job(_run_feedback_agent,
+                      CronTrigger(hour=1, minute=30, timezone=IST),
+                      id="feedback_triage", replace_existing=True,
+                      misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
     scheduler.start()
     # Catch-up: if the box was down/restarted past the scheduled hour and today's
     # run hasn't happened yet, kick one off shortly after boot.

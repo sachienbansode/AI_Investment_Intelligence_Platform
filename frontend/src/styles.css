@@ -1434,3 +1434,96 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
   .uni-select .uni-label { display: none; }
   .uni-seg .uni-opt { padding: 5px 9px; font-size: 11.5px; }
 }
+
+/* ── NIYTRI AI — mobile UI pass (wider responses + polish) ───────────── */
+@media (max-width: 860px) {
+  /* Use the full column: assistant answers fill the width, user stays right */
+  .chat-window .msg.assistant { gap: 6px; align-items: flex-start; }
+  .chat-window .msg.assistant .bubble {
+    max-width: 100%; width: 100%; flex: 1 1 auto;
+    padding: 11px 13px; border-radius: 12px;
+  }
+  .chat-window .msg.user { }
+  .chat-window .msg.user .bubble {
+    max-width: 85%; padding: 10px 13px;
+    border-radius: 16px 6px 16px 16px;
+  }
+  /* smaller, top-aligned avatar so it doesn't steal answer width */
+  .chat-window .msg.assistant .msg-avatar { width: 24px; height: 24px; margin-top: 2px; }
+
+  /* readable body text + comfortable spacing */
+  .chat-window .md p, .chat-window .md li,
+  .chat-window .bubble p { font-size: .9rem; line-height: 1.5; }
+  .chat-window .md h3, .chat-window .md h4 { font-size: .95rem; }
+  .chat-window .md ul, .chat-window .md ol { padding-left: 18px; }
+  .chat-window .md li { margin: 3px 0; }
+
+  /* markdown tables: never overflow the screen — scroll instead */
+  .chat-window .md table { display: block; width: 100%; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; font-size: .82rem; }
+
+  /* the "Bottom line" callout + code/blockquote fit the width */
+  .chat-window .md .callout, .chat-window .md blockquote {
+    margin: 8px 0; padding: 10px 12px; border-radius: 10px; }
+  .chat-window .md pre { overflow-x: auto; font-size: .78rem; }
+
+  /* charts fill the width */
+  .chat-window .chartblock, .chat-window .bar2-wrap, .chat-window .hbar { width: 100%; }
+
+  /* follow-up + starter chips wrap cleanly, easy to tap */
+  .followups .chip-row, .chat-empty .chip-row { gap: 7px; }
+  .followups .chip, .chat-empty .chip {
+    font-size: .8rem; padding: 7px 11px; line-height: 1.25; }
+
+  /* feedback / share row stays on one tidy line */
+  .fb-row { flex-wrap: wrap; gap: 6px; row-gap: 4px; }
+  .fb-row .fb-q { flex-basis: 100%; }
+
+  /* roomier input, comfortable send button */
+  .chat-input { gap: 7px; align-items: flex-end; }
+  .chat-input textarea { padding: 11px 13px; font-size: 16px; min-height: 44px; }
+  .chat-input button { min-height: 44px; padding: 0 16px; }
+}
+
+/* very narrow phones: reclaim every pixel */
+@media (max-width: 480px) {
+  .shell.chat-active main { padding: 6px 7px calc(72px + env(safe-area-inset-bottom)); }
+  .chat-window { padding: 9px 8px; border-radius: 10px; }
+  .chat-window .msg.user .bubble { max-width: 90%; }
+  .chat-window .md p, .chat-window .bubble p { font-size: .9rem; }
+}
+
+/* ── Self-improvement (Feedback-Triage) fix queue ───────────────────────── */
+.fixq-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin: 6px 0 12px; }
+.fixq-stats { display: flex; gap: 18px; margin-bottom: 12px; font-size: .9rem; color: var(--muted); }
+.fixq-stats strong { color: var(--text); font-size: 1.05rem; }
+.fixq-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.fixq-filters .chip.active { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; border-color: transparent; }
+.fix-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 12px; background: var(--panel); }
+.fix-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fix-type { font-size: .66rem; font-weight: 700; letter-spacing: .05em; color: #fff;
+  background: var(--accent); padding: 2px 7px; border-radius: 5px; }
+.fix-title { flex: 1; font-size: .98rem; }
+.fix-status { font-size: .72rem; font-weight: 600; padding: 2px 9px; border: 1px solid; border-radius: 999px; }
+.fix-summary { margin: 8px 0; color: var(--text); font-size: .9rem; line-height: 1.5; }
+.fix-proposed, .fix-rationale { margin: 8px 0; font-size: .88rem; }
+.fix-label { display: inline-block; font-size: .68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); margin-right: 6px; }
+.fix-body { margin-top: 4px; padding: 9px 12px; background: var(--tag-bg); border-radius: 8px;
+  border-left: 3px solid var(--accent); font-size: .9rem; }
+.fix-body code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; }
+.fix-samples { margin: 8px 0; font-size: .85rem; }
+.fix-samples summary { cursor: pointer; color: var(--muted); }
+.fix-samples ul { margin: 6px 0 0; padding-left: 18px; }
+.fix-note { margin: 8px 0; font-size: .82rem; color: var(--muted); font-style: italic; }
+.fix-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.fix-actions .danger { color: var(--red); border-color: var(--red); }
+.fix-input { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.fix-input textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg2); resize: vertical; font: inherit; }
+.fixq .pager-row { display: flex; align-items: center; gap: 12px; justify-content: center; margin-top: 10px; }
+@media (max-width: 680px) {
+  .fixq-top { flex-direction: column; }
+  .fixq-stats { gap: 14px; flex-wrap: wrap; }
+}

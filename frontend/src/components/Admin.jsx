@@ -13,10 +13,10 @@ export default function Admin() {
     <div>
       <MaintenanceControl />
       <div className="toolbar">
-        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'emaillog', 'terms', 'partner', 'settings'].map(v => (
+        {['stats', 'llm', 'audit', 'chataudit', 'feedback', 'fixqueue', 'review', 'research', 'users', 'roles', 'instruments', 'integrations', 'email', 'emaillog', 'terms', 'partner', 'settings'].map(v => (
           <button key={v} className={view === v ? '' : 'ghost'} onClick={() => setView(v)}>
             {{ stats: 'Usage stats', llm: 'LLM billing', audit: 'Audit log', chataudit: 'Chat audit',
-               feedback: 'Assistant quality', review: 'Score review', research: 'Research (RAG)', users: 'Users',
+               feedback: 'Assistant quality', fixqueue: 'Self-improvement', review: 'Score review', research: 'Research (RAG)', users: 'Users',
                roles: 'Roles', instruments: 'Instruments', integrations: 'Integrations', email: 'Email',
                emaillog: 'Email log', terms: 'Terms', partner: 'Partner API', settings: 'Settings' }[v]}
           </button>
@@ -27,6 +27,7 @@ export default function Admin() {
       {view === 'audit' && <Audit />}
       {view === 'chataudit' && <ChatAudit />}
       {view === 'feedback' && <Feedback />}
+      {view === 'fixqueue' && <FixQueue />}
       {view === 'review' && <Review />}
       {view === 'research' && <Research />}
       {view === 'users' && <Users />}
@@ -2074,6 +2075,128 @@ function EmailLogs() {
               <td>{l.subject}</td><td>{l.provider}</td>
               <td>{l.delivered ? <span className="up">✓ sent</span> : <span className="down" title={l.error}>✗ failed</span>}</td></tr>))}</tbody></table>
       ) : <div className="hint">No emails logged yet.</div>}
+    </div>
+  )
+}
+
+// ── Self-Improvement: Feedback-Triage fix queue ──────────────────────────
+const FIX_STATUSES = ['pending', 'applied', 'approved', 'rejected', 'needs_input']
+const fixBadge = s => ({
+  pending: { t: 'Pending review', c: 'var(--amber)' },
+  applied: { t: 'Applied (live)', c: 'var(--green)' },
+  approved: { t: 'Approved (needs deploy)', c: 'var(--blue)' },
+  rejected: { t: 'Rejected', c: 'var(--muted)' },
+  needs_input: { t: 'Revising', c: 'var(--accent)' },
+}[s] || { t: s, c: 'var(--muted)' })
+
+function FixCard({ p, onChanged }) {
+  const [busy, setBusy] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const b = fixBadge(p.status)
+  const act = async fn => { setBusy(true); try { await fn() } catch (e) { toast(e.message || 'Failed', { type: 'error' }) } finally { setBusy(false) } }
+  const approve = () => act(async () => { const r = await api.fixDecide(p.id, 'approve'); toast(r.message || 'Approved'); onChanged() })
+  const reject = () => act(async () => { await api.fixDecide(p.id, 'reject'); toast('Rejected'); onChanged() })
+  const sendNote = () => act(async () => { await api.fixInput(p.id, note.trim()); toast('Sent to the agent for a revised fix'); setNote(''); setNoteOpen(false); onChanged() })
+  const fp = p.fix_payload || {}
+  const open = ['pending', 'needs_input'].includes(p.status)
+  return (
+    <div className="fix-card">
+      <div className="fix-head">
+        <span className="fix-type">{(p.fix_type || 'guidance').toUpperCase()}</span>
+        <strong className="fix-title">{p.title}</strong>
+        <span className="fix-status" style={{ color: b.c, borderColor: b.c }}>{b.t}</span>
+      </div>
+      {p.summary && <p className="fix-summary">{p.summary}</p>}
+      <div className="fix-proposed">
+        <span className="fix-label">Proposed fix</span>
+        {p.fix_type === 'guidance' && <div className="fix-body">“{fp.text}”</div>}
+        {p.fix_type === 'setting' && <div className="fix-body"><code>{fp.key}</code> → <code>{String(fp.value)}</code></div>}
+        {p.fix_type === 'code' && <div className="fix-body">{fp.description} <em>(needs developer review + deploy)</em></div>}
+      </div>
+      {p.rationale && <div className="fix-rationale"><span className="fix-label">Why</span> {p.rationale}</div>}
+      {p.sample_questions?.length > 0 && (
+        <details className="fix-samples"><summary>Example questions ({p.sample_questions.length})</summary>
+          <ul>{p.sample_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+        </details>
+      )}
+      {p.admin_note && <div className="fix-note">Your last input: “{p.admin_note}” (revised {p.iterations}×)</div>}
+      {open && (
+        <div className="fix-actions">
+          <button className="sm" disabled={busy} onClick={approve}>
+            {p.fix_type === 'code' ? 'Acknowledge' : 'Approve & apply'}</button>
+          <button className="sm ghost" disabled={busy} onClick={() => setNoteOpen(o => !o)}>Add input</button>
+          <button className="sm ghost danger" disabled={busy} onClick={reject}>Reject</button>
+        </div>
+      )}
+      {noteOpen && (
+        <div className="fix-input">
+          <textarea rows={2} value={note} placeholder="Tell the agent what to change, then it will re-propose…"
+                    onChange={e => setNote(e.target.value)} />
+          <button className="sm" disabled={busy || !note.trim()} onClick={sendNote}>Send to agent</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FixQueue() {
+  const [st, setSt] = useState(null)
+  const [filter, setFilter] = useState('pending')
+  const [data, setData] = useState({ items: [], total: 0, page: 1, per: 10 })
+  const [page, setPage] = useState(1)
+  const [running, setRunning] = useState(false)
+  const [err, setErr] = useState('')
+  const loadStatus = () => api.fixQueueStatus().then(setSt).catch(() => {})
+  const load = () => api.fixQueue({ status: filter, page }).then(setData).catch(e => setErr(e.message))
+  useEffect(() => { loadStatus() }, [])
+  useEffect(() => { load() }, [filter, page])  // eslint-disable-line react-hooks/exhaustive-deps
+  const refresh = () => { loadStatus(); load() }
+  const run = async () => {
+    setRunning(true); setErr('')
+    try { const r = await api.runFixQueue(); toast(`Agent ran — ${r.created} new proposal(s) from ${r.considered} items`); refresh() }
+    catch (e) { setErr(e.message) } finally { setRunning(false) }
+  }
+  const pages = Math.max(1, Math.ceil((data.total || 0) / (data.per || 10)))
+  return (
+    <div className="fixq">
+      <div className="fixq-top">
+        <div>
+          <h3 style={{ margin: '0 0 2px' }}>Self-improvement</h3>
+          <p className="hint" style={{ margin: 0 }}>
+            The agent clusters “not helpful” answers and proposes fixes. Approving a
+            guidance or setting fix applies it <strong>live, with no deployment</strong>;
+            code fixes are acknowledged for a developer to deploy.
+          </p>
+        </div>
+        <button className="sm" disabled={running} onClick={run}>{running ? 'Running…' : 'Run agent now'}</button>
+      </div>
+      {st && (
+        <div className="fixq-stats">
+          <span><strong>{st.pending || 0}</strong> pending</span>
+          <span><strong>{st.applied || 0}</strong> applied</span>
+          <span><strong>{st.learned_rules || 0}</strong> learned rules live</span>
+        </div>
+      )}
+      <div className="fixq-filters">
+        {FIX_STATUSES.map(s => (
+          <button key={s} className={'chip' + (filter === s ? ' active' : '')}
+                  onClick={() => { setPage(1); setFilter(s) }}>
+            {fixBadge(s).t}{st?.counts?.[s] ? ` (${st.counts[s]})` : ''}
+          </button>
+        ))}
+      </div>
+      {err && <div className="err">{err}</div>}
+      {data.items.length === 0
+        ? <div className="muted" style={{ padding: 16 }}>No {fixBadge(filter).t.toLowerCase()} proposals. Run the agent to generate fixes from recent feedback.</div>
+        : data.items.map(p => <FixCard key={p.id} p={p} onChanged={refresh} />)}
+      {pages > 1 && (
+        <div className="pager-row">
+          <button className="sm ghost" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹ Prev</button>
+          <span className="muted">Page {page} / {pages}</span>
+          <button className="sm ghost" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next ›</button>
+        </div>
+      )}
     </div>
   )
 }
