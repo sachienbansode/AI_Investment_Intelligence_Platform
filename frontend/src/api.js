@@ -252,6 +252,18 @@ export const api = {
   deleteRole: (id) => http(`/admin/roles/${id}`, { method: 'DELETE' }),
   // Partner Open API key management (admin)
   partnerKeys: () => http('/admin/partner-keys'),
+  downloadPartnerDoc: async (kind) => {
+    const res = await fetch(BASE + '/admin/partner-docs/' + kind, { headers: { Authorization: `Bearer ${_token}` } })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.detail || `Download failed (${res.status})`) }
+    const blob = await res.blob()
+    const cd = res.headers.get('Content-Disposition') || ''
+    const fname = (cd.match(/filename="?([^";]+)"?/) || [])[1]
+      || (kind === 'postman' ? 'NIYTRI_Partner_API.postman_collection.json' : kind === 'sop' ? 'NIYTRI_Partner_Onboarding_SOP.docx' : 'NIYTRI_Partner_API_Guide.docx')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = fname
+    document.body.appendChild(a); a.click()
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove() }, 1500)
+  },
   createPartnerKey: (name, scopes, rate_limit_per_min, allowed_ips) =>
     http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min, allowed_ips: allowed_ips || [] }) }),
   revokePartnerKey: (id) => http(`/admin/partner-keys/${id}/revoke`, { method: 'POST' }),

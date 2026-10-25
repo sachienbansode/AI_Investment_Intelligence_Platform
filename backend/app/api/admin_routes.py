@@ -1091,6 +1091,32 @@ def _key_public(k: PartnerKey) -> dict:
             "last_used_at": fmt_ist(k.last_used_at)}
 
 
+import os as _os
+from fastapi.responses import FileResponse as _FileResponse
+
+_PARTNER_DOCS_DIR = _os.path.abspath(
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "docs"))
+
+
+@router.get("/partner-docs/{kind}")
+def partner_docs(kind: str, admin: User = Depends(require_admin)):
+    """Download the partner-facing materials (Postman collection / Integration Guide)."""
+    files = {
+        "postman": ("NIYTRI_Partner_API.postman_collection.json", "application/json"),
+        "guide": ("NIYTRI_Partner_API_Guide.docx",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        "sop": ("NIYTRI_Partner_Onboarding_SOP.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    }
+    if kind not in files:
+        raise HTTPException(404, "Unknown document")
+    fname, media = files[kind]
+    path = _os.path.join(_PARTNER_DOCS_DIR, fname)
+    if not _os.path.exists(path):
+        raise HTTPException(404, f"{fname} not found on server")
+    return _FileResponse(path, media_type=media, filename=fname)
+
+
 @router.get("/partner-keys")
 def list_partner_keys():
     db = SessionLocal()

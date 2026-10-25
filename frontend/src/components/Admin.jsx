@@ -1725,7 +1725,17 @@ function PartnerKeys() {
   return (
     <div className="panel">
       <h3>Partner Open API keys</h3>
-      <p className="hint">Issue API keys for partner / mobile integrations. A key is shown ONCE at creation and stored only as a hash. Partners authenticate with <code>Authorization: Bearer &lt;key&gt;</code> and are limited to the scopes you grant. See the Partner API guide (docs/PARTNER_API.md) and the interactive docs at <code>/docs</code>.</p>
+      <p className="hint">Issue API keys for partner / mobile integrations. A key is shown ONCE at creation and stored only as a hash. Partners authenticate with <code>Authorization: Bearer &lt;key&gt;</code> and are limited to the scopes you grant. Generate a key below and send it to the partner via a secure manual channel, along with the materials to hand over.</p>
+      <div className="panel" style={{ background: 'var(--panel2)' }}>
+        <h4 style={{ margin: '0 0 6px' }}>Partner materials</h4>
+        <p className="hint" style={{ marginTop: 0 }}>Download these to hand to an onboarded partner.</p>
+        <div className="toolbar">
+          <button className="ghost" onClick={() => api.downloadPartnerDoc('guide').catch(e => toast(e.message, { type: 'error' }))}>⬇ Integration Guide (DOCX)</button>
+          <button className="ghost" onClick={() => api.downloadPartnerDoc('postman').catch(e => toast(e.message, { type: 'error' }))}>⬇ Postman collection</button>
+          <button className="ghost" onClick={() => api.downloadPartnerDoc('sop').catch(e => toast(e.message, { type: 'error' }))} title="Internal use only">⬇ Onboarding SOP (internal)</button>
+          <a className="ghost sm" href="/docs" target="_blank" rel="noreferrer" style={{ alignSelf: 'center' }}>Interactive API docs (Swagger) ↗</a>
+        </div>
+      </div>
       {err && <p className="note">{err}</p>}
 
       <div className="panel" style={{ margin: '12px 0' }}>

@@ -557,6 +557,8 @@ def init_db():
             ("stock_scores", "last_price", "DOUBLE PRECISION"),
             ("stock_scores", "fundamentals", "JSONB"),
             ("instruments", "indices", "JSONB"),
+            ("waitlist", "reason", "TEXT DEFAULT ''"),
+            ("partner_keys", "allowed_ips", "JSONB"),
             ("users", "role_id", "INTEGER"),
             ("users", "avatar", "TEXT"),
             ("users", "referral_code", "VARCHAR"),
