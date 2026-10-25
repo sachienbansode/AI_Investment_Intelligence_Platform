@@ -196,7 +196,7 @@ NON-NEGOTIABLE COMPLIANCE RULES (SEBI-regulated broker — always follow):
 - DATA-SOURCE CONFIDENTIALITY: NEVER name any third-party data vendor, provider, feed, API or dataset (e.g. CMOTS, or any brand), and never say "CMOTS" or reference how/where our data is sourced or stored. When asked where data comes from, say it is from "NIYTRI Data Intelligence" (our own market-data and analytics), optionally "and aggregated market/global feeds" — with NO vendor names, table names, or specifics. Present all fundamentals, prices and scores as NIYTRI's own data. Do NOT tell the user whether a particular internal dataset "is or isn't included/used" — just answer from what you have, or say you don't have that figure right now.
 - Use the conversation history to resolve follow-ups naturally.
 - Reply in the user's requested language.
-- SOURCE TAG: finish every answer with ONE short final line stating the basis, using the exact wording given in the CONTEXT TERMINOLOGY (platform brand for core data, "general knowledge" for your own knowledge, or both).
+- SOURCE TAG: finish every answer with ONE short final line stating the basis, using the exact wording given in the CONTEXT TERMINOLOGY (platform brand for core data, "Global Data" for your own / broader market knowledge, or both). Never write "general knowledge" in the Basis line.
 - PLAIN LANGUAGE (most users are beginners): write in simple, everyday English, like explaining to a friend who is new to the share market. Use short sentences and avoid jargon. When a market term is unavoidable (e.g. valuation, volatility, market cap, P/E, momentum), add a 3-6 word plain meaning in brackets the FIRST time you use it (e.g. 'valuation (how cheap or expensive the stock looks)'). Don't just quote a number - say what it means in practice. Where it helps, include ONE short, concrete everyday example or simple analogy. Never sound like a textbook or a research analyst.
 - PORTFOLIO / WHAT-TO-BUY REQUESTS: if the user asks you to build or suggest a
   portfolio, or which stocks to invest in, DO help - list stocks that screen strongly
@@ -465,6 +465,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     pf_holdings = []
     build_pending = False  # a portfolio-build step-1 (suggest + ask amount) was just offered
     context_parts: list[str] = []
+    verify_facts: dict = {}   # code-computed counts the numeric self-check uses
     score_label = get_setting("score_label") or "NIYTRI Score"
     platform_label = get_setting("platform_label") or "NIYTRI AI"
     context_parts.append(
@@ -472,8 +473,9 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         f'"{score_label}" (or simply "score"), never "AI score". The platform brand for '
         f'the Basis tag is "{platform_label}". For the required final SOURCE TAG line use '
         f'EXACTLY: "Basis: {platform_label}" when the answer came mainly from the platform '
-        f'CONTEXT (our core data), "Basis: general knowledge" when from your own knowledge, '
-        f'or "Basis: {platform_label} + general knowledge" when both.')
+        f'CONTEXT (our core data), "Basis: Global Data" when from your own knowledge / broader '
+        f'market knowledge, or "Basis: {platform_label} + Global Data" when both. '
+        f'NEVER write "general knowledge" in the Basis line — always say "Global Data".')
 
     async def _safe(coro, default=None, timeout=4.0):
         # Never let a slow/blocked market-data source (e.g. NSE on a datacenter
@@ -642,6 +644,9 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 neutral = sum(1 for v in vals if 50 <= v < 65)
                 weak = sum(1 for v in vals if v < 50)
                 with_pe = sum(1 for r in rows if r.pe is not None)
+                if not verify_facts:   # market-wide counts (portfolio takes precedence)
+                    verify_facts.update(below_50=weak, neutral=neutral, strong=strong,
+                                        scored=n, total=n)
                 def _row(r):
                     return {"symbol": r.symbol, "score": r.composite_score,
                             "pe": round(r.pe, 1) if r.pe is not None else None}
@@ -1023,7 +1028,17 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 m = await asyncio.wait_for(portfolio_metrics(hs), timeout=18.0)
                 top_sectors = dict(sorted(m["sector_exposure"].items(),
                                           key=lambda kv: kv[1], reverse=True)[:4])
+                _hs = [h for h in (m.get("holdings") or []) if h.get("score") is not None]
+                _below50 = sum(1 for h in _hs if h["score"] < 50)
+                _neutral = sum(1 for h in _hs if 50 <= h["score"] < 65)
+                _strong = sum(1 for h in _hs if h["score"] >= 65)
+                score_counts = {"scored": len(_hs), "total": len(m.get("holdings") or []),
+                                "below_50_weak": _below50, "neutral_50_64": _neutral,
+                                "strong_65_plus": _strong}
+                verify_facts.update(below_50=_below50, neutral=_neutral, strong=_strong,
+                                    scored=len(_hs), total=len(m.get("holdings") or []))
                 summary = {
+                    "score_counts": score_counts,
                     "health_score": m["health"], "status": m["status_label"],
                     "pnl_pct": m["pnl"]["pnl_pct"], "pnl": m["pnl"]["pnl"],
                     "invested": m["pnl"]["invested"], "current_value": m["pnl"]["current_value"],
@@ -1047,6 +1062,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "per-stock table. Finish with a line linking to the full breakdown "
                     "(deductions, sector chart, AI insights, PDF export) using EXACTLY this "
                     "markdown link: [Portfolio page](#page:Portfolio). "
+                    "If you state how many holdings are weak/neutral/strong or 'below 50', use the "
+                    "EXACT counts in score_counts (below_50_weak = holdings scoring under 50; "
+                    "neutral_50_64 = 50 to 64; strong_65_plus = 65+); a score of exactly 50 is "
+                    "neutral, NOT below 50. Never recount from the table or guess. "
                     + json.dumps(summary, default=str))
                 sources.append({"type": "db_query", "queries": 1})
             except Exception as e:
@@ -1301,6 +1320,16 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     charts = _relevant_charts(charts, mentioned)
     answer_text = _guard_stale_price(question, answer_text, web_text)
     answer_text = _tidy_answer(answer_text)
+    # Numeric self-check: auto-correct any miscounted band claims against code-computed facts.
+    if verify_facts:
+        try:
+            from app.services import verify
+            answer_text, _fixes = verify.check_and_fix(answer_text, verify_facts)
+            if _fixes:
+                audit_log("answer_autofix", n=len(_fixes),
+                          fixes=[f["was"] for f in _fixes][:5])
+        except Exception as e:
+            log.warning("numeric self-check failed: %s", e)
     latency_ms = int((time.time() - _t0) * 1000)
 
     db = SessionLocal()
@@ -1455,6 +1484,9 @@ def _tidy_answer(text: str) -> str:
         return text
     # backstop: never expose a data-vendor or internal table name
     text = _REDACT_SRC.sub("NIYTRI Data Intelligence", text)
+    # the Basis line must say "Global Data", never "general knowledge"
+    text = re.sub(r"(?im)^(\s*(?:\*+\s*)?basis:.*?)general knowledge",
+                  lambda m: m.group(1) + "Global Data", text)
     # strip standalone '**' / empty bold artefacts
     text = re.sub(r"(?m)^\s*\*\*\s*$", "", text)
     text = re.sub(r"\*\*\s*\*\*", "", text)
