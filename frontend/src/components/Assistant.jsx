@@ -607,9 +607,9 @@ export default function Assistant({ seed, clearSeed, go }) {
 
         <div className="chat-input">
           <textarea ref={taRef} value={input} rows={1}
-                 onChange={e => { setInput(e.target.value); const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px' }}
-                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                 placeholder={isNarrow ? 'Ask anything…' : 'Ask anything — Shift+Enter for a new line…'} disabled={busy} />
+                 onChange={e => { setInput(e.target.value); const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 200) + 'px' }}
+                 onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send() } }}
+                 placeholder={isNarrow ? 'Ask anything…' : 'Ask anything — Ctrl+Enter to send…'} disabled={busy} />
           <button onClick={() => send()} disabled={busy || !input.trim()}>Send</button>
         </div>
       </div>
