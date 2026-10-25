@@ -5,6 +5,8 @@ import AiIcon from './AiIcon.jsx'
 import ChartBlock from './ChartBlock.jsx'
 import { confirmDialog, toast } from '../dialog.jsx'
 
+const UNIVERSES = [{ k: 'nifty50', label: 'NIFTY 50' }, { k: 'nifty500', label: 'NIFTY 500' }, { k: 'all', label: 'All NSE' }]
+
 const LANGS = { en: 'English', hi: 'हिन्दी', bn: 'বাংলা', ta: 'தமிழ்', gu: 'ગુજરાતી', mr: 'मराठी' }
 
 // Friendly labels for grounding sources (instead of raw snake_case types)
@@ -224,6 +226,8 @@ export default function Assistant({ seed, clearSeed, go }) {
   const [input, setInput] = useState('')
   const taRef = useRef(null)
   const [lang, setLang] = useState('en')
+  const [universe, setUniverse] = useState(() => { try { return localStorage.getItem('niy_universe') || 'all' } catch { return 'all' } })
+  const chooseUniverse = k => { setUniverse(k); try { localStorage.setItem('niy_universe', k) } catch {} }
   const [busy, setBusy] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [followups, setFollowups] = useState([])
@@ -444,7 +448,7 @@ export default function Assistant({ seed, clearSeed, go }) {
     setMessages(m => [...m, { role: 'user', text: q }])
     setBusy(true)
     try {
-      const r = await api.ask(q, sessionId, lang)
+      const r = await api.ask(q, sessionId, lang, universe)
       setMessages(m => [...m, {
         role: 'assistant', text: r.answer, sources: r.sources,
         confidence: r.confidence, provider: r.provider, clarify: r.clarify,
@@ -500,6 +504,17 @@ export default function Assistant({ seed, clearSeed, go }) {
       <div className="chat">
         <div className="chat-toolbar">
           <SessionShareMenu sessionId={sessionId} hasMessages={messages.some(m => m.role === 'assistant')} />
+          <div className="uni-select" title="Scope every answer to this stock universe">
+            <span className="uni-label">Stocks</span>
+            <div className="uni-seg" role="group" aria-label="Stock universe">
+              {UNIVERSES.map(u => (
+                <button key={u.k} type="button"
+                        className={'uni-opt' + (universe === u.k ? ' active' : '')}
+                        aria-pressed={universe === u.k}
+                        onClick={() => chooseUniverse(u.k)}>{u.label}</button>
+              ))}
+            </div>
+          </div>
           <label title="The assistant replies in this language">Language:&nbsp;
             <select value={lang} onChange={e => setLang(e.target.value)}>
               {Object.entries(LANGS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

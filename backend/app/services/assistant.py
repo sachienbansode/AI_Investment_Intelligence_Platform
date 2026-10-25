@@ -274,7 +274,7 @@ _COUNT_CUES = _re_mod.compile(
     _re_mod.IGNORECASE)
 
 
-def _topn_over_days(question, db, prev_questions=None):
+def _topn_over_days(question, db, prev_questions=None, syms=None):
     """Deterministic answers about TOP-N-by-NIYTRI-Score over a recent window.
     Covers three intents from one code path (so new phrasings don't each need a
     new patch):
@@ -315,9 +315,10 @@ def _topn_over_days(question, db, prev_questions=None):
     ndays = len(dates)
     counts, scoresum = Counter(), defaultdict(float)
     for d in dates:
-        for sym, sc in (db.query(StockScore.symbol, StockScore.composite_score)
-                        .filter_by(score_date=d)
-                        .order_by(StockScore.composite_score.desc()).limit(topn).all()):
+        _tq = db.query(StockScore.symbol, StockScore.composite_score).filter_by(score_date=d)
+        if syms is not None:
+            _tq = _tq.filter(StockScore.symbol.in_(syms))
+        for sym, sc in _tq.order_by(StockScore.composite_score.desc()).limit(topn).all():
             counts[sym] += 1
             scoresum[sym] += (sc or 0)
     span = str(dates[-1]) + " to " + str(dates[0])
@@ -385,7 +386,7 @@ def _topn_over_days(question, db, prev_questions=None):
         % (topn, label, topn, topn, _tbl(near), span))
 
 
-def _score_threshold_over_days(question, db):
+def _score_threshold_over_days(question, db, syms=None):
     """Deterministic: 'scored >=X (or <=X) for at least K (or P%) of the last N days'.
     Counts, per script, the days its NIYTRI Score met the value threshold and lists
     those meeting the day requirement. Returns a factual string or None."""
@@ -434,6 +435,8 @@ def _score_threshold_over_days(question, db):
                         .filter_by(score_date=d).all()):
             if sc is None:
                 continue
+            if syms is not None and sym not in syms:
+                continue
             if (ge and sc >= thr) or (not ge and sc <= thr):
                 counts[sym] += 1
                 scoresum[sym] += sc
@@ -457,7 +460,7 @@ def _score_threshold_over_days(question, db):
 
 
 async def ask(question: str, session_id: str = "default", language: str = "en",
-              user_id: int | None = None) -> AskAIResponse:
+              user_id: int | None = None, universe: str | None = None) -> AskAIResponse:
     md = get_market_data()
     sources: list[dict] = []
     deterministic = None   # exact code-computed answer, used as offline fallback
@@ -555,6 +558,19 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
 
     db = SessionLocal()
     try:
+        # ---- universe scope (top-level selector: NIFTY 50 / NIFTY 500 / All) ----
+        uni = (universe or "all").lower()
+        if uni not in ("nifty50", "nifty500", "all"):
+            uni = "all"
+        uni_syms = _universe_symbols(db, uni)
+        uni_label = {"nifty50": "NIFTY 50", "nifty500": "NIFTY 500", "all": "All NSE"}[uni]
+        if uni_syms is not None:
+            context_parts.append(
+                f"UNIVERSE SCOPE: the user restricted this assistant to the {uni_label} "
+                f"universe ({len(uni_syms)} stocks). Consider ONLY these stocks in every list, "
+                f"ranking, count, average and recommendation. All score/distribution data below "
+                f"is ALREADY filtered to {uni_label}. If asked about a stock outside {uni_label}, "
+                f"say it is outside the selected {uni_label} universe and invite switching to All NSE.")
         for sym in mentioned[:3]:
             row = (db.query(StockScore).filter_by(symbol=sym)
                    .order_by(StockScore.score_date.desc()).first())
@@ -634,9 +650,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
             # Match the Stock Scores page: all published scores for the latest
             # run (every status), so "stocks below 50" is answered from the same
             # universe the user sees, not just the approved subset.
-            rows = (db.query(StockScore)
-                    .filter_by(score_date=latest[0])
-                    .order_by(StockScore.composite_score.desc()).all())
+            _rq = db.query(StockScore).filter_by(score_date=latest[0])
+            if uni_syms is not None:
+                _rq = _rq.filter(StockScore.symbol.in_(uni_syms))
+            rows = _rq.order_by(StockScore.composite_score.desc()).all()
             if rows:
                 vals = [r.composite_score for r in rows]
                 n = len(vals)
@@ -733,13 +750,13 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     except Exception:
                         _prev_qs = []
                     try:
-                        _mdt = _topn_over_days(question, db, _prev_qs)
+                        _mdt = _topn_over_days(question, db, _prev_qs, syms=uni_syms)
                     except Exception as e:
                         _mdt = None
                         log.warning("topn_over_days failed: %s", e)
                     if not _mdt:
                         try:
-                            _mdt = _score_threshold_over_days(question, db)
+                            _mdt = _score_threshold_over_days(question, db, syms=uni_syms)
                         except Exception as e:
                             log.warning("score_threshold_over_days failed: %s", e)
                     if _mdt:
@@ -835,8 +852,10 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 recent_dates = list(reversed(recent_dates))  # oldest -> newest
                 if len(recent_dates) >= 2 and wants_multiday:
                     hist = defaultdict(dict)
-                    for r in (db.query(StockScore)
-                              .filter(StockScore.score_date.in_(recent_dates)).all()):
+                    _hq = db.query(StockScore).filter(StockScore.score_date.in_(recent_dates))
+                    if uni_syms is not None:
+                        _hq = _hq.filter(StockScore.symbol.in_(uni_syms))
+                    for r in _hq.all():
                         hist[r.symbol][r.score_date] = (r.composite_score,
                                                         _fval(r, "change_pct"))
                     multiday = {}
@@ -1707,6 +1726,26 @@ def _parse_amount(text):
 
 def _wants_build(ql):
     return any(k in ql for k in _BUILD_CUES)
+
+
+def _universe_symbols(db, universe):
+    """Set of symbols in the given universe ('nifty50'|'nifty500'), or None for All NSE.
+    Mirrors /indices/constituents: prefer instruments.indices tags, fall back to the
+    bundled constituent lists so scoping works even before a tagged re-import."""
+    if not universe or universe == "all":
+        return None
+    insts = db.query(Instrument.symbol, Instrument.indices).filter_by(is_active=True).all()
+    tag = "NIFTY50" if universe == "nifty50" else "NIFTY500"
+    syms = {sym for sym, idx in insts if tag in (idx or [])}
+    if syms:
+        return syms
+    if universe == "nifty50":
+        from app.db.database import NIFTY50_SEED
+        return {sym for sym, _n, _sec in NIFTY50_SEED}
+    from app.data.nifty500 import NIFTY500_SYMBOLS
+    allnse = {sym for sym, _ in insts}
+    sub = {sym for sym in allnse if sym in set(NIFTY500_SYMBOLS)}
+    return sub or allnse or None
 
 
 def _parse_universe(text):

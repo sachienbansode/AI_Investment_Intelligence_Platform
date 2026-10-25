@@ -125,8 +125,8 @@ export const api = {
   cmotsStatus: () => http('/cmots/status'),
   priceHistory: (sym, range) => http('/price-history/' + encodeURIComponent(sym) + '?range=' + encodeURIComponent(range || '1M')),
   me: () => http('/auth/me'),
-  ask: (question, session_id, language = 'en') =>
-    http('/ask', { method: 'POST', body: JSON.stringify({ question, session_id, language }) }),
+  ask: (question, session_id, language = 'en', universe = null) =>
+    http('/ask', { method: 'POST', body: JSON.stringify({ question, session_id, language, universe }) }),
   chatSessions: () => http('/chat/sessions'),
   chatHistory: (sessionId) => http(`/chat/history/${sessionId}`),
   chatSuggestions: () => http('/chat/suggestions'),

@@ -1404,3 +1404,33 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
 .idx-tag { display: inline-block; font-size: .6rem; font-weight: 700; letter-spacing: .03em;
   padding: 1px 6px; border-radius: 999px; background: var(--blue-soft); color: var(--blue);
   vertical-align: middle; white-space: nowrap; }
+
+/* ── Chat universe selector (top-level stock-scope segmented control) ── */
+.uni-select { display: inline-flex; align-items: center; gap: 8px; margin-right: 4px; }
+.uni-select .uni-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  color: var(--muted); text-transform: uppercase;
+}
+.uni-seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.uni-seg .uni-opt {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; line-height: 1;
+  color: var(--muted); background: transparent;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  white-space: nowrap;
+}
+.uni-seg .uni-opt:hover { color: var(--text); }
+.uni-seg .uni-opt.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #2563eb);
+  box-shadow: 0 1px 3px rgba(0,0,0,.18);
+}
+@media (max-width: 680px) {
+  .uni-select .uni-label { display: none; }
+  .uni-seg .uni-opt { padding: 5px 9px; font-size: 11.5px; }
+}

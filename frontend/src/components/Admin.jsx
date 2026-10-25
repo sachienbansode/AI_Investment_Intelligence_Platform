@@ -1647,11 +1647,18 @@ function Feedback() {
   const [data, setData] = useState(null)
   const [rating, setRating] = useState(-1)
   const [err, setErr] = useState('')
-  const load = () => api.chatFeedback(rating ? { rating } : {}).then(setData).catch(e => setErr(e.message))
+  const [page, setPage] = useState(1)
+  const [open, setOpen] = useState({})
+  const PER = 10
+  const load = () => api.chatFeedback(rating ? { rating } : {}).then(d => { setData(d); setPage(1); setOpen({}) }).catch(e => setErr(e.message))
   useEffect(() => { load() }, [rating])  // eslint-disable-line
   if (err) return <p className="note">{err}</p>
   if (!data) return <p className="hint">Loading…</p>
   const total = data.up + data.down
+  const items = data.items || []
+  const pages = Math.max(1, Math.ceil(items.length / PER))
+  const pageItems = items.slice((page - 1) * PER, page * PER)
+  const clip = (t, n) => (t && t.length > n ? t.slice(0, n) + '…' : (t || '—'))
   return (
     <div>
       <p className="hint">User ratings on assistant answers. Review the <strong>Not helpful</strong>
@@ -1671,17 +1678,33 @@ function Feedback() {
         </select>
         <button className="ghost sm" onClick={load}>Refresh</button>
       </div>
-      {data.items.length === 0 && <p className="hint">No feedback in this view yet.</p>}
-      {data.items.map(it => (
-        <div key={it.id} className="panel">
-          <div className="card-head">
-            <strong>{it.rating === 1 ? 'Helpful' : 'Not helpful'}</strong>
-            <span className="hint">{fmtIST(it.at)}{it.provider ? ' \u00b7 ' + it.provider : ''}</span>
+      {items.length === 0 && <p className="hint">No feedback in this view yet.</p>}
+      {items.length > 0 && (
+        <div className="hint" style={{ margin: '4px 0 8px' }}>{items.length} item{items.length === 1 ? '' : 's'} \u00b7 page {page} of {pages}</div>
+      )}
+      {pageItems.map(it => {
+        const isOpen = !!open[it.id]
+        return (
+          <div key={it.id} className="panel">
+            <div className="card-head">
+              <strong>{it.rating === 1 ? 'Helpful' : 'Not helpful'}</strong>
+              <span className="hint">{fmtIST(it.at)}{it.provider ? ' \u00b7 ' + it.provider : ''}</span>
+            </div>
+            <p style={{ margin: '6px 0 2px' }}><strong>Q:</strong> {it.question || '—'}</p>
+            <p className="hint" style={{ whiteSpace: 'pre-wrap' }}><strong>A:</strong> {isOpen ? (it.answer || '—') : clip(it.answer, 220)}</p>
+            {(it.answer || '').length > 220 && (
+              <button className="ghost sm" onClick={() => setOpen(o => ({ ...o, [it.id]: !isOpen }))}>{isOpen ? 'Hide details' : 'View details'}</button>
+            )}
           </div>
-          <p style={{ margin: '6px 0 2px' }}><strong>Q:</strong> {it.question || '—'}</p>
-          <p className="hint" style={{ whiteSpace: 'pre-wrap' }}><strong>A:</strong> {it.answer || '—'}</p>
+        )
+      })}
+      {pages > 1 && (
+        <div className="toolbar" style={{ justifyContent: 'center', marginTop: 10 }}>
+          <button className="ghost sm" disabled={page <= 1} onClick={() => setPage(x => Math.max(1, x - 1))}>‹ Prev</button>
+          <span className="hint">Page {page} / {pages}</span>
+          <button className="ghost sm" disabled={page >= pages} onClick={() => setPage(x => Math.min(pages, x + 1))}>Next ›</button>
         </div>
-      ))}
+      )}
     </div>
   )
 }

@@ -28,7 +28,8 @@ router = APIRouter(prefix="/api/v1")
 @router.post("/ask", response_model=AskAIResponse)
 async def ask_ai(req: AskAIRequest, user: User = Depends(get_current_user)):
     try:
-        return await ask(req.question, req.session_id, req.language, user_id=user.id)
+        return await ask(req.question, req.session_id, req.language, user_id=user.id,
+                          universe=req.universe)
     except RuntimeError as e:
         # All LLM providers failed (bad/expired key, no quota, wrong model, or
         # blocked egress). Surface the reason instead of an opaque 500.

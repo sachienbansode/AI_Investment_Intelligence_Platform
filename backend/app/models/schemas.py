@@ -6,6 +6,7 @@ class AskAIRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     session_id: str = "default"
     language: str = "en"  # BRD: multilingual support
+    universe: str | None = None  # "nifty50" | "nifty500" | "all" (top-level scope selector)
 
 
 class AskAIResponse(BaseModel):
