@@ -1079,11 +1079,13 @@ class PartnerKeyCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=80)
     scopes: list[str] = Field(default_factory=lambda: list(ALL_SCOPES))
     rate_limit_per_min: int = Field(default=60, ge=1, le=6000)
+    allowed_ips: list[str] = Field(default_factory=list)   # optional IP/CIDR allowlist
 
 
 def _key_public(k: PartnerKey) -> dict:
     return {"id": k.id, "name": k.name, "key_prefix": k.key_prefix,
             "scopes": k.scopes or [], "rate_limit_per_min": k.rate_limit_per_min,
+            "allowed_ips": list(getattr(k, "allowed_ips", None) or []),
             "is_active": k.is_active, "call_count": k.call_count or 0,
             "created_by": k.created_by or "", "created_at": fmt_ist(k.created_at),
             "last_used_at": fmt_ist(k.last_used_at)}
@@ -1106,12 +1108,19 @@ def create_partner_key(req: PartnerKeyCreate, admin: User = Depends(require_admi
         raise HTTPException(400, f"Unknown scope(s): {bad}. Allowed: {ALL_SCOPES}")
     if not req.scopes:
         raise HTTPException(400, "At least one scope is required")
+    ips = [s.strip() for s in (req.allowed_ips or []) if s.strip()]
+    import ipaddress as _ipa
+    for e in ips:
+        try:
+            _ipa.ip_network(e, strict=False) if "/" in e else _ipa.ip_address(e)
+        except ValueError:
+            raise HTTPException(400, f"Invalid IP/CIDR: {e}")
     full, prefix, khash = generate_key()
     db = SessionLocal()
     try:
         row = PartnerKey(name=req.name.strip(), key_prefix=prefix, key_hash=khash,
                          scopes=req.scopes, rate_limit_per_min=req.rate_limit_per_min,
-                         is_active=True, created_by=admin.email)
+                         allowed_ips=ips, is_active=True, created_by=admin.email)
         db.add(row)
         db.commit()
         db.refresh(row)

@@ -1,0 +1,72 @@
+{
+  "info": {
+    "name": "NIYTRI Partner API v1",
+    "description": "Open Partner API for NIYTRI AI Investment Intelligence. Set the collection variables `base_url` and `api_key`. Auth is `Authorization: Bearer {{api_key}}`. All outputs are Internal Analysis, information only — not investment advice.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://dev-invest.niytri.com/api/partner/v1" },
+    { "key": "api_key", "value": "niy_live_xxxxxxxxxxxx" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{api_key}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Health (no auth)",
+      "request": { "method": "GET", "url": "{{base_url}}/health", "auth": { "type": "noauth" } }
+    },
+    {
+      "name": "Me (inspect key)",
+      "request": { "method": "GET", "url": "{{base_url}}/me" }
+    },
+    {
+      "name": "Instruments (scope: scores)",
+      "request": { "method": "GET", "url": "{{base_url}}/instruments" }
+    },
+    {
+      "name": "Scores — latest (scope: scores)",
+      "request": { "method": "GET", "url": "{{base_url}}/scores?limit=50" }
+    },
+    {
+      "name": "Score — one symbol (scope: scores)",
+      "request": { "method": "GET", "url": "{{base_url}}/scores/RELIANCE" }
+    },
+    {
+      "name": "News (scope: news)",
+      "request": { "method": "GET", "url": "{{base_url}}/news?limit=20" }
+    },
+    {
+      "name": "Ask (scope: ask)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": "{{base_url}}/ask",
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"What's driving RELIANCE's score?\",\n  \"session_id\": \"demo\",\n  \"language\": \"en\"\n}" }
+      }
+    },
+    {
+      "name": "Portfolio analyze (scope: portfolio)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": "{{base_url}}/portfolio/analyze",
+        "body": { "mode": "raw", "raw": "{\n  \"holdings\": [\n    { \"symbol\": \"INFY\", \"quantity\": 100, \"avg_price\": 1450 },\n    { \"symbol\": \"HDFCBANK\", \"quantity\": 50, \"avg_price\": 1600 }\n  ]\n}" }
+      }
+    },
+    {
+      "name": "Screener themes (scope: screen)",
+      "request": { "method": "GET", "url": "{{base_url}}/screener/themes" }
+    },
+    {
+      "name": "Screen (scope: screen)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": "{{base_url}}/screen",
+        "body": { "mode": "raw", "raw": "{\n  \"prompt\": \"IT companies with net margin above 20%\",\n  \"max_rows\": 25\n}" }
+      }
+    }
+  ]
+}

@@ -8,12 +8,16 @@ This is intentionally separate from the end-user JWT auth in core/auth.py so
 partner access is governed independently and never grants end-user privileges.
 """
 import hashlib
+import ipaddress
+import logging
 import secrets
 import time
 from types import SimpleNamespace
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+log = logging.getLogger(__name__)
 
 from app.db.database import PartnerKey, SessionLocal, utcnow
 
@@ -64,10 +68,33 @@ def _check_rate(key) -> None:
     win[1] += 1
 
 
-def authenticate(full_key: str | None):
+def _ip_allowed(client_ip: str, allow: list) -> bool:
+    """True if client_ip matches any entry (exact IP or CIDR) in the allowlist."""
+    if not allow:
+        return True                      # empty allowlist = no IP restriction
+    try:
+        ip = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+    for entry in allow:
+        e = str(entry).strip()
+        if not e:
+            continue
+        try:
+            if "/" in e:
+                if ip in ipaddress.ip_network(e, strict=False):
+                    return True
+            elif ip == ipaddress.ip_address(e):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def authenticate(full_key: str | None, client_ip: str | None = None):
     """Validate the API key and return a detached snapshot of it (SimpleNamespace
-    with id/name/key_prefix/scopes/rate_limit_per_min/is_active/call_count).
-    Raises 401 (missing/invalid/revoked) or 429 (rate limited)."""
+    with id/name/key_prefix/scopes/rate_limit_per_min/is_active/call_count/allowed_ips).
+    Raises 401 (missing/invalid/revoked), 403 (IP not allowed) or 429 (rate limited)."""
     if not full_key:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED,
                             "Missing API key. Send 'Authorization: Bearer <key>'.")
@@ -76,13 +103,18 @@ def authenticate(full_key: str | None):
         row = db.query(PartnerKey).filter_by(key_hash=hash_key(full_key)).first()
         if row is None or not row.is_active:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or revoked API key.")
+        allow = list(getattr(row, "allowed_ips", None) or [])
+        if allow and not _ip_allowed(client_ip or "", allow):
+            raise HTTPException(status.HTTP_403_FORBIDDEN,
+                                "This API key is not permitted from your IP address.")
         _check_rate(row)
         # Snapshot needed fields BEFORE commit (commit expires ORM attributes,
         # which would otherwise break attribute access on the returned object).
         snap = SimpleNamespace(
             id=row.id, name=row.name, key_prefix=row.key_prefix,
             scopes=list(row.scopes or []), rate_limit_per_min=row.rate_limit_per_min,
-            is_active=row.is_active, call_count=(row.call_count or 0) + 1)
+            is_active=row.is_active, allowed_ips=allow,
+            call_count=(row.call_count or 0) + 1)
         # usage accounting (best-effort)
         row.last_used_at = utcnow()
         row.call_count = snap.call_count
@@ -92,11 +124,20 @@ def authenticate(full_key: str | None):
         db.close()
 
 
+def _client_ip(request: Request, xff: str | None) -> str:
+    """Real client IP — prefer the first X-Forwarded-For hop (behind nginx)."""
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request and request.client else ""
+
+
 def require_scope(scope: str):
     """FastAPI dependency factory: authenticate the partner key and require a scope."""
-    def _dep(creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
-             x_api_key: str | None = Header(default=None, alias="X-API-Key")):
-        key = authenticate(_extract(creds, x_api_key))
+    def _dep(request: Request,
+             creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+             x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+             xff: str | None = Header(default=None, alias="X-Forwarded-For")):
+        key = authenticate(_extract(creds, x_api_key), _client_ip(request, xff))
         if scope not in (key.scopes or []):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
@@ -105,7 +146,9 @@ def require_scope(scope: str):
     return _dep
 
 
-def require_any(creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
-                x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+def require_any(request: Request,
+                creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+                x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+                xff: str | None = Header(default=None, alias="X-Forwarded-For")):
     """Authenticate without requiring a specific scope (used by /me)."""
-    return authenticate(_extract(creds, x_api_key))
+    return authenticate(_extract(creds, x_api_key), _client_ip(request, xff))

@@ -1693,6 +1693,7 @@ function PartnerKeys() {
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState(['scores', 'news', 'ask', 'portfolio', 'screen'])
   const [rate, setRate] = useState(60)
+  const [ips, setIps] = useState('')
   const [created, setCreated] = useState(null)
   const [busy, setBusy] = useState(false)
   const load = () => api.partnerKeys().then(setData).catch(e => setErr(String(e.message || e)))
@@ -1704,8 +1705,9 @@ function PartnerKeys() {
     if (!scopes.length) { toast('Select at least one scope'); return }
     setBusy(true)
     try {
-      const r = await api.createPartnerKey(name.trim(), scopes, Number(rate) || 60)
-      setCreated(r); setName(''); load()
+      const ipList = ips.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+      const r = await api.createPartnerKey(name.trim(), scopes, Number(rate) || 60, ipList)
+      setCreated(r); setName(''); setIps(''); load()
     } catch (e) { toast('Create failed: ' + (e.message || e)) } finally { setBusy(false) }
   }
   async function revoke(k) {
@@ -1731,6 +1733,7 @@ function PartnerKeys() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label>Partner name<br /><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Securities" /></label>
           <label>Rate limit (per min)<br /><input type="number" min="1" value={rate} onChange={e => setRate(e.target.value)} style={{ width: 130 }} /></label>
+          <label title="Optional: restrict this key to these IPs/CIDRs (comma-separated). Leave blank to allow any IP.">Allowed IPs <span className="hint">(optional, comma-separated)</span><br /><input value={ips} onChange={e => setIps(e.target.value)} placeholder="e.g. 13.234.135.5, 10.0.0.0/24" style={{ minWidth: 280 }} /></label>
         </div>
         <div style={{ margin: '12px 0' }}>
           <span className="hint">Scopes:&nbsp;</span>
@@ -1756,13 +1759,14 @@ function PartnerKeys() {
       )}
 
       <table className="data-table">
-        <thead><tr><th>Name</th><th>Key</th><th>Scopes</th><th>Limit/min</th><th>Status</th><th>Calls</th><th>Last used</th><th>Created</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Key</th><th>Scopes</th><th>IP restriction</th><th>Limit/min</th><th>Status</th><th>Calls</th><th>Last used</th><th>Created</th><th></th></tr></thead>
         <tbody>
           {(data?.keys || []).map(k => (
             <tr key={k.id}>
               <td>{k.name}</td>
               <td><code>{k.key_prefix}...</code></td>
               <td>{(k.scopes || []).join(', ')}</td>
+              <td title={(k.allowed_ips || []).join(', ')}>{(k.allowed_ips || []).length ? (k.allowed_ips.length + ' IP(s)') : <span className="hint">any</span>}</td>
               <td>{k.rate_limit_per_min}</td>
               <td><span style={{ color: k.is_active ? 'var(--green)' : 'var(--red)' }}>{k.is_active ? 'active' : 'revoked'}</span></td>
               <td>{k.call_count}</td>

@@ -252,8 +252,8 @@ export const api = {
   deleteRole: (id) => http(`/admin/roles/${id}`, { method: 'DELETE' }),
   // Partner Open API key management (admin)
   partnerKeys: () => http('/admin/partner-keys'),
-  createPartnerKey: (name, scopes, rate_limit_per_min) =>
-    http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min }) }),
+  createPartnerKey: (name, scopes, rate_limit_per_min, allowed_ips) =>
+    http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min, allowed_ips: allowed_ips || [] }) }),
   revokePartnerKey: (id) => http(`/admin/partner-keys/${id}/revoke`, { method: 'POST' }),
   deletePartnerKey: (id) => http(`/admin/partner-keys/${id}`, { method: 'DELETE' }),
   // Score-crossing alerts (in-app feed)

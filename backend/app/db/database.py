@@ -275,6 +275,7 @@ class PartnerKey(Base):
     key_hash = Column(String, unique=True, index=True)  # sha256(full key)
     scopes = Column(JSON)                        # ["scores","news","ask","portfolio"]
     rate_limit_per_min = Column(Integer, default=60)
+    allowed_ips = Column(JSON, default=list)     # optional IP/CIDR allowlist; empty = any IP
     is_active = Column(Boolean, default=True)
     created_by = Column(String, default="")
     last_used_at = Column(DateTime, nullable=True)
@@ -462,6 +463,7 @@ _MIGRATIONS = [
     ("stock_scores", "fundamentals", "JSON"),
     ("instruments", "indices", "JSON"),
     ("waitlist", "reason", "TEXT DEFAULT ''"),
+    ("partner_keys", "allowed_ips", "JSON"),
     ("users", "role_id", "INTEGER"),
     ("users", "avatar", "TEXT"),
     ("users", "referral_code", "VARCHAR"),

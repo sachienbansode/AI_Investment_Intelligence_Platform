@@ -604,9 +604,11 @@ export default function Landing({ onLogin }) {
                     <form onSubmit={doWaitlist}>
                       <p className="lp-vtext">Beta is invite-only right now. Leave your email and tell us what you're hoping to get out of NIYTRI — we review every request.</p>
                       <input className="lp-field" type="email" placeholder="name@email.com" value={email} required onChange={e => setEmail(e.target.value)} />
-                      <textarea className="lp-field" rows={3} required value={wlReason}
+                      <label style={{ display: 'block', fontSize: 13, color: '#5b6473', fontWeight: 600, margin: '8px 0 4px' }}>Your objective <span style={{ opacity: .7, fontWeight: 400 }}>(required)</span></label>
+                      <textarea className="lp-field" rows={3} required minLength={10} value={wlReason}
                                 placeholder="What do you want to achieve with NIYTRI AI Intelligence? (e.g. research Indian stocks, track my portfolio, find opportunities…)"
-                                onChange={e => setWlReason(e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+                                onChange={e => setWlReason(e.target.value)}
+                                style={{ resize: 'vertical', fontFamily: 'inherit', minHeight: 72, display: 'block' }} />
                       <button className="lp-btn lp-btn-grad lp-full" disabled={busy}>{busy ? 'Please wait…' : 'Join Waitlist'}</button>
                     </form>
                   )}

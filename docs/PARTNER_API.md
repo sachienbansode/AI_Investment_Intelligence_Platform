@@ -78,6 +78,18 @@ Exceeding it returns `429 Too Many Requests` with a `Retry-After` header (second
 Implement exponential backoff and cache responses where practical (scores update at
 most a few times per day).
 
+## 4a. IP restriction (optional)
+
+A key can be bound to an **IP allowlist** (individual IPs or CIDR ranges) at creation.
+If set, requests from any other IP are rejected with `403 Forbidden`. Leave the
+allowlist empty to allow any IP. Behind a proxy, the client IP is taken from the first
+`X-Forwarded-For` hop.
+
+## 4b. Postman
+
+Import `docs/NIYTRI_Partner_API.postman_collection.json`, set the collection variables
+`base_url` and `api_key`, and every endpoint is ready to call.
+
 ## 5. Endpoints
 
 ### 5.1 `GET /instruments` · scope `scores`
