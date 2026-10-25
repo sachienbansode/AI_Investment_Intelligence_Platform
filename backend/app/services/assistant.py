@@ -464,6 +464,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
     md = get_market_data()
     sources: list[dict] = []
     deterministic = None   # exact code-computed answer, used as offline fallback
+    hard_answer = None     # factual answer returned DIRECTLY (no LLM re-synthesis)
     pf_intent = False      # user asked about their own portfolio
     pf_holdings = []
     build_pending = False  # a portfolio-build step-1 (suggest + ask amount) was just offered
@@ -758,6 +759,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                             'or say you lack index membership): ' + _ima)
                         sources.append({'type': 'computed'})
                         deterministic = _ima
+                        hard_answer = _ima
                 if deterministic is None:
                     _prev_qs = []
                     try:
@@ -1332,6 +1334,12 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
         if builder_answer is not None:
             answer_text, provider = builder_answer, "computed"
             confidence = max(confidence, 0.9)
+        elif hard_answer is not None:
+            # Factual table/counts (index membership, rankings) are returned EXACTLY
+            # as computed - the LLM never re-synthesises them, so it cannot contradict
+            # the data or mislabel index membership.
+            answer_text, provider = hard_answer, "computed"
+            confidence = max(confidence, 0.95)
         else:
             _maxtok = int(get_setting("assistant_max_tokens"))
             if _wants_build(ql):        # portfolio/what-to-buy answers are long — give room
@@ -1810,6 +1818,38 @@ def _index_membership_answer(question, db):
                     % (total_all, len(members), label, max(0, total_all - len(members))))
         return ("The %s index has **%d** constituents in our universe.\n\nBasis: NIYTRI AI"
                 % (label, len(members)))
+    # Ranked + scored ("top / highest-scoring stocks in / not in NIFTY 500")
+    if _r.search(r"\b(top|highest|best|strong|scoring|rank|ranked|leading)\b", ql):
+        latest = db.query(func.max(StockScore.score_date)).scalar()
+        if latest:
+            srows = (db.query(StockScore.symbol, StockScore.composite_score, StockScore.pe)
+                     .filter(StockScore.score_date == latest).all())
+            rpool = []
+            for sym, sc, pe in srows:
+                if sc is None:
+                    continue
+                inside = sym in members
+                if neg and inside:
+                    continue
+                if (not neg) and (not inside):
+                    continue
+                rpool.append((sym, float(sc), pe))
+            rpool.sort(key=lambda x: -x[1])
+            if rpool:
+                mN = _r.search(r"top\s+(\d+)", ql)
+                nN = max(1, min(int(mN.group(1)) if mN else 10, 25))
+                topr = rpool[:nN]
+                where = "NOT in" if neg else "in"
+                body = "\n".join(
+                    "| **%s** | %.1f | %s | %s |" % (
+                        sym, sc, (name_sec.get(sym, (sym, ""))[1] or "NSE"),
+                        ("%.1f" % pe) if pe is not None else "-")
+                    for sym, sc, pe in topr)
+                return ("Top %d stocks %s the %s index by NIYTRI Score "
+                        "(%d scored stocks fall %s it in total):\n\n"
+                        "| Symbol | Score | Sector | P/E |\n|---|---|---|---|\n%s\n\n"
+                        "Basis: NIYTRI AI"
+                        % (len(topr), where, label, len(rpool), where, body))
     # List members / non-members
     if neg:
         pool = sorted(s for s in name_sec if s not in members)
