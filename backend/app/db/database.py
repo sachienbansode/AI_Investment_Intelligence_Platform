@@ -277,6 +277,8 @@ class PartnerKey(Base):
     scopes = Column(JSON)                        # ["scores","news","ask","portfolio"]
     rate_limit_per_min = Column(Integer, default=60)
     allowed_ips = Column(JSON, default=list)     # optional IP/CIDR allowlist; empty = any IP
+    expires_at = Column(DateTime, nullable=True)  # optional expiry (UTC); NULL = never
+    key_enc = Column(Text, default="")           # encrypted full key (reversible, for admin view)
     is_active = Column(Boolean, default=True)
     created_by = Column(String, default="")
     last_used_at = Column(DateTime, nullable=True)
@@ -485,6 +487,8 @@ _MIGRATIONS = [
     ("instruments", "indices", "JSON"),
     ("waitlist", "reason", "TEXT DEFAULT ''"),
     ("partner_keys", "allowed_ips", "JSON"),
+    ("partner_keys", "expires_at", "DATETIME"),
+    ("partner_keys", "key_enc", "TEXT DEFAULT ''"),
     ("users", "partner_id", "INTEGER"),
     ("partners", "custom_domain", "VARCHAR"),
     ("users", "role_id", "INTEGER"),
@@ -582,6 +586,8 @@ def init_db():
             ("instruments", "indices", "JSONB"),
             ("waitlist", "reason", "TEXT DEFAULT ''"),
             ("partner_keys", "allowed_ips", "JSONB"),
+            ("partner_keys", "expires_at", "TIMESTAMPTZ"),
+            ("partner_keys", "key_enc", "TEXT DEFAULT ''"),
             ("users", "partner_id", "INTEGER"),
             ("partners", "custom_domain", "VARCHAR"),
             ("users", "role_id", "INTEGER"),

@@ -264,8 +264,9 @@ export const api = {
     document.body.appendChild(a); a.click()
     setTimeout(() => { URL.revokeObjectURL(url); a.remove() }, 1500)
   },
-  createPartnerKey: (name, scopes, rate_limit_per_min, allowed_ips) =>
-    http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min, allowed_ips: allowed_ips || [] }) }),
+  createPartnerKey: (name, scopes, rate_limit_per_min, allowed_ips, expires_days) =>
+    http('/admin/partner-keys', { method: 'POST', body: JSON.stringify({ name, scopes, rate_limit_per_min, allowed_ips: allowed_ips || [], expires_days: expires_days || null }) }),
+  revealPartnerKey: (id) => http(`/admin/partner-keys/${id}/reveal`),
   revokePartnerKey: (id) => http(`/admin/partner-keys/${id}/revoke`, { method: 'POST' }),
   deletePartnerKey: (id) => http(`/admin/partner-keys/${id}`, { method: 'DELETE' }),
   // Score-crossing alerts (in-app feed)

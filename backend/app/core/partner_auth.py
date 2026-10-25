@@ -44,6 +44,33 @@ def hash_key(full: str) -> str:
     return hashlib.sha256(full.encode()).hexdigest()
 
 
+def _fernet():
+    """Symmetric cipher derived from the server JWT secret (never leaves the server)."""
+    import base64
+    from cryptography.fernet import Fernet
+    from app.config import get_settings
+    secret = (get_settings().jwt_secret or "dev-secret-change-in-production").encode()
+    return Fernet(base64.urlsafe_b64encode(hashlib.sha256(secret).digest()))
+
+
+def encrypt_key(full: str) -> str:
+    try:
+        return _fernet().encrypt(full.encode()).decode()
+    except Exception as e:
+        log.warning("encrypt_key failed: %s", e)
+        return ""
+
+
+def decrypt_key(enc: str) -> str | None:
+    if not enc:
+        return None
+    try:
+        return _fernet().decrypt(enc.encode()).decode()
+    except Exception as e:
+        log.warning("decrypt_key failed: %s", e)
+        return None
+
+
 def _extract(creds, x_api_key) -> str | None:
     if creds and creds.credentials:
         return creds.credentials.strip()
@@ -103,6 +130,9 @@ def authenticate(full_key: str | None, client_ip: str | None = None):
         row = db.query(PartnerKey).filter_by(key_hash=hash_key(full_key)).first()
         if row is None or not row.is_active:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or revoked API key.")
+        exp = getattr(row, "expires_at", None)
+        if exp is not None and utcnow() >= exp:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This API key has expired.")
         allow = list(getattr(row, "allowed_ips", None) or [])
         if allow and not _ip_allowed(client_ip or "", allow):
             raise HTTPException(status.HTTP_403_FORBIDDEN,

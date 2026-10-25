@@ -1075,7 +1075,7 @@ async def chat_feedback_list(rating: int = 0, limit: int = 50,
 
 
 # ── Partner Open API key management (admin only) ─────────────────
-from app.core.partner_auth import ALL_SCOPES, generate_key  # noqa: E402
+from app.core.partner_auth import ALL_SCOPES, decrypt_key, encrypt_key, generate_key  # noqa: E402
 
 
 class PartnerKeyCreate(BaseModel):
@@ -1083,12 +1083,18 @@ class PartnerKeyCreate(BaseModel):
     scopes: list[str] = Field(default_factory=lambda: list(ALL_SCOPES))
     rate_limit_per_min: int = Field(default=60, ge=1, le=6000)
     allowed_ips: list[str] = Field(default_factory=list)   # optional IP/CIDR allowlist
+    expires_days: int | None = Field(default=None, ge=1, le=3650)  # optional; None = never
 
 
 def _key_public(k: PartnerKey) -> dict:
+    from app.db.database import utcnow as _now
+    exp = getattr(k, "expires_at", None)
     return {"id": k.id, "name": k.name, "key_prefix": k.key_prefix,
             "scopes": k.scopes or [], "rate_limit_per_min": k.rate_limit_per_min,
             "allowed_ips": list(getattr(k, "allowed_ips", None) or []),
+            "expires_at": fmt_ist(exp) if exp else "",
+            "is_expired": bool(exp and _now() >= exp),
+            "has_stored_key": bool(getattr(k, "key_enc", "")),
             "is_active": k.is_active, "call_count": k.call_count or 0,
             "created_by": k.created_by or "", "created_at": fmt_ist(k.created_at),
             "last_used_at": fmt_ist(k.last_used_at)}
@@ -1230,21 +1236,43 @@ def create_partner_key(req: PartnerKeyCreate, admin: User = Depends(require_admi
         except ValueError:
             raise HTTPException(400, f"Invalid IP/CIDR: {e}")
     full, prefix, khash = generate_key()
+    from datetime import timedelta as _td
+    from app.db.database import utcnow as _now
+    expires_at = (_now() + _td(days=int(req.expires_days))) if req.expires_days else None
     db = SessionLocal()
     try:
         row = PartnerKey(name=req.name.strip(), key_prefix=prefix, key_hash=khash,
                          scopes=req.scopes, rate_limit_per_min=req.rate_limit_per_min,
-                         allowed_ips=ips, is_active=True, created_by=admin.email)
+                         allowed_ips=ips, expires_at=expires_at,
+                         key_enc=encrypt_key(full), is_active=True, created_by=admin.email)
         db.add(row)
         db.commit()
         db.refresh(row)
         pub = _key_public(row)
     finally:
         db.close()
-    audit_log("partner_key_created", name=req.name, by=admin.email, scopes=req.scopes)
-    # The full key is returned ONCE here and never stored in plaintext.
+    audit_log("partner_key_created", name=req.name, by=admin.email, scopes=req.scopes,
+              expires_days=req.expires_days)
     return {"api_key": full, "key": pub,
-            "note": "Store this key now - it cannot be retrieved again."}
+            "note": "Shown once here; also retrievable later by an admin via 'View key'."}
+
+
+@router.get("/partner-keys/{key_id}/reveal")
+def reveal_partner_key(key_id: int, admin: User = Depends(require_admin)):
+    """Admin-only: decrypt and return the stored full key (audited)."""
+    db = SessionLocal()
+    try:
+        row = db.get(PartnerKey, key_id)
+        if not row:
+            raise HTTPException(404, "Key not found")
+        full = decrypt_key(getattr(row, "key_enc", "") or "")
+        name = row.name
+    finally:
+        db.close()
+    if not full:
+        raise HTTPException(404, "This key was created before encrypted storage and can't be revealed. Rotate it to enable view.")
+    audit_log("partner_key_revealed", key_id=key_id, by=admin.email)
+    return {"api_key": full, "name": name}
 
 
 @router.post("/partner-keys/{key_id}/revoke")
