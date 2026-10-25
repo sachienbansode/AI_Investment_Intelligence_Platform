@@ -3,7 +3,10 @@ score quality review (maker-checker), user management."""
 import calendar
 import io
 import json
+import logging
 from datetime import datetime, timezone
+
+log = logging.getLogger(__name__)
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -1096,6 +1099,91 @@ from fastapi.responses import FileResponse as _FileResponse
 
 _PARTNER_DOCS_DIR = _os.path.abspath(
     _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "docs"))
+
+
+from app.db.database import Partner as _Partner
+import re as _re_slug
+
+
+class PartnerBody(BaseModel):
+    name: str = Field(..., min_length=2, max_length=80)
+    slug: str = Field(..., min_length=2, max_length=40)
+    brand_logo: str = ""
+    brand_primary: str = ""
+    platform_label: str = ""
+    enabled_features: list[str] = Field(default_factory=list)
+    allowed_origins: list[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
+def _partner_public(p) -> dict:
+    return {"id": p.id, "name": p.name, "slug": p.slug, "brand_logo": p.brand_logo or "",
+            "brand_primary": p.brand_primary or "", "platform_label": p.platform_label or "",
+            "enabled_features": p.enabled_features or [], "allowed_origins": p.allowed_origins or [],
+            "has_sso": bool(p.sso_secret), "is_active": p.is_active,
+            "created_at": fmt_ist(p.created_at)}
+
+
+@router.get("/partners")
+def list_partners(admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        return {"partners": [_partner_public(p) for p in
+                             db.query(_Partner).order_by(_Partner.created_at.desc()).all()]}
+    finally:
+        db.close()
+
+
+@router.post("/partners")
+def create_partner(req: PartnerBody, admin: User = Depends(require_admin)):
+    slug = _re_slug.sub(r"[^a-z0-9-]", "", (req.slug or "").lower())
+    if len(slug) < 2:
+        raise HTTPException(400, "slug must be lowercase letters/digits/hyphens (min 2 chars)")
+    db = SessionLocal()
+    try:
+        if db.query(_Partner).filter_by(slug=slug).first():
+            raise HTTPException(400, f"slug '{slug}' is already taken")
+        import secrets as _sec
+        p = _Partner(name=req.name.strip(), slug=slug, brand_logo=req.brand_logo or "",
+                     brand_primary=req.brand_primary or "", platform_label=req.platform_label or "",
+                     enabled_features=req.enabled_features or [],
+                     allowed_origins=req.allowed_origins or [],
+                     sso_secret=_sec.token_hex(24), is_active=req.is_active)
+        db.add(p); db.commit(); db.refresh(p)
+        pub = _partner_public(p)
+    finally:
+        db.close()
+    # Provision this partner's isolated schema (tenant_<slug>) + its own tables.
+    prov = {"ok": False}
+    try:
+        from app.core.tenancy import provision_tenant
+        prov = provision_tenant(slug)
+    except Exception as e:
+        log.warning("tenant provisioning failed for %s: %s", slug, e)
+    audit_log("partner_created", slug=slug, by=admin.email, provisioned=prov.get("ok"))
+    pub["provisioned"] = prov
+    return pub
+
+
+@router.put("/partners/{pid}")
+def update_partner(pid: int, req: PartnerBody, admin: User = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        p = db.get(_Partner, pid)
+        if not p:
+            raise HTTPException(404, "partner not found")
+        p.name = req.name.strip()
+        p.brand_logo = req.brand_logo or ""
+        p.brand_primary = req.brand_primary or ""
+        p.platform_label = req.platform_label or ""
+        p.enabled_features = req.enabled_features or []
+        p.allowed_origins = req.allowed_origins or []
+        p.is_active = req.is_active
+        db.commit(); pub = _partner_public(p)
+    finally:
+        db.close()
+    audit_log("partner_updated", pid=pid, by=admin.email)
+    return pub
 
 
 @router.get("/partner-docs/{kind}")

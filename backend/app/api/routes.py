@@ -313,6 +313,24 @@ def _primary_index(tags):
     return up[0] if up else ""
 
 
+@router.get("/partner-brand/{slug}")
+async def partner_brand(slug: str):
+    """Public white-label branding for a partner slug (logo, colour, name, features).
+    Used by the app to render a partner-branded experience. No auth (branding only)."""
+    from app.db.database import Partner
+    db = SessionLocal()
+    try:
+        p = db.query(Partner).filter_by(slug=slug.lower(), is_active=True).first()
+        if not p:
+            return {"found": False}
+        return {"found": True, "slug": p.slug, "name": p.name,
+                "logo": p.brand_logo or "", "primary": p.brand_primary or "",
+                "platform_label": p.platform_label or p.name,
+                "features": p.enabled_features or []}
+    finally:
+        db.close()
+
+
 @router.get("/index-tags")
 async def index_tags(user: User = Depends(get_current_user)):
     """{symbol: primary index tag} for every active instrument — small, cached by the UI."""

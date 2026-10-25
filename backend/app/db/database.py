@@ -38,6 +38,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     role_id = Column(Integer, nullable=True)   # FK -> roles.id (RBAC)
+    partner_id = Column(Integer, index=True, nullable=True)  # NULL = NIYTRI's own user; else a Partner tenant
     avatar = Column(Text, nullable=True)       # profile photo as data:image/... URI
     referral_code = Column(String, unique=True, index=True, nullable=True)  # this user's invite code
     invited_by_code = Column(String, nullable=True)   # code they signed up with (referral graph)
@@ -373,6 +374,26 @@ class DataSource(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class Partner(Base):
+    """A partner/tenant that can use NIYTRI's UI (white-label app, embeddable widget,
+    or SSO) in addition to the raw API. Branding + enabled features + allowed origins
+    are resolved per partner. API keys (PartnerKey) may be linked to a partner by slug."""
+    __tablename__ = "partners"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)                          # display name
+    slug = Column(String, unique=True, index=True)  # url/subdomain key, e.g. "acme" (/p/acme)
+    custom_domain = Column(String, unique=True, index=True, nullable=True)  # e.g. invest.acme.com
+    brand_logo = Column(Text, default="")          # data URI / URL
+    brand_primary = Column(String, default="")     # hex accent colour
+    platform_label = Column(String, default="")    # white-label product name
+    enabled_features = Column(JSON, default=list)  # ["assistant","screener","scores","portfolio","watchlist"]
+    allowed_origins = Column(JSON, default=list)   # origins allowed to embed widgets
+    sso_secret = Column(String, default="")        # HMAC secret for SSO deep-links
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class SchemaHint(Base):
     """LLM-generated plain-English description for a table (and its key columns), so
     the query planner understands new data, not just column names. Scope is 'app'
@@ -464,6 +485,8 @@ _MIGRATIONS = [
     ("instruments", "indices", "JSON"),
     ("waitlist", "reason", "TEXT DEFAULT ''"),
     ("partner_keys", "allowed_ips", "JSON"),
+    ("users", "partner_id", "INTEGER"),
+    ("partners", "custom_domain", "VARCHAR"),
     ("users", "role_id", "INTEGER"),
     ("users", "avatar", "TEXT"),
     ("users", "referral_code", "VARCHAR"),
@@ -559,6 +582,8 @@ def init_db():
             ("instruments", "indices", "JSONB"),
             ("waitlist", "reason", "TEXT DEFAULT ''"),
             ("partner_keys", "allowed_ips", "JSONB"),
+            ("users", "partner_id", "INTEGER"),
+            ("partners", "custom_domain", "VARCHAR"),
             ("users", "role_id", "INTEGER"),
             ("users", "avatar", "TEXT"),
             ("users", "referral_code", "VARCHAR"),
