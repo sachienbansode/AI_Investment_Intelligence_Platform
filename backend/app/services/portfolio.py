@@ -248,6 +248,34 @@ async def portfolio_metrics(holdings: list[Holding]) -> dict:
     elif capmix["large"] >= 60:
         strengths.append(f"**{capmix['large']}%** in large-caps — stability tilt.")
 
+    # ---- Risk / benchmark / growth (daily closes vs NIFTY) ----------------------
+    risk = {}
+    try:
+        from app.services import cmots
+        if cmots.available():
+            risk = await cmots.portfolio_risk(
+                [(r["symbol"], r["weight_pct"] / 100.0) for r in rows]) or {}
+    except Exception:
+        risk = {}
+    if risk:
+        sh, bt = risk.get("sharpe"), risk.get("beta")
+        exc = risk.get("excess_return_pct")
+        mdd = risk.get("max_drawdown_pct")
+        if sh is not None:
+            if sh >= 1:
+                strengths.append(f"Good risk-adjusted return — **Sharpe {sh}**.")
+            elif sh < 0:
+                watchouts.append(f"Negative risk-adjusted return — **Sharpe {sh}**.")
+        if exc is not None:
+            if exc >= 0:
+                strengths.append(f"Ahead of the **{risk.get('benchmark','NIFTY 50')}** by **+{exc}%** over the window.")
+            else:
+                watchouts.append(f"Behind the **{risk.get('benchmark','NIFTY 50')}** by **{exc}%** over the window.")
+        if bt is not None and bt >= 1.2:
+            watchouts.append(f"High market sensitivity — **beta {bt}** (amplifies index moves).")
+        if mdd is not None and mdd <= -25:
+            watchouts.append(f"Deep historical drawdown — **{mdd}%** peak-to-trough.")
+
     holdings_out = sorted(
         [{"symbol": r["symbol"], "weight_pct": r["weight_pct"], "value": r["value"],
           "pnl_pct": r["pnl_pct"], "sector": r["sector"], "score": r["score"], "band": r["band"],
@@ -259,7 +287,7 @@ async def portfolio_metrics(holdings: list[Holding]) -> dict:
             "diversification": diversification, "deductions": deductions, "health": health,
             "pnl": pnl, "status": rag, "status_label": rag_label, "headline": headline,
             "holdings": holdings_out, "portfolio_score": portfolio_score, "verdict": verdict,
-            "fundamentals": fundamentals}
+            "fundamentals": fundamentals, "risk": risk}
 
 
 async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
@@ -281,6 +309,10 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         "fundamentals": {k: m.get("fundamentals", {}).get(k) for k in
                          ("weighted_pe", "weighted_net_margin", "weighted_peg", "cap_mix_pct")}
         if m.get("fundamentals", {}).get("available") else None,
+        "risk": {k: m.get("risk", {}).get(k) for k in
+                 ("volatility_pct", "sharpe", "beta", "max_drawdown_pct",
+                  "return_pct", "benchmark_return_pct", "excess_return_pct", "benchmark")}
+        if m.get("risk") else None,
     }
     prompt = (
         f"Portfolio metrics: {json.dumps(ctx)}\n"
@@ -289,7 +321,7 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         "Score and health). Then 3-5 markdown bullets ('- ') of factual observations on "
         "quality (NIYTRI Score bands), diversification, concentration and sector tilt, "
         "and — when 'fundamentals' is present — valuation and profitability (value-weighted "
-        "P/E, net margin, PEG) and the market-cap mix (large/mid/small). "
+        "P/E, net margin, PEG) and the market-cap mix (large/mid/small), plus - when risk data is present - risk-adjusted return (Sharpe), volatility, beta and return versus the benchmark. "
         "bolding key numbers with **. Reference specific holdings where relevant. "
         "Describe the data only — do NOT recommend buying, selling or holding anything, "
         "and give no price targets. Output the conclusion line, a blank line, then bullets."
@@ -313,5 +345,5 @@ async def analyze_portfolio(holdings: list[Holding]) -> PortfolioResponse:
         diversification=m["diversification"], concentration_risk=m["concentration"],
         sector_exposure=m["sector_exposure"], insights=insights, disclaimer=AI_DISCLAIMER,
         holdings=m["holdings"], portfolio_score=m["portfolio_score"], verdict=m["verdict"],
-        fundamentals=m.get("fundamentals", {}),
+        fundamentals=m.get("fundamentals", {}), risk=m.get("risk", {}),
     )

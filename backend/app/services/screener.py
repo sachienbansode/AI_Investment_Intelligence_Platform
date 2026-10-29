@@ -194,6 +194,37 @@ def _tag_result(theme: str, tags: list) -> dict:
             "disclaimer": AI_DISCLAIMER}
 
 
+async def _alternatives(prompt: str, schema_text: str = "") -> list:
+    """Propose 3-5 ALTERNATIVE natural-language screens when the user's screen can't
+    be built or returns nothing - looser versions of their ask, or closely related
+    screens the connected data CAN actually answer. Returns a list of prompt strings
+    (clickable in the UI). Falls back to trending prompts."""
+    try:
+        sys = (
+            "A user's stock screen returned no results or could not be built from the "
+            "available market data. Suggest 3-5 ALTERNATIVE screens as plain-English "
+            "one-liners: relax or drop the constraints least likely to be supported, "
+            "and offer closely related screens that ARE answerable. Keep each under 90 "
+            "characters, no numbering, Indian-equities context. Return STRICT JSON: "
+            '{"alternatives":["...","..."]}. Use ONLY metrics that plausibly exist '
+            "(market cap, ROE, P/E, margins, debt, dividend, sector, score); avoid "
+            "metrics the data may lack (e.g. promoter holding, 8-quarter streaks).")
+        r = await get_llm_router().complete(
+            sys, "Original request: " + (prompt or ""), task="screener_alts",
+            max_tokens=250, temperature=0.4)
+        m = re.search(r"\{.*\}", r.text, re.DOTALL)
+        if m:
+            alts = (json.loads(m.group(0)) or {}).get("alternatives") or []
+            alts = [_scrub(str(a).strip()) for a in alts if str(a).strip()][:5]
+            if alts:
+                return alts
+    except Exception as e:
+        log.warning("screener alternatives failed: %s", e)
+    # Safe fallback: a rotating sample of trending prompts.
+    import random
+    return random.sample(TRENDING_PROMPTS, k=min(4, len(TRENDING_PROMPTS)))
+
+
 async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     # Fast path: a known theme with pre-built tags (Theme-Tagging agent) -> precise,
     # instant, no LLM call.
@@ -250,34 +281,44 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     sid = spec.get("source_id")
     src = next((s for s in db_sources if s.id == sid), db_sources[0])
 
-    def _fb_payload(summary):
+    def _fb_payload(summary, alts=None):
         return {"summary": summary, "rows": [], "columns": [], "sql": "",
                 "source": "NIYTRI analysis", "fallback": True,
-                "assumptions": "",
+                "assumptions": "", "alternatives": alts or [],
                 "disclaimer": AI_DISCLAIMER}
 
     if not sql:
+        alts = await _alternatives(prompt, schema)
         fb = await _thematic_fallback(prompt, theme_hint)
         if fb:
-            return _fb_payload(fb)
-        return {"summary": "I couldn't build a precise screen for that right now.",
-                "rows": [], "columns": [], "sql": "", "source": BRAND}
+            return _fb_payload(fb, alts)
+        return {"summary": "I couldn't build a precise screen for that exact combination "
+                "right now - some of those filters aren't in the connected data. Try one of "
+                "these instead:", "rows": [], "columns": [], "sql": "", "source": BRAND,
+                "alternatives": alts, "fallback": True, "disclaimer": AI_DISCLAIMER}
     try:
         res = ds.run_sql(src, sql, max_rows=max_rows)
     except Exception as e:
+        alts = await _alternatives(prompt, schema)
         fb = await _thematic_fallback(prompt, theme_hint)
         if fb:
-            return _fb_payload(fb)
+            return _fb_payload(fb, alts)
         return {"error": "The screen couldn't be completed right now.", "sql": "",
-                "rows": [], "columns": [], "source": BRAND}
+                "rows": [], "columns": [], "source": BRAND, "alternatives": alts,
+                "fallback": True}
 
     # Safety-net de-duplication: one row per company even if the SQL returned dupes.
     res = _dedupe_rows(res)
 
     if not res.get("rows"):
+        alts = await _alternatives(prompt, schema)
         fb = await _thematic_fallback(prompt, theme_hint)
         if fb:
-            return _fb_payload(fb)
+            return _fb_payload(fb, alts)
+        return {"summary": "No stocks matched that exact screen. Here are some close "
+                "alternatives you can try:", "rows": [], "columns": [], "sql": "",
+                "source": BRAND, "alternatives": alts, "fallback": True,
+                "disclaimer": AI_DISCLAIMER}
 
     summary = ""
     try:

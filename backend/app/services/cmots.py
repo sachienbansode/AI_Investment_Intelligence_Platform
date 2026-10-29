@@ -245,3 +245,110 @@ def fundamentals_batch(symbols: list) -> dict:
             continue
         out[sym] = {k: v for k, v in r.items() if v is not None and k != "co_code"}
     return out
+
+
+# ---- portfolio-level risk / benchmark / growth -----------------------------
+
+async def portfolio_risk(weights: list, days: int = 500, rf_annual: float = 0.065) -> dict:
+    """Portfolio risk + benchmark analytics from daily closes.
+
+    `weights` = [(symbol, weight_fraction), ...] (fractions need not sum to 1 —
+    they are renormalised over the holdings we actually have price history for).
+
+    Returns {} if too little data, else:
+      {volatility_pct, sharpe, beta, max_drawdown_pct, return_pct, benchmark_return_pct,
+       benchmark, days, coverage_pct, as_of, series:[{d, port, bench}]}  (indexed to 100)
+    """
+    cmap = cocode_map()
+    series_by_sym, covered = {}, []
+    wsum_all = sum(max(0.0, float(w or 0)) for _, w in weights) or 1.0
+    for sym, w in weights:
+        su = str(sym or "").strip().upper()
+        info = cmap.get(su)
+        cc = info.get("co_code") if info else None
+        if cc is None:
+            continue
+        closes = daily_closes(cc, days)
+        if len(closes) >= 30:
+            series_by_sym[su] = dict(closes)          # date -> close
+            covered.append((su, max(0.0, float(w or 0))))
+    if not covered:
+        return {}
+    # renormalise weights over covered holdings
+    wcov = sum(w for _, w in covered) or 1.0
+    covered = [(s, w / wcov) for s, w in covered]
+    coverage_pct = round(wcov / wsum_all * 100, 1)
+
+    idx = await _nifty_history(days)
+    idx_map = {str(d)[:10]: float(c) for d, c in idx} if idx else {}
+
+    # common dates: present for EVERY covered holding (so weighted return is complete)
+    common = None
+    for su, _ in covered:
+        ds_set = set(series_by_sym[su].keys())
+        common = ds_set if common is None else (common & ds_set)
+    if idx_map:
+        common = common & set(idx_map.keys())
+    common = sorted(common or [])
+    if len(common) < 30:
+        return {}
+
+    # value-weighted portfolio close index + benchmark close index (base 100)
+    port_close, bench_close = [], []
+    for d in common:
+        pv = sum(w * series_by_sym[su][d] for su, w in covered)  # weighted price proxy
+        port_close.append(pv)
+        if idx_map:
+            bench_close.append(idx_map[d])
+    base_p = port_close[0] or 1.0
+    base_b = (bench_close[0] if bench_close else 1.0) or 1.0
+    series = []
+    stepn = max(1, len(common) // 80)      # downsample to <=80 points for the chart
+    for i, d in enumerate(common):
+        if i % stepn == 0 or i == len(common) - 1:
+            series.append({"d": d, "port": round(port_close[i] / base_p * 100, 2),
+                           "bench": round(bench_close[i] / base_b * 100, 2) if bench_close else None})
+
+    # daily returns
+    def _rets(arr):
+        return [arr[i] / arr[i - 1] - 1.0 for i in range(1, len(arr)) if arr[i - 1]]
+    pr = _rets(port_close)
+    br = _rets(bench_close) if bench_close else []
+    if len(pr) < 20:
+        return {}
+    import math as _m
+    import statistics as _st
+    vol = _st.pstdev(pr) * _m.sqrt(_TRADING_DAYS)
+    mean_ann = (sum(pr) / len(pr)) * _TRADING_DAYS
+    sharpe = round((mean_ann - rf_annual) / vol, 2) if vol > 0 else None
+    # beta vs benchmark
+    beta_v = None
+    if br and len(br) == len(pr):
+        mbar = sum(br) / len(br)
+        var_m = sum((x - mbar) ** 2 for x in br)
+        if var_m > 0:
+            pbar = sum(pr) / len(pr)
+            cov = sum((pr[i] - pbar) * (br[i] - mbar) for i in range(len(pr)))
+            beta_v = round(cov / var_m, 2)
+    # max drawdown on the portfolio index
+    peak, mdd = port_close[0], 0.0
+    for v in port_close:
+        peak = max(peak, v)
+        if peak > 0:
+            mdd = min(mdd, v / peak - 1.0)
+    ret_pct = round((port_close[-1] / port_close[0] - 1.0) * 100, 2)
+    bench_ret = round((bench_close[-1] / bench_close[0] - 1.0) * 100, 2) if bench_close else None
+    return {
+        "volatility_pct": round(vol * 100, 2),
+        "sharpe": sharpe,
+        "beta": beta_v,
+        "max_drawdown_pct": round(mdd * 100, 2),
+        "return_pct": ret_pct,
+        "benchmark_return_pct": bench_ret,
+        "excess_return_pct": (round(ret_pct - bench_ret, 2) if bench_ret is not None else None),
+        "benchmark": "NIFTY 50",
+        "days": len(common),
+        "coverage_pct": coverage_pct,
+        "as_of": common[-1],
+        "series": series,
+    }

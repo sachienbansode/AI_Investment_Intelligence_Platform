@@ -128,6 +128,16 @@ export default function Screener() {
               </div>
             </>
           ) : (!res.fallback && <p className="hint">No matching rows.</p>)}
+          {res.alternatives?.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div className="followup-label">Try one of these instead</div>
+              <div className="chip-row" style={{ margin: '6px 0 2px' }}>
+                {res.alternatives.map(a => (
+                  <button key={a} className="chip" disabled={busy} onClick={() => run(a)}>{a}</button>
+                ))}
+              </div>
+            </div>
+          )}
           {res.disclaimer && <p className="disclaimer">{res.disclaimer}</p>}
         </div>
       )}

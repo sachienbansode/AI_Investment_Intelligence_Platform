@@ -58,6 +58,58 @@ function HoldingScoreBars({ holdings }) {
   )
 }
 
+function GrowthChart({ series, benchmark = 'NIFTY 50' }) {
+  const [hi, setHi] = useState(null)
+  if (!series || series.length < 2) return null
+  const W = 720, H = 220, M = { l: 42, r: 12, t: 12, b: 18 }
+  const iw = W - M.l - M.r, ih = H - M.t - M.b
+  const vals = []
+  series.forEach(p => { if (p.port != null) vals.push(p.port); if (p.bench != null) vals.push(p.bench) })
+  let lo = Math.min(...vals), hiV = Math.max(...vals)
+  const pad = (hiV - lo) * 0.08 || 1; lo -= pad; hiV += pad
+  const span = (hiV - lo) || 1
+  const x = i => M.l + (i * iw) / (series.length - 1)
+  const y = v => M.t + ih * (1 - (v - lo) / span)
+  const path = key => series.filter(p => p[key] != null)
+    .map(p => (series.indexOf(p) === series.findIndex(q => q[key] != null) ? 'M' : 'L')
+      + x(series.indexOf(p)).toFixed(1) + ' ' + y(p[key]).toFixed(1)).join(' ')
+  const hasBench = series.some(p => p.bench != null)
+  const ticks = [lo, lo + span / 2, hiV]
+  const h = hi != null ? series[hi] : null
+  return (
+    <div className="pf-growth-outer" onMouseLeave={() => setHi(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="pf-growth" preserveAspectRatio="none">
+        {ticks.map((t, k) => (
+          <g key={k}>
+            <line x1={M.l} x2={W - M.r} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth="1" />
+            <text x={M.l - 6} y={y(t) + 3} textAnchor="end" className="pf-axis">{Math.round(t)}</text>
+          </g>
+        ))}
+        {hasBench && <path d={path('bench')} fill="none" stroke="var(--muted)" strokeWidth="1.6" strokeDasharray="5 4" strokeLinejoin="round" />}
+        <path d={path('port')} fill="none" stroke="var(--green)" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+        {hi != null && <line x1={x(hi)} x2={x(hi)} y1={M.t} y2={M.t + ih} stroke="var(--muted)" strokeWidth="1" opacity="0.6" />}
+        {hi != null && h.bench != null && <circle cx={x(hi)} cy={y(h.bench)} r="4" fill="var(--muted)" stroke="var(--panel)" strokeWidth="1.5" />}
+        {hi != null && h.port != null && <circle cx={x(hi)} cy={y(h.port)} r="4.5" fill="var(--green)" stroke="var(--panel)" strokeWidth="2" />}
+        {series.map((p, i) => (
+          <rect key={i} x={x(i) - iw / series.length / 2} y={M.t} width={Math.max(2, iw / series.length)} height={ih}
+                fill="transparent" onMouseEnter={() => setHi(i)} />
+        ))}
+      </svg>
+      {h && (
+        <div className="pf-growth-tip" style={{ left: `${Math.min(86, Math.max(6, x(hi) / W * 100))}%` }}>
+          <div className="pf-tip-d">{h.d}</div>
+          <div className="pf-tip-row"><span><i style={{ background: 'var(--green)' }} /> Portfolio</span><b>{h.port != null ? h.port.toFixed(1) : '\u2014'}</b></div>
+          {h.bench != null && <div className="pf-tip-row"><span><i style={{ background: 'var(--muted)' }} /> {benchmark}</span><b>{h.bench.toFixed(1)}</b></div>}
+          {h.port != null && h.bench != null && (
+            <div className="pf-tip-row"><span>Difference</span>
+              <b className={(h.port - h.bench) >= 0 ? 'up' : 'down'}>{(h.port - h.bench) >= 0 ? '+' : ''}{(h.port - h.bench).toFixed(1)}</b></div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Portfolio() {
   const [rows, setRows] = useState([{ symbol: 'RELIANCE', quantity: 10, avg_price: 2500 }])
   const [all, setAll] = useState([])
@@ -396,6 +448,35 @@ export default function Portfolio() {
                     <i className="hint">L {result.fundamentals.cap_mix_pct.large || 0}% · M {result.fundamentals.cap_mix_pct.mid || 0}% · S {result.fundamentals.cap_mix_pct.small || 0}%</i>
                   </div>)}
               </div>
+            </div>
+          )}
+
+          {result.risk && result.risk.sharpe != null && (
+            <div className="pf-funds">
+              <div className="pf-funds-h">Risk &amp; benchmark <span className="hint">· {result.risk.days}d daily · vs {result.risk.benchmark} · NIYTRI Data Intelligence</span></div>
+              <div className="pf-kpis">
+                <div className="pf-kpi"><span>Sharpe ratio</span><b>{result.risk.sharpe ?? '\u2014'}</b><i className="hint">risk-adjusted return</i></div>
+                <div className="pf-kpi"><span>Volatility</span><b>{result.risk.volatility_pct}%</b><i className="hint">annualised</i></div>
+                <div className="pf-kpi"><span>Beta</span><b>{result.risk.beta ?? '\u2014'}</b><i className="hint">vs {result.risk.benchmark}</i></div>
+                <div className="pf-kpi"><span>Max drawdown</span><b className="down">{result.risk.max_drawdown_pct}%</b><i className="hint">peak-to-trough</i></div>
+              </div>
+              {result.risk.return_pct != null && (
+                <div className="pf-bench">
+                  <span>Portfolio <b className={result.risk.return_pct >= 0 ? 'up' : 'down'}>{result.risk.return_pct >= 0 ? '+' : ''}{result.risk.return_pct}%</b></span>
+                  {result.risk.benchmark_return_pct != null && <span>{result.risk.benchmark} <b className={result.risk.benchmark_return_pct >= 0 ? 'up' : 'down'}>{result.risk.benchmark_return_pct >= 0 ? '+' : ''}{result.risk.benchmark_return_pct}%</b></span>}
+                  {result.risk.excess_return_pct != null && <span>Excess <b className={result.risk.excess_return_pct >= 0 ? 'up' : 'down'}>{result.risk.excess_return_pct >= 0 ? '+' : ''}{result.risk.excess_return_pct}%</b></span>}
+                </div>
+              )}
+              {result.risk.series?.length > 1 && (
+                <div className="pf-growth-wrap">
+                  <div className="pf-growth-legend">
+                    <span><i style={{ background: 'var(--green)' }} /> Portfolio</span>
+                    <span><i style={{ background: 'var(--muted)' }} /> {result.risk.benchmark}</span>
+                    <i className="hint">indexed to 100 · {result.risk.coverage_pct}% of value covered</i>
+                  </div>
+                  <GrowthChart series={result.risk.series} benchmark={result.risk.benchmark} />
+                </div>
+              )}
             </div>
           )}
 
