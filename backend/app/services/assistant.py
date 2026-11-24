@@ -2137,6 +2137,70 @@ def _compare_fallback(a: dict, b: dict) -> str:
     return "\n".join(lines) + conclusion
 
 
+async def compare_many(symbols: list, language: str = "en") -> dict:
+    """Side-by-side, advice-free comparison of 2-5 NSE scripts with an AI summary."""
+    md = get_market_data()
+    syms = []
+    for x in (symbols or []):
+        u = str(x or "").upper().strip()
+        if u and u not in syms:
+            syms.append(u)
+    syms = syms[:5]
+    if len(syms) < 2:
+        raise ValueError("Provide at least two different symbols")
+
+    async def snapshot(sym: str) -> dict:
+        try:
+            q = await asyncio.wait_for(md.get_quote(sym), timeout=5.0)
+        except Exception:
+            q = None
+        db = SessionLocal()
+        try:
+            row = (db.query(StockScore).filter_by(symbol=sym)
+                   .order_by(StockScore.score_date.desc()).first())
+            inst = db.query(Instrument).filter_by(symbol=sym).first()
+        finally:
+            db.close()
+        approved = bool(row and row.quality_status == "approved")
+        return {
+            "symbol": sym, "name": inst.name if inst else sym,
+            "sector": inst.sector if inst else "",
+            "last_price": q.last_price if q else None,
+            "change_pct": q.change_pct if q else None,
+            "pe": q.pe if q else None, "market_cap": q.market_cap if q else None,
+            "week52_high": q.week52_high if q else None,
+            "week52_low": q.week52_low if q else None,
+            "source": q.source if q else None,
+            "ai_score": row.composite_score if approved else None,
+            "pillar_scores": row.pillar_scores if approved else None,
+            "score_date": row.score_date if row else None,
+        }
+
+    snaps = await asyncio.gather(*[snapshot(s) for s in syms])
+    score_label = get_setting("score_label") or "NIYTRI Score"
+    system = (get_setting("assistant_system_prompt") or "") + GUARDRAILS
+    prompt = (
+        f"Always call the composite score \"{score_label}\", never \"AI score\". "
+        "Compare these " + str(len(snaps)) + " NSE-listed stocks for an investor, factually "
+        "and WITHOUT any buy/sell/hold advice, recommendation or price target. Rank them on "
+        f"the platform's {score_label} and note who leads on each available metric (price "
+        "action, P/E, 52-week range, pillar strengths); flag missing data and caveats. End "
+        "with a final line starting '**Conclusion:**' summarising which screens strongest "
+        "overall on the platform's metrics and why - still WITHOUT advice. Reply in language "
+        "code '" + language + "'. 4-7 short markdown bullets then the Conclusion line; bold "
+        "symbols and numbers.\n\nSTOCKS: " + json.dumps(snaps))
+    summary = ""
+    try:
+        resp = await get_llm_router().complete(system, prompt, task="compare",
+                                               max_tokens=520, temperature=0.3)
+        summary = resp.text.strip()
+    except Exception as e:
+        log.warning("Compare(multi) summary failed: %s", e)
+        summary = _compare_fallback(snaps[0], snaps[1])
+    audit_log("stock_compare_multi", symbols=syms)
+    return {"stocks": snaps, "summary": summary, "disclaimer": AI_DISCLAIMER}
+
+
 async def compare_stocks(sym_a: str, sym_b: str, language: str = "en") -> dict:
     """Side-by-side, advice-free comparison of two NSE scripts with an AI summary."""
     md = get_market_data()

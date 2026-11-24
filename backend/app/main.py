@@ -155,6 +155,12 @@ async def lifespan(app: FastAPI):
         _aio.get_event_loop().create_task(_seed_kb())
     except Exception:
         pass
+    # ...and re-seed daily (~00:15 IST) so the knowledge base self-heals (DB reset,
+    # new concept docs shipped in a deploy). Idempotent — only missing docs are added.
+    scheduler.add_job(_seed_kb,
+                      CronTrigger(hour=0, minute=15, timezone=IST),
+                      id="knowledge_seed", replace_existing=True,
+                      misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
 
     # Feedback-Triage agent (~01:30 IST): cluster 'not helpful' answers and propose
     # fixes for admin review. Approved guidance/setting fixes apply live (no deploy).

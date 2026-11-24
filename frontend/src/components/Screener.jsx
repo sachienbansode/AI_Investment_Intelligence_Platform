@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { mdToHtml, scoreBadge } from '../md.js'
+import WatchButton from './WatchButton.jsx'
+
+const SYM_COL = /^(symbol|ticker|scrip|script|nsesymbol)$/i
 
 // NIYTRI Screeners: natural-language screening over the connected market data.
 
@@ -120,7 +123,9 @@ export default function Screener() {
                         /niytri score|^score$/i.test(c)
                           ? <td key={c} style={{ textAlign: 'right' }}
                                 dangerouslySetInnerHTML={{ __html: scoreBadge(r[c], r['Symbol'] || r['symbol']) }} />
-                          : <td key={c} style={isNum(r[c]) ? { textAlign: 'right' } : undefined}>{fmtCell(r[c])}</td>
+                          : SYM_COL.test(c) && r[c]
+                            ? <td key={c}><WatchButton symbol={String(r[c])} variant="icon" /> {fmtCell(r[c])}</td>
+                            : <td key={c} style={isNum(r[c]) ? { textAlign: 'right' } : undefined}>{fmtCell(r[c])}</td>
                       ))}</tr>
                     ))}
                   </tbody>

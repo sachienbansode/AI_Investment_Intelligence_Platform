@@ -51,7 +51,10 @@ export default function Alerts({ go, openScore, onSeen }) {
   }
   const setP = (k, v) => setPrefs(p => ({ ...p, [k]: v }))
 
-  const items = data?.items || []
+  const [srcFilter, setSrcFilter] = useState('all')
+  const allItems = data?.items || []
+  const srcCount = s => allItems.filter(a => a.source === s).length
+  const items = srcFilter === 'all' ? allItems : allItems.filter(a => a.source === srcFilter)
   return (
     <div>
       <div className="panel-head">
@@ -71,14 +74,29 @@ export default function Alerts({ go, openScore, onSeen }) {
       {showPrefs && prefs && (
         <div className="panel" style={{ marginTop: 10 }}>
           <h4>Alert preferences</h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', margin: '8px 0' }}>
-            <label><input type="checkbox" checked={!!prefs.enabled} onChange={e => setP('enabled', e.target.checked)} /> Enable my alerts</label>
-            <label><input type="checkbox" checked={!!prefs.bands} onChange={e => setP('bands', e.target.checked)} /> Band crossings</label>
-            <label><input type="checkbox" checked={!!prefs.jumps} onChange={e => setP('jumps', e.target.checked)} /> Sharp moves</label>
-            <label>Min move (pts)&nbsp;
+          <p className="hint" style={{ marginTop: 0 }}>
+            Alerts watch the scripts in your <strong>watchlist</strong> and <strong>portfolio holdings</strong>,
+            and notify you when their NIYTRI Score changes meaningfully after each daily scoring run.
+          </p>
+          <div className="alert-prefs">
+            <label className="pref-row">
+              <input type="checkbox" checked={!!prefs.enabled} onChange={e => setP('enabled', e.target.checked)} />
+              <span><b>Enable my alerts</b><i>Master switch — turn all of your alerts on or off.</i></span>
+            </label>
+            <label className="pref-row">
+              <input type="checkbox" checked={!!prefs.bands} onChange={e => setP('bands', e.target.checked)} />
+              <span><b>Band crossings</b><i>Alert when a script moves between score bands: Weak (&lt;50), Neutral (50–64), Strong (65+).</i></span>
+            </label>
+            <label className="pref-row">
+              <input type="checkbox" checked={!!prefs.jumps} onChange={e => setP('jumps', e.target.checked)} />
+              <span><b>Sharp moves</b><i>Alert when a score jumps or drops by at least the “Min move” below — even within the same band.</i></span>
+            </label>
+            <label className="pref-row">
+              <span style={{ marginLeft: 0 }}><b>Min move (points)</b><i>Smallest score change that triggers a Sharp-move alert. Leave blank for the default.</i></span>
               <input type="number" min="0" step="0.5" style={{ width: 90 }}
                      value={prefs.min_jump ?? ''} placeholder="default"
-                     onChange={e => setP('min_jump', e.target.value)} /></label>
+                     onChange={e => setP('min_jump', e.target.value)} />
+            </label>
             <button onClick={savePrefs} disabled={savingPrefs}>{savingPrefs ? 'Saving…' : 'Save'}</button>
           </div>
           <div className="hint" style={{ marginBottom: 4 }}>Muted scripts (no alerts):</div>
@@ -91,8 +109,14 @@ export default function Alerts({ go, openScore, onSeen }) {
         </div>
       )}
 
+      <div className="alert-srcfilter">
+        <button className={'chip' + (srcFilter === 'all' ? ' active' : '')} onClick={() => setSrcFilter('all')}>All ({allItems.length})</button>
+        <button className={'chip' + (srcFilter === 'watchlist' ? ' active' : '')} onClick={() => setSrcFilter('watchlist')}>Watchlist ({srcCount('watchlist')})</button>
+        <button className={'chip' + (srcFilter === 'portfolio' ? ' active' : '')} onClick={() => setSrcFilter('portfolio')}>Holdings ({srcCount('portfolio')})</button>
+      </div>
+
       <div className="panel" style={{ marginTop: 10 }}>
-        {items.length === 0 && <p className="hint">No alerts yet.</p>}
+        {items.length === 0 && <p className="hint">{allItems.length === 0 ? 'No alerts yet.' : 'No alerts for this filter.'}</p>}
         {items.map(a => (
           <div key={a.id} className={'alert-row row-click' + (a.is_read ? '' : ' unread')}
                title="Open in Stock Scores" onClick={() => open(a)}>

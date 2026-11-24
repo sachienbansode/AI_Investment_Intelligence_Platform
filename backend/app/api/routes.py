@@ -271,16 +271,19 @@ async def index_constituents(user: User = Depends(get_current_user)):
             n500.append(inst.symbol)
         if inst.sector:
             sectors.setdefault(inst.sector, []).append(inst.symbol)
+    from app.data.nifty500 import NIFTY500_SYMBOLS
     # Fallbacks so the filters work before a tagged re-import:
     if not n50:
         n50 = [sym for sym, _n, _s in NIFTY50_SEED]
-    if not n500:
-        # Use the bundled NIFTY 500 constituent list intersected with the
-        # instruments we actually hold — so the filter is the real ~500 even after
-        # importing all NSE (and even when the DB tags were never applied). Only if
-        # nothing matches do we fall back to the whole table.
-        from app.data.nifty500 import NIFTY500_SYMBOLS
-        n500 = [s for s in allnse if s in NIFTY500_SYMBOLS] or allnse
+    n50 = list(dict.fromkeys(n50))
+    # Nifty 500 = the CANONICAL constituents we actually hold, deduped and bounded to
+    # the real index list. This drops stray/placeholder NIFTY500 tags (e.g. a dummy
+    # symbol like DUMMYHEG, or non-constituents) so the count is exactly the index
+    # size (500), not 501+. Falls back to tagged/whole table only if canonical yields
+    # nothing (e.g. symbols named differently from the bundled list).
+    held = set(allnse)
+    canon500 = [s for s in NIFTY500_SYMBOLS if s in held]
+    n500 = canon500 or list(dict.fromkeys(n500)) or allnse
     out = {"Nifty 50": n50, "Nifty 500": n500}
     if len(allnse) > len(n500):
         out["All NSE"] = allnse             # only show when broader than Nifty 500
@@ -941,6 +944,28 @@ async def compare(a: str, b: str, language: str = "en",
         raise HTTPException(400, "Choose two different symbols")
     from app.services.assistant import compare_stocks
     return await compare_stocks(a2, b2, language)
+
+
+@router.get("/compare-multi")
+async def compare_multi(symbols: str, language: str = "en",
+                        user: User = Depends(get_current_user)):
+    """Compare 2-5 NSE scripts side by side with an advice-free AI summary.
+    `symbols` is a comma-separated list, e.g. ?symbols=RELIANCE,TCS,INFY."""
+    syms = [s.upper().strip() for s in (symbols or "").split(",") if s.strip()]
+    seen, uniq = set(), []
+    for s in syms:
+        if s not in seen:
+            seen.add(s)
+            uniq.append(s)
+    if len(uniq) < 2:
+        raise HTTPException(400, "Provide at least two different symbols")
+    if len(uniq) > 5:
+        raise HTTPException(400, "Compare up to 5 stocks at a time")
+    from app.services.assistant import compare_many
+    try:
+        return await compare_many(uniq, language)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/compare/random")

@@ -7,7 +7,7 @@ import Sparkline from './Sparkline.jsx'
 
 function scoreColor(v) {
   if (v >= 65) return 'var(--green)'
-  if (v >= 45) return 'var(--amber)'
+  if (v >= 50) return 'var(--amber)'
   return 'var(--red)'
 }
 
@@ -64,8 +64,8 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
   const top = [...flist].sort((a, b) => b.composite_score - a.composite_score).slice(0, 5)
   const approved = flist.filter(s => s.quality_status === 'approved').length
   const strongN = flist.filter(s => s.composite_score >= 65).length
-  const neutralN = flist.filter(s => s.composite_score >= 45 && s.composite_score < 65).length
-  const weakN = flist.filter(s => s.composite_score < 45).length
+  const neutralN = flist.filter(s => s.composite_score >= 50 && s.composite_score < 65).length
+  const weakN = flist.filter(s => s.composite_score < 50).length
   const bandTot = flist.length || 1
   const bandPct = c => Math.round(c / bandTot * 100)
   const gainers = (trend?.gainers || []).filter(m => fsyms.has(m.symbol))
@@ -115,13 +115,13 @@ export default function Dashboard({ go, openScore, openSector, scoreLabel = 'NIY
         <div className="band-dist" title="Distribution of scripts across score bands on the latest run">
           <div className="band-bar">
             <div className="band-seg strong" style={{ width: `${strongN / bandTot * 100}%` }} title={`Strong 65+: ${strongN} (${bandPct(strongN)}%)`} />
-            <div className="band-seg neutral" style={{ width: `${neutralN / bandTot * 100}%` }} title={`Neutral 45-64: ${neutralN} (${bandPct(neutralN)}%)`} />
-            <div className="band-seg weak" style={{ width: `${weakN / bandTot * 100}%` }} title={`Weak <45: ${weakN} (${bandPct(weakN)}%)`} />
+            <div className="band-seg neutral" style={{ width: `${neutralN / bandTot * 100}%` }} title={`Neutral 50-64: ${neutralN} (${bandPct(neutralN)}%)`} />
+            <div className="band-seg weak" style={{ width: `${weakN / bandTot * 100}%` }} title={`Weak <50: ${weakN} (${bandPct(weakN)}%)`} />
           </div>
           <div className="band-keys">
             <span className="band-key"><i className="dot" style={{ background: 'var(--green)' }} /><b>{strongN}</b> Strong <small>65+</small><em>{bandPct(strongN)}%</em></span>
-            <span className="band-key"><i className="dot" style={{ background: 'var(--amber)' }} /><b>{neutralN}</b> Neutral <small>45-64</small><em>{bandPct(neutralN)}%</em></span>
-            <span className="band-key"><i className="dot" style={{ background: 'var(--red)' }} /><b>{weakN}</b> Weak <small>&lt;45</small><em>{bandPct(weakN)}%</em></span>
+            <span className="band-key"><i className="dot" style={{ background: 'var(--amber)' }} /><b>{neutralN}</b> Neutral <small>50-64</small><em>{bandPct(neutralN)}%</em></span>
+            <span className="band-key"><i className="dot" style={{ background: 'var(--red)' }} /><b>{weakN}</b> Weak <small>&lt;50</small><em>{bandPct(weakN)}%</em></span>
           </div>
         </div>
       )}

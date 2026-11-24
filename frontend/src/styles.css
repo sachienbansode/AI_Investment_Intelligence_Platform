@@ -1561,3 +1561,51 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
   box-shadow: 0 6px 16px rgba(11,37,69,.16); padding: 3px 8px; font-size: 11px;
   font-weight: 600; white-space: nowrap; pointer-events: none; z-index: 6;
   font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+
+/* ── Watchlist star button (stocks page / chat detail / screener) ───────── */
+.watch-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  border-radius: 999px; padding: 6px 13px; font-weight: 600; font-size: .82rem;
+  transition: all .15s ease; }
+.watch-btn:hover { border-color: var(--accent); color: var(--text); }
+.watch-btn .watch-star { color: var(--amber); font-size: .95rem; line-height: 1; }
+.watch-btn.on { border-color: var(--amber); color: var(--amber); background: rgba(217,119,6,.08); }
+.watch-star-btn { border: 0; background: none; cursor: pointer; color: var(--faint);
+  font-size: 1.05rem; line-height: 1; padding: 2px 4px; transition: color .15s, transform .12s; }
+.watch-star-btn:hover { transform: scale(1.15); color: var(--amber); }
+.watch-star-btn.on { color: var(--amber); }
+
+/* ── Compare: multi-stock fields ────────────────────────────────────────── */
+.cmp-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cmp-field { position: relative; display: inline-flex; align-items: center; }
+.cmp-field input { padding-right: 26px; }
+.cmp-x { position: absolute; right: 6px; border: 0; background: none; cursor: pointer;
+  color: var(--muted); font-size: 16px; line-height: 1; padding: 2px; }
+.cmp-x:hover { color: var(--red); }
+.cmp-add { white-space: nowrap; }
+
+/* ── Market News filters ────────────────────────────────────────────────── */
+.news-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 10px 0 6px; }
+.news-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem;
+  color: var(--muted); font-weight: 600; }
+.news-filters select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: var(--text); font: inherit; font-size: .82rem; }
+@media (max-width: 680px) { .news-filters label { font-size: .75rem; } .news-filters { gap: 8px; } }
+
+/* ── Alerts: explained preferences + source filter ──────────────────────── */
+.alert-prefs { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.alert-prefs .pref-row { display: flex; align-items: flex-start; gap: 10px; }
+.alert-prefs .pref-row input[type="checkbox"] { margin-top: 3px; flex: none; }
+.alert-prefs .pref-row > span { display: flex; flex-direction: column; }
+.alert-prefs .pref-row b { font-size: .9rem; }
+.alert-prefs .pref-row i { font-style: normal; color: var(--muted); font-size: .8rem; margin-top: 2px; }
+.alert-prefs > button { align-self: flex-start; }
+.alert-srcfilter { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.alert-srcfilter .chip.active { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; border-color: transparent; }
+
+/* ── Score/Price chart tabs (score-history panel + stock detail) ─────────── */
+.sh-tabs { display: inline-flex; align-items: center; gap: 4px; }
+.sh-tab { border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  border-radius: 8px; padding: 4px 11px; font-weight: 600; font-size: .8rem; cursor: pointer; }
+.sh-tab.on { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; border-color: transparent; }
+.sd-charttabs { display: inline-flex; gap: 6px; margin-right: 10px; }

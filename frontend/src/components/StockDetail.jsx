@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { idxTag, mdToHtml } from '../md.js'
+import WatchButton from './WatchButton.jsx'
+import ScoreHistoryPanel from './ScoreHistoryPanel.jsx'
 
 // ── Global stock search (topbar). Loads the instrument universe once, filters by
 //    symbol OR company name, opens the detail page. ──────────────────────────
@@ -78,7 +80,7 @@ function fmtExplanation(t) {
     .trim()
 }
 
-function band(score) { return score == null ? 'na' : score >= 65 ? 'g' : score >= 45 ? 'a' : 'r' }
+function band(score) { return score == null ? 'na' : score >= 65 ? 'g' : score >= 50 ? 'a' : 'r' }
 
 // Interactive price chart (matches the dashboard chart: value axis, crosshair,
 // hover tooltip). Points are { c: close, t?: date/label }.
@@ -150,6 +152,7 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
   const [range, setRange] = useState('1M')
+  const [chartTab, setChartTab] = useState('price')   // 'price' | 'score'
   const [ph, setPh] = useState(null)
   const [phLoad, setPhLoad] = useState(false)
   const [perf, setPerf] = useState(null)
@@ -217,14 +220,24 @@ export default function StockDetail({ symbol, openStock, askAI, scoreLabel = 'NI
       </div>
 
       <div className="sd-ranges">
-        {RANGES.map(r => (
+        <span className="sd-charttabs">
+          <button className={'sd-rg' + (chartTab === 'price' ? ' on' : '')} onClick={() => setChartTab('price')}>Price</button>
+          <button className={'sd-rg' + (chartTab === 'score' ? ' on' : '')} onClick={() => setChartTab('score')}>{scoreLabel}</button>
+        </span>
+        {chartTab === 'price' && RANGES.map(r => (
           <button key={r} className={'sd-rg' + (r === range ? ' on' : '')} onClick={() => setRange(r)}>{r}</button>
         ))}
-        {askAI && <button className="ghost sm sd-ask" onClick={() => askAI('Tell me about ' + d.symbol + ' (' + d.name + ')')}>Ask the assistant</button>}
+        <span className="sd-ask" style={{ display: 'inline-flex', gap: 8 }}>
+          <WatchButton symbol={d.symbol} />
+          {askAI && <button className="ghost sm" onClick={() => askAI('Tell me about ' + d.symbol + ' (' + d.name + ')')}>Ask the assistant</button>}
+        </span>
       </div>
 
       <div className="panel sd-chartwrap">
-        {phLoad ? <div className="sd-nochart">Loading chart…</div> : <PriceChart points={ph?.points} prevClose={prev} up={up} labelFor={i => (ph?.points?.[i]?.t) || ''} />}
+        {chartTab === 'score'
+          ? <ScoreHistoryPanel symbol={d.symbol} scoreLabel={scoreLabel} />
+          : phLoad ? <div className="sd-nochart">Loading chart…</div>
+            : <PriceChart points={ph?.points} prevClose={prev} up={up} labelFor={i => (ph?.points?.[i]?.t) || ''} />}
       </div>
 
       {(() => {

@@ -5,7 +5,7 @@ import Pager from './Pager.jsx'
 import { fmtIST, fmtDate } from '../fmt.js'
 import { mdToHtml } from '../md.js'
 
-function rColor(v) { return v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)' }
+function rColor(v) { return v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)' }
 
 export default function Admin() {
   const [view, setView] = useState('stats')
@@ -1328,10 +1328,22 @@ function Research() {
   const [file, setFile] = useState(null)
   const [meta, setMeta] = useState({ title: '', source: '' })
   const [paste, setPaste] = useState({ title: '', source: '', text: '' })
+  const [kb, setKb] = useState(null)
 
   const load = () => api.research().then(d => { setDocs(d.documents); setNote(d.note) })
     .catch(e => setErr(e.message))
-  useEffect(() => { load() }, [])
+  const loadKb = () => api.knowledgeStatus().then(setKb).catch(() => {})
+  useEffect(() => { load(); loadKb() }, [])
+
+  async function seedKb(force) {
+    setErr(''); setMsg(''); setBusy(true)
+    try {
+      const r = await api.seedKnowledge(force)
+      setMsg(`Knowledge base: ${r.added.length} added, ${r.skipped.length} already present.`)
+      loadKb(); load()
+    } catch (ex) { setErr(ex.message) }
+    setBusy(false)
+  }
 
   async function upload(e) {
     e.preventDefault(); setErr(''); setMsg(''); setBusy(true)
@@ -1364,6 +1376,23 @@ function Research() {
       <p className="hint">{note || 'Broker research uploaded here grounds the AI assistant as cited reference material.'}</p>
       {err && <p className="note">{err}</p>}
       {msg && <p className="hint">{msg}</p>}
+
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h4 style={{ margin: '0 0 2px' }}>Broking knowledge base</h4>
+            <p className="hint" style={{ margin: 0 }}>
+              Curated concept articles (order types, F&amp;O, ratios, regulation…) that let the
+              assistant answer "what is…" questions. Auto-seeds on boot and daily.
+              {kb ? ` Currently ${kb.seeded}/${kb.expected} docs (${kb.chunks} chunks).` : ''}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="sm" disabled={busy} onClick={() => seedKb(false)}>Seed missing</button>
+            <button className="sm ghost" disabled={busy} onClick={() => seedKb(true)}>Re-seed all</button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid2">
         <form className="panel" onSubmit={upload}>

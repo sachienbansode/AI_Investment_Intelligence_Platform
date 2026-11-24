@@ -193,6 +193,8 @@ export const api = {
     document.body.appendChild(a); a.click()
     setTimeout(() => { URL.revokeObjectURL(url); a.remove() }, 1500)
   },
+  compareMulti: (symbols, language = 'en') =>
+    http('/compare-multi?' + new URLSearchParams({ symbols: symbols.join(','), language })),
   compareRandom: () => http('/compare/random'),
   downloadPortfolioPdf: async (holdings) => {
     const headers = { 'Content-Type': 'application/json' }
@@ -341,6 +343,8 @@ export const api = {
   runFixQueue: () => http('/admin/fix-queue/run', { method: 'POST' }),
   fixDecide: (pid, action) => http('/admin/fix-queue/' + pid + '/decide', { method: 'POST', body: JSON.stringify({ action }) }),
   fixInput: (pid, note) => http('/admin/fix-queue/' + pid + '/input', { method: 'POST', body: JSON.stringify({ note }) }),
+  knowledgeStatus: () => http('/admin/knowledge/status'),
+  seedKnowledge: (force = false) => http('/admin/knowledge/seed' + (force ? '?force=true' : ''), { method: 'POST' }),
   dataSourceCreate: (body) => http('/admin/data-sources', { method: 'POST', body: JSON.stringify(body) }),
   dataSourceUpdate: (id, body) => http('/admin/data-sources/' + id, { method: 'PUT', body: JSON.stringify(body) }),
   dataSourceDelete: (id) => http('/admin/data-sources/' + id, { method: 'DELETE' }),

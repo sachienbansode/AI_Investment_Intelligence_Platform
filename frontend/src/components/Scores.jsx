@@ -4,6 +4,7 @@ import { api } from '../api.js'
 import { mdToHtml, idxTag } from '../md.js'
 import Sparkline from './Sparkline.jsx'
 import ScoreHistoryPanel from './ScoreHistoryPanel.jsx'
+import WatchButton from './WatchButton.jsx'
 import { toast } from '../dialog.jsx'
 import { useNames } from '../names.js'
 
@@ -197,6 +198,7 @@ export default function Scores({ isAdmin, askAI, seed, clearSeed, sectorSeed, cl
             <Fragment key={s.symbol}>
               <tr className="row-click" onClick={() => setOpen(open === s.symbol ? null : s.symbol)}>
                 <td title={names[s.symbol] || s.symbol}>
+                  <WatchButton symbol={s.symbol} variant="icon" />{' '}
                   <strong>{s.symbol}</strong> {idxTag(s.symbol) && <span className="idx-tag">{idxTag(s.symbol)}</span>}
                   {names[s.symbol] && <div className="script-name">{names[s.symbol]}</div>}
                 </td>

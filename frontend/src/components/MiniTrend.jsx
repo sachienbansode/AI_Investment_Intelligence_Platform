@@ -9,20 +9,22 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const fmtDate = d => `${d.slice(8, 10)}-${MON[(+d.slice(5, 7) || 1) - 1]}-${d.slice(2, 4)}`
 const band = v => (v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)')
 
-export default function MiniTrend({ data, color = 'var(--accent)', scoreLabel = 'NIYTRI Score' }) {
+export default function MiniTrend({ data, color = 'var(--accent)', scoreLabel = 'NIYTRI Score', metric = 'score' }) {
   const [hi, setHi] = useState(null)
-  const pts = (data || []).filter(d => d && d.score != null)
+  const isPrice = metric === 'ltp'
+  const valOf = p => (isPrice ? p.ltp : p.score)
+  const pts = (data || []).filter(d => d && valOf(d) != null)
   const n = pts.length
   if (n < 2) return <span className="hint" style={{ fontSize: '.75rem' }}>Not enough history yet.</span>
 
-  const W = 760, H = 220, M = { l: 40, r: 16, t: 22, b: 28 }
+  const W = 760, H = 220, M = { l: 46, r: 16, t: 22, b: 28 }
   const iw = W - M.l - M.r, ih = H - M.t - M.b
-  const vals = pts.map(p => p.score)
+  const vals = pts.map(valOf)
   const lo = Math.min(...vals), hv = Math.max(...vals), span = (hv - lo) || 1
   const yMin = lo - span * 0.25, yMax = hv + span * 0.25
   const X = i => M.l + (n === 1 ? iw / 2 : iw * i / (n - 1))
   const Y = v => M.t + ih * (1 - (v - yMin) / ((yMax - yMin) || 1))
-  const line = pts.map((p, i) => `${X(i)},${Y(p.score)}`).join(' ')
+  const line = pts.map((p, i) => `${X(i)},${Y(valOf(p))}`).join(' ')
   const area = `${X(0)},${M.t + ih} ${line} ${X(n - 1)},${M.t + ih}`
   const ticks = [yMin, (yMin + yMax) / 2, yMax]
   const every = Math.max(1, Math.ceil(n / 8))
@@ -44,8 +46,8 @@ export default function MiniTrend({ data, color = 'var(--accent)', scoreLabel = 
         {hi != null && <line x1={X(hi)} y1={M.t} x2={X(hi)} y2={M.t + ih}
                              stroke={color} strokeWidth="1" opacity="0.5" strokeDasharray="3 3" />}
         {pts.map((p, i) => (
-          <circle key={p.date} cx={X(i)} cy={Y(p.score)} r={hi === i ? 5 : 2.6}
-                  fill={band(p.score)} stroke="var(--panel)" strokeWidth={hi === i ? 1.5 : 0} />
+          <circle key={p.date} cx={X(i)} cy={Y(valOf(p))} r={hi === i ? 5 : 2.6}
+                  fill={isPrice ? color : band(p.score)} stroke="var(--panel)" strokeWidth={hi === i ? 1.5 : 0} />
         ))}
         {pts.map((p, i) => (i % every === 0 || i === n - 1) && (
           <text key={'d' + p.date} x={X(i)} y={H - 8}
