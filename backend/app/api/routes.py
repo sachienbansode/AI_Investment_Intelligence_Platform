@@ -1070,16 +1070,62 @@ async def _watchlist_rows(symbols: list[str]) -> list[dict]:
         db.close()
 
 
-@router.get("/watchlist")
-async def get_watchlist(user: User = Depends(get_current_user)):
-    db = SessionLocal()
+class WatchlistBody(BaseModel):
+    name: str
+
+
+@router.get("/watchlists")
+async def list_watchlists(user: User = Depends(get_current_user)):
+    """All of the user's named watchlists with item counts (default always exists)."""
+    from app.services import watchlists
+    return {"lists": watchlists.lists_for(user.id)}
+
+
+@router.post("/watchlists")
+async def create_watchlist(body: WatchlistBody, user: User = Depends(get_current_user)):
+    from app.services import watchlists
     try:
-        symbols = [r.symbol for r in
-                   db.query(WatchlistItem).filter_by(user_id=user.id)
-                   .order_by(WatchlistItem.created_at).all()]
-    finally:
-        db.close()
-    return {"watchlist": await _watchlist_rows(symbols), "disclaimer": AI_DISCLAIMER}
+        return watchlists.create(user.id, body.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/watchlists/{list_id}")
+async def rename_watchlist(list_id: int, body: WatchlistBody, user: User = Depends(get_current_user)):
+    from app.services import watchlists
+    try:
+        if not watchlists.rename(user.id, list_id, body.name):
+            raise HTTPException(404, "Watchlist not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"renamed": list_id, "name": body.name.strip()}
+
+
+@router.delete("/watchlists/{list_id}")
+async def delete_watchlist(list_id: int, user: User = Depends(get_current_user)):
+    from app.services import watchlists
+    try:
+        if not watchlists.delete(user.id, list_id):
+            raise HTTPException(404, "Watchlist not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"deleted": list_id}
+
+
+@router.get("/watchlist/membership")
+async def watchlist_membership(user: User = Depends(get_current_user)):
+    """Which symbols the user follows, and in which lists — for watchlist stars."""
+    from app.services import watchlists
+    return {"all": watchlists.all_symbols(user.id),
+            "membership": watchlists.membership(user.id)}
+
+
+@router.get("/watchlist")
+async def get_watchlist(list_id: int | None = None, user: User = Depends(get_current_user)):
+    from app.services import watchlists
+    symbols = watchlists.symbols_in(user.id, list_id)
+    return {"watchlist": await _watchlist_rows(symbols), "list_id": list_id,
+            "disclaimer": AI_DISCLAIMER}
 
 
 @router.post("/watchlist/insights")
@@ -1089,33 +1135,23 @@ async def watchlist_insights(req: WatchlistRequest, user: User = Depends(get_cur
 
 
 @router.post("/watchlist/{symbol}")
-async def add_to_watchlist(symbol: str, user: User = Depends(get_current_user)):
-    symbol = symbol.upper()
-    db = SessionLocal()
+async def add_to_watchlist(symbol: str, list_id: int | None = None,
+                           user: User = Depends(get_current_user)):
+    from app.services import watchlists
     try:
-        if not db.query(Instrument).filter_by(symbol=symbol, is_active=True).first():
-            raise HTTPException(404, f"Unknown instrument {symbol}")
-        if db.query(WatchlistItem).filter_by(user_id=user.id, symbol=symbol).first():
-            raise HTTPException(409, f"{symbol} already in watchlist")
-        db.add(WatchlistItem(user_id=user.id, symbol=symbol))
-        db.commit()
-    finally:
-        db.close()
-    return {"added": symbol}
+        return watchlists.add(user.id, symbol, list_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
 
 
 @router.delete("/watchlist/{symbol}")
-async def remove_from_watchlist(symbol: str, user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    try:
-        n = (db.query(WatchlistItem)
-             .filter_by(user_id=user.id, symbol=symbol.upper()).delete())
-        db.commit()
-    finally:
-        db.close()
+async def remove_from_watchlist(symbol: str, list_id: int | None = None,
+                                user: User = Depends(get_current_user)):
+    from app.services import watchlists
+    n = watchlists.remove(user.id, symbol, list_id)
     if not n:
         raise HTTPException(404, "Not in watchlist")
-    return {"removed": symbol.upper()}
+    return {"removed": symbol.upper(), "count": n}
 
 
 # ── Agents dashboard ─────────────────────────────────────────────

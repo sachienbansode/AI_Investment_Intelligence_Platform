@@ -1609,3 +1609,37 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(79,142,24
   border-radius: 8px; padding: 4px 11px; font-weight: 600; font-size: .8rem; cursor: pointer; }
 .sh-tab.on { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; border-color: transparent; }
 .sd-charttabs { display: inline-flex; gap: 6px; margin-right: 10px; }
+
+/* ── Watchlist star popover (list picker) ───────────────────────────────── */
+.wb-wrap { position: relative; display: inline-block; }
+.wb-pop { position: absolute; z-index: 60; top: 100%; left: 0; margin-top: 4px;
+  min-width: 210px; background: var(--panel); border: 1px solid var(--border2);
+  border-radius: 10px; box-shadow: 0 16px 40px rgba(11,37,69,.22); padding: 8px; }
+.wb-pop-h { font-size: .8rem; color: var(--muted); padding: 2px 4px 6px; }
+.wb-pop-h b { color: var(--text); }
+.wb-pop-lists { max-height: 190px; overflow-y: auto; }
+.wb-pop-row { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 7px; cursor: pointer; }
+.wb-pop-row:hover { background: var(--tag-bg); }
+.wb-pop-row .wb-pop-name { flex: 1; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-pop-row em { font-style: normal; color: var(--muted); font-size: .72rem; }
+.wb-pop-new { display: flex; gap: 6px; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+.wb-pop-new input { flex: 1; min-width: 0; padding: 6px 9px; border: 1px solid var(--border);
+  border-radius: 7px; background: var(--bg2); font: inherit; font-size: .82rem; }
+
+/* ── Watchlist: multiple named lists bar ────────────────────────────────── */
+.wl-listbar { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 12px; }
+.wl-tabs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wl-tab { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: .85rem; transition: all .15s; }
+.wl-tab:hover { color: var(--text); border-color: var(--accent); }
+.wl-tab.on { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; border-color: transparent; }
+.wl-tab em { font-style: normal; font-size: .72rem; opacity: .75; background: rgba(0,0,0,.08);
+  padding: 0 6px; border-radius: 999px; }
+.wl-tab.on em { background: rgba(255,255,255,.25); }
+.wl-addtab { color: var(--accent); border-style: dashed; }
+.wl-newlist { display: inline-flex; gap: 6px; align-items: center; }
+.wl-newlist input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg2); font: inherit; font-size: .82rem; }
+.wl-listactions { display: flex; gap: 6px; }

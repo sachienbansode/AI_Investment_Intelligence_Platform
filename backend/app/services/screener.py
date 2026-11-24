@@ -155,17 +155,16 @@ async def _thematic_fallback(prompt: str, theme_hint: str = "") -> str:
         return ""
     rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0)))
 
-    # 3) build the table in code (clean — no LLM markdown artefacts)
-    out = ["| Symbol | Company | Sector | NIYTRI Score | Why relevant |",
-           "|---|---|---|--:|---|"]
-    for r in rows[:12]:
-        sc = r["score"] if r["score"] is not None else "—"
-        out.append(f"| {r['symbol']} | {r['name']} | {r['sector']} | {sc} | {r['why']} |")
+    # 3) STRUCTURED result so the UI renders a real table (with watchlist stars),
+    #    not a markdown blob — columns/rows match the normal screen shape.
     n = min(len(rows), 12)
-    note = (f"> **{n} theme-relevant {'name' if n == 1 else 'names'}** — identified from market "
-            "knowledge and matched to our tracked data (NIYTRI Score shown where we rate the stock). "
-            "No precise metric screen was possible for this theme on the connected data.")
-    return note + "\n\n" + "\n".join(out)
+    cols = ["Symbol", "Company", "Sector", "NIYTRI Score", "Why relevant"]
+    out_rows = [{"Symbol": r["symbol"], "Company": r["name"], "Sector": r["sector"],
+                 "NIYTRI Score": r["score"], "Why relevant": r["why"]} for r in rows[:12]]
+    note = (f"**{n} theme-relevant {'name' if n == 1 else 'names'}** — identified from market "
+            "knowledge and matched to our tracked data (NIYTRI Score shown where we rate the "
+            "stock). No precise metric screen was possible for this theme on the connected data.")
+    return {"summary": note, "columns": cols, "rows": out_rows}
 
 
 def _tag_result(theme: str, tags: list) -> dict:
@@ -289,9 +288,10 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
     sid = spec.get("source_id")
     src = next((s for s in db_sources if s.id == sid), db_sources[0])
 
-    def _fb_payload(summary, alts=None):
-        return {"summary": summary, "rows": [], "columns": [], "sql": "",
-                "source": "NIYTRI analysis", "fallback": True,
+    def _fb_payload(fb, alts=None):
+        return {"summary": fb.get("summary", ""), "rows": fb.get("rows", []),
+                "columns": fb.get("columns", []), "sql": "",
+                "source": BRAND, "fallback": True,
                 "assumptions": "", "alternatives": alts or [],
                 "disclaimer": AI_DISCLAIMER}
 

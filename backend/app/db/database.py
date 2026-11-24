@@ -94,13 +94,27 @@ class AppSetting(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class Watchlist(Base):
+    """A named watchlist belonging to a user. Each user has a default list and may
+    create more. Items reference a list via watchlist_items.watchlist_id."""
+    __tablename__ = "watchlists"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    name = Column(String, default="My Watchlist")
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class WatchlistItem(Base):
     __tablename__ = "watchlist_items"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, index=True)
+    watchlist_id = Column(Integer, index=True, nullable=True)   # FK -> watchlists.id
     symbol = Column(String)
     created_at = Column(DateTime, default=utcnow)
-    __table_args__ = (UniqueConstraint("user_id", "symbol", name="uq_watch_user_symbol"),)
+    # A symbol may appear in multiple lists, but only once per list.
+    __table_args__ = (UniqueConstraint("user_id", "watchlist_id", "symbol",
+                                       name="uq_watch_user_list_symbol"),)
 
 
 class UserActivity(Base):
@@ -500,6 +514,7 @@ class StockPrice(Base):
 
 _MIGRATIONS = [
     ("chat_messages", "user_id", "INTEGER"),
+    ("watchlist_items", "watchlist_id", "INTEGER"),
     ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
     ("stock_scores", "reviewed_at", "DATETIME"),
     ("stock_scores", "ai_review", "JSON"),
@@ -599,6 +614,7 @@ def init_db():
     else:  # PostgreSQL: idempotently add columns introduced since v1 (auto-heal)
         pg_cols = [
             ("chat_messages", "user_id", "INTEGER"),
+            ("watchlist_items", "watchlist_id", "INTEGER"),
             ("stock_scores", "reviewed_by", "VARCHAR DEFAULT ''"),
             ("stock_scores", "reviewed_at", "TIMESTAMPTZ"),
             ("stock_scores", "ai_review", "JSON"),
@@ -632,10 +648,43 @@ def init_db():
         with engine.connect() as conn:
             for table, col, ddl in pg_cols:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+            # Multi-watchlist: the old (user_id, symbol) unique blocks a symbol from
+            # living in more than one list — drop it (uniqueness is now per list, in code).
+            try:
+                conn.execute(text("ALTER TABLE watchlist_items "
+                                  "DROP CONSTRAINT IF EXISTS uq_watch_user_symbol"))
+            except Exception:
+                pass
             conn.commit()
     _seed_instruments()
     _seed_roles()
+    _heal_watchlists()
     # Admin creation: run `python scripts/create_admin.py` (interactive).
+
+
+def _heal_watchlists():
+    """Give every user with legacy watchlist items a default 'My Watchlist' and
+    assign those items to it. Idempotent: only touches items with NULL watchlist_id."""
+    db = SessionLocal()
+    try:
+        user_ids = [r[0] for r in db.query(WatchlistItem.user_id)
+                    .filter(WatchlistItem.watchlist_id.is_(None)).distinct().all()]
+        for uid in user_ids:
+            wl = (db.query(Watchlist).filter_by(user_id=uid)
+                  .order_by(Watchlist.id).first())
+            if not wl:
+                wl = Watchlist(user_id=uid, name="My Watchlist")
+                db.add(wl)
+                db.flush()
+            (db.query(WatchlistItem)
+             .filter(WatchlistItem.user_id == uid, WatchlistItem.watchlist_id.is_(None))
+             .update({WatchlistItem.watchlist_id: wl.id}))
+        if user_ids:
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
 
 def _seed_instruments():

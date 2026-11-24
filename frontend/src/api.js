@@ -287,9 +287,14 @@ export const api = {
   sendInvites: (emails) => http('/auth/send-invites', { method: 'POST', body: JSON.stringify({ emails }) }),
   // instruments + watchlist + agents
   instruments: () => http('/instruments'),
-  watchlist: () => http('/watchlist'),
-  watchAdd: (s) => http(`/watchlist/${s}`, { method: 'POST' }),
-  watchRemove: (s) => http(`/watchlist/${s}`, { method: 'DELETE' }),
+  watchlist: (listId) => http('/watchlist' + (listId != null ? '?list_id=' + listId : '')),
+  watchAdd: (s, listId) => http('/watchlist/' + encodeURIComponent(s) + (listId != null ? '?list_id=' + listId : ''), { method: 'POST' }),
+  watchRemove: (s, listId) => http('/watchlist/' + encodeURIComponent(s) + (listId != null ? '?list_id=' + listId : ''), { method: 'DELETE' }),
+  watchlists: () => http('/watchlists'),
+  createWatchlist: (name) => http('/watchlists', { method: 'POST', body: JSON.stringify({ name }) }),
+  renameWatchlist: (id, name) => http('/watchlists/' + id, { method: 'PATCH', body: JSON.stringify({ name }) }),
+  deleteWatchlist: (id) => http('/watchlists/' + id, { method: 'DELETE' }),
+  watchMembership: () => http('/watchlist/membership'),
   agentsStatus: () => http('/agents/status'),
   adminInstruments: () => http('/admin/instruments'),
   addInstrument: (symbol, name, sector) =>

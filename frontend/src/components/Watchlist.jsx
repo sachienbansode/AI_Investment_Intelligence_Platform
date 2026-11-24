@@ -5,12 +5,14 @@ import { fmtDate } from '../fmt.js'
 import { SCORE_DEFINITION } from './Scores.jsx'
 import Pager from './Pager.jsx'
 import ScoreHistoryPanel from './ScoreHistoryPanel.jsx'
+import { invalidateWatch } from './WatchButton.jsx'
+import { confirmDialog, toast } from '../dialog.jsx'
 
 const scoreColor = v =>
-  v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 45 ? 'var(--amber)' : 'var(--red)'
+  v == null ? 'var(--muted)' : v >= 65 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)'
 const fmtCr = v =>
   v == null ? '—' : '₹' + Math.round(v / 1e7).toLocaleString('en-IN') + ' Cr'
-const band = v => v == null ? '' : v >= 65 ? 'Strong' : v >= 45 ? 'Neutral' : 'Weak'
+const band = v => v == null ? '' : v >= 65 ? 'Strong' : v >= 50 ? 'Neutral' : 'Weak'
 
 export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
   const [rows, setRows] = useState([])
@@ -27,12 +29,52 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
   const [expanded, setExpanded] = useState(null)   // symbol whose score-history is open
   const [hi, setHi] = useState(0)
   const boxRef = useRef(null)
+  const [lists, setLists] = useState([])
+  const [activeList, setActiveList] = useState(null)
+  const [newListOpen, setNewListOpen] = useState(false)
+  const [newListName, setNewListName] = useState('')
 
-  const load = () => api.watchlist().then(d => setRows(d.watchlist)).catch(e => setErr(e.message))
+  const load = (listId) => api.watchlist(listId ?? activeList)
+    .then(d => setRows(d.watchlist)).catch(e => setErr(e.message))
+  const loadLists = async (selectId) => {
+    try {
+      const d = await api.watchlists()
+      const ls = d.lists || []
+      setLists(ls)
+      const sel = selectId ?? (ls.some(l => l.id === activeList) ? activeList : (ls[0]?.id ?? null))
+      setActiveList(sel)
+      return sel
+    } catch (e) { setErr(e.message); return null }
+  }
   useEffect(() => {
-    load()
+    loadLists()
     api.instruments().then(d => setAll(d.instruments)).catch(() => {})
   }, [])
+  useEffect(() => { if (activeList != null) { setPage(0); setExpanded(null); load(activeList) } }, [activeList])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeName = lists.find(l => l.id === activeList)?.name || 'Watchlist'
+
+  async function createList() {
+    const name = newListName.trim()
+    if (!name) return
+    try {
+      const l = await api.createWatchlist(name)
+      setNewListName(''); setNewListOpen(false)
+      await loadLists(l.id); invalidateWatch()
+    } catch (e) { toast(e.message || 'Could not create list', { type: 'error' }) }
+  }
+  async function renameList() {
+    const name = (window.prompt('Rename watchlist', activeName) || '').trim()
+    if (!name || name === activeName) return
+    try { await api.renameWatchlist(activeList, name); await loadLists(activeList); invalidateWatch() }
+    catch (e) { toast(e.message || 'Could not rename', { type: 'error' }) }
+  }
+  async function deleteList() {
+    if (!(await confirmDialog(`Delete the "${activeName}" watchlist and its scripts?`,
+      { title: 'Delete watchlist', confirmText: 'Delete', danger: true }))) return
+    try { const sel = await (async () => { await api.deleteWatchlist(activeList); return null })(); await loadLists(sel); invalidateWatch() }
+    catch (e) { toast(e.message || 'Could not delete', { type: 'error' }) }
+  }
   useEffect(() => {
     const away = e => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', away); return () => document.removeEventListener('mousedown', away)
@@ -50,7 +92,7 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
     const s = (typeof sym === 'string' ? sym : pick).trim().toUpperCase()
     if (!s) return
     setBusy(true); setErr(''); setOpen(false)
-    try { await api.watchAdd(s); setPick(''); await load() }
+    try { await api.watchAdd(s, activeList); setPick(''); await load(activeList); loadLists(activeList); invalidateWatch() }
     catch (e) { setErr(e.message) }
     setBusy(false)
   }
@@ -63,7 +105,8 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
     else if (e.key === 'Enter') { e.preventDefault(); choose(matches[hi].symbol) }
   }
   async function remove(sym) {
-    try { await api.watchRemove(sym); await load() } catch (e) { setErr(e.message) }
+    try { await api.watchRemove(sym, activeList); await load(activeList); loadLists(activeList); invalidateWatch() }
+    catch (e) { setErr(e.message) }
   }
 
   function setSort(key) {
@@ -115,6 +158,33 @@ export default function Watchlist({ scoreLabel = 'NIYTRI Score' }) {
         .wl-opt b{min-width:74px}
         .wl-opt span{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       `}</style>
+
+      <div className="wl-listbar">
+        <div className="wl-tabs">
+          {lists.map(l => (
+            <button key={l.id} className={'wl-tab' + (l.id === activeList ? ' on' : '')}
+                    onClick={() => setActiveList(l.id)}>
+              {l.name}<em>{l.count}</em>
+            </button>
+          ))}
+          {newListOpen
+            ? <span className="wl-newlist">
+                <input autoFocus value={newListName} placeholder="List name…"
+                       onChange={e => setNewListName(e.target.value)}
+                       onKeyDown={e => { if (e.key === 'Enter') createList(); if (e.key === 'Escape') { setNewListOpen(false); setNewListName('') } }} />
+                <button className="sm" disabled={!newListName.trim()} onClick={createList}>Create</button>
+                <button className="sm ghost" onClick={() => { setNewListOpen(false); setNewListName('') }}>Cancel</button>
+              </span>
+            : <button className="wl-tab wl-addtab" onClick={() => setNewListOpen(true)}>+ New list</button>}
+        </div>
+        {activeList != null && lists.length > 0 && (
+          <div className="wl-listactions">
+            <button className="ghost sm" onClick={renameList} title="Rename this watchlist">Rename</button>
+            {lists.length > 1 && <button className="ghost sm" onClick={deleteList} title="Delete this watchlist">Delete</button>}
+          </div>
+        )}
+      </div>
+
       <div className="toolbar">
         <div className="wl-combo" ref={boxRef}>
           <input value={pick} placeholder="Search script by symbol or name…" autoComplete="off"
