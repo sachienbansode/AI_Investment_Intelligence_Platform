@@ -194,6 +194,14 @@ def _tag_result(theme: str, tags: list) -> dict:
             "disclaimer": AI_DISCLAIMER}
 
 
+def _metric_map() -> str:
+    try:
+        from app.services.metric_catalog import catalog_text
+        return catalog_text()
+    except Exception:
+        return ""
+
+
 async def _alternatives(prompt: str, schema_text: str = "") -> list:
     """Propose 3-5 ALTERNATIVE natural-language screens when the user's screen can't
     be built or returns nothing - looser versions of their ask, or closely related
@@ -268,7 +276,7 @@ async def run_screen(prompt: str, source_id=None, max_rows: int = 50) -> dict:
         "for, return an EMPTY sql and say what's missing — do NOT force a loose name match.\n"
         "Respond with STRICT JSON only: "
         '{"source_id": <int>, "sql": "<sql or empty>", "assumptions": "<short>"}.' + theme_hint +
-        "\n\nSCHEMA:\n" + schema)
+        "\n\n" + _metric_map() + "\n\nSCHEMA:\n" + schema)
     try:
         plan = await get_llm_router().complete(plan_sys, "Request: " + prompt,
                                                task="screener_plan", max_tokens=600, temperature=0.0)

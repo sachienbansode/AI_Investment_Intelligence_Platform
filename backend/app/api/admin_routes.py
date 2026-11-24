@@ -1917,6 +1917,22 @@ def fix_queue_decide(pid: int, req: FixDecision, admin: User = Depends(require_a
     return res
 
 
+@router.get("/knowledge/status")
+def knowledge_status(admin: User = Depends(require_admin)):
+    """Broking knowledge-base seed status (how many concept docs are in the RAG store)."""
+    from app.services import knowledge_base
+    return knowledge_base.status()
+
+
+@router.post("/knowledge/seed")
+async def knowledge_seed(force: bool = False, admin: User = Depends(require_admin)):
+    """Seed (or re-seed) the curated broking knowledge base into the research store."""
+    from app.services import knowledge_base
+    res = await knowledge_base.seed(force=force)
+    audit_log("knowledge_seed", by=admin.email, added=len(res.get("added", [])))
+    return res
+
+
 @router.post("/fix-queue/{pid}/input")
 async def fix_queue_input(pid: int, req: FixInput, admin: User = Depends(require_admin)):
     """Admin adds input -> agent revises the proposal and returns it to 'pending'."""

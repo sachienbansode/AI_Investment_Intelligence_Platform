@@ -142,6 +142,20 @@ async def lifespan(app: FastAPI):
                       id="schema_refresh", replace_existing=True,
                       misfire_grace_time=6 * 3600, coalesce=True, max_instances=1)
 
+    # Seed the curated broking knowledge base into the RAG store (idempotent) so the
+    # assistant can ground concept questions ("what is a covered call", "CNC vs MIS").
+    async def _seed_kb():
+        try:
+            from app.services.knowledge_base import seed as _kb_seed
+            await _kb_seed()
+        except Exception as e:
+            log.warning("knowledge-base seed failed: %s", e)
+    try:
+        import asyncio as _aio
+        _aio.get_event_loop().create_task(_seed_kb())
+    except Exception:
+        pass
+
     # Feedback-Triage agent (~01:30 IST): cluster 'not helpful' answers and propose
     # fixes for admin review. Approved guidance/setting fixes apply live (no deploy).
     async def _run_feedback_agent():

@@ -1177,9 +1177,7 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                 _dbs = [s for s in _ds.enabled_sources() if s.kind == "db" and s.schema_json]
                 if _dbs:
                     market_src = _dbs[0]
-                    market_schema = (_ds.cmots_catalog_text()
-                                     if (market_src.name or "").upper() == "CMOTS"
-                                     else _ds.schema_text([market_src], max_tables=40, max_cols=25))
+                    market_schema = _ds.schema_text([market_src], max_tables=50, max_cols=40)
             except Exception:
                 market_src, market_schema = None, ""
             plan_sys = (
@@ -1202,7 +1200,8 @@ async def ask(question: str, session_id: str = "default", language: str = "en",
                     "there. For 'market' queries, restrict to the same universe where possible."
                   ) if uni_syms is not None else "")
                 + "\n\nAPP SCHEMA (source 'app'):\n" + db_query.schema_doc()
-                + (("\n\nMARKET SCHEMA (source 'market'):\n" + market_schema) if market_src else ""))
+                + (("\n\nMARKET SCHEMA (source 'market'):\n" + market_schema) if market_src else "")
+                + "\n\n" + _metric_map_text())
             plan = await get_llm_router().complete(plan_sys, "Question: " + question,
                                       task="sql_plan", max_tokens=350, temperature=0.0)
             mqs = re.search(r"\{.*\}", plan.text, re.DOTALL)
@@ -1865,6 +1864,16 @@ def _index_membership_answer(question, db):
                       for sm in shown)
     more = ("\n\n...and **%d** more." % (len(pool) - cap)) if len(pool) > cap else ""
     return "%s (%d total):\n\n%s%s\n\nBasis: NIYTRI AI" % (head, len(pool), lines, more)
+
+
+def _metric_map_text() -> str:
+    """Semantic metric map so the SQL planner resolves domain terms (ROCE, promoter
+    holding, margins, growth) to the right tables/columns instead of guessing."""
+    try:
+        from app.services.metric_catalog import catalog_text
+        return catalog_text()
+    except Exception:
+        return ""
 
 
 def _universe_symbols(db, universe):

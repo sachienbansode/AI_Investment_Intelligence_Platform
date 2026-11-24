@@ -110,5 +110,19 @@ check("index name but no intent returns None",
       _asst._index_membership_answer("nifty 500", None) is None
       or isinstance(_asst._index_membership_answer("nifty 500", None), str), True)
 
+print("== Metric catalog (semantic layer) ==")
+from app.services import metric_catalog as mc  # noqa: E402
+def _resolves(term, key):
+    return key in [r["key"] for r in mc.resolve(term)]
+check("'roce' -> roce", _resolves("roce", "roce"), True)
+check("'return on capital employed' -> roce", _resolves("return on capital employed", "roce"), True)
+check("'promoter holding' -> promoter_holding", _resolves("promoter holding", "promoter_holding"), True)
+check("'net margin' -> net_margin", _resolves("net margin", "net_margin"), True)
+check("'debt to equity' -> debt_equity", _resolves("debt to equity", "debt_equity"), True)
+_ct = mc.catalog_text()
+check("catalog names performanceratios", "performanceratios" in _ct, True)
+check("catalog names shareholdingpatterndetailed", "shareholdingpatterndetailed" in _ct, True)
+check("catalog lists NOT AVAILABLE section", "NOT AVAILABLE" in _ct, True)
+
 print("\n%d passed, %d failed" % (_pass, _fail))
 sys.exit(1 if _fail else 0)
